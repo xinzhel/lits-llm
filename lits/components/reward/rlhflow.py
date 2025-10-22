@@ -1,0 +1,45 @@
+import logging
+import numpy as np
+from lits.components.utils import extract_existing_steps, create_role
+from lits.components.base import RewardModel
+
+logger = logging.getLogger(__name__)
+
+class RLHFlowPRM(RewardModel):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.reward_alpha = 1 # so that reward == r_useful 
+        
+    def _fast_reward(self, example, example_idx, state, action, from_phase="") -> tuple[float, dict]:
+        def get_reward(question, existing_steps, next_step, role=None):
+            conversation = []
+            # question + existing steps
+            for k, step in enumerate(existing_steps):
+                if k == 0:
+                    conversation.append({"content": question + " " + step, "role":"user"})
+                else:
+                    conversation.append({"content": step, "role":"user"})
+
+            # next step
+            input_ids = self.base_model.tokenizer.apply_chat_template(conversation + [{"content": next_step, "role":"user"}, {"content":"+","role":"assistant"}],return_tensors="pt").to("cuda")
+            # print(input_ids)
+            # with torch.no_grad():
+                # logits = base_model.model(input_ids).logits[:,-3,candidate_tokens] #simple version, the +/- is predicted by the '-3' position
+                # score = logits.softmax(dim=-1)[:,0] # 0 means the prob of + (1 mean -)
+                # score = score[0].detach().to('cpu', dtype=torch.float32).item()
+            logits = self.base_model.get_next_token_logits( prompt=None, candidates=['+', '-'], role=role, input_ids=input_ids, toekn_idx_for_logit=-3)
+            score = np.exp(logits) / np.sum(np.exp(logits))
+            score = score[0]
+            return score
+        score = get_reward(example, extract_existing_steps(state), action, role=create_role("evaluator_logits", example_idx, from_phase))
+        return score
+    
+    def calculate_reward(self, useful_prob: float) -> tuple[float, dict]:
+        """ Same as RestEvaluator.reward. But maintain it for the calling from QAEvaluator.fast_reward """    
+        return useful_prob
+    
+    def reward(self, state, action,
+            r_useful: float = None,
+            confidence: float = None) -> tuple[float, dict]:
+        
+        return r_useful #, {'r_useful': r_useful, 'r_conf': 1}

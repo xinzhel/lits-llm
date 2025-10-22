@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lits-llm"
+version = "0.2.1"
+description = "LITS: LLM Inference via Tree Search — modular agentic reasoning framework."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Xinzhe Li", email = "sergioli212@outlook.com" }]
+keywords = ["LLM", "agent", "reasoning", "planning", "tree search"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent"
+]
+
+dependencies = [
+    # --- Core Python packages ---
+    "numpy>=2.2.5",
+    "pandas>=2.2.3",
+    "regex>=2024.5.15",
+    "requests>=2.32.3",
+    "filelock>=3.18.0",
+    "pydantic>=2.8.2",
+    "diskcache",
+    "accelerate>=1.6.0",
+    "huggingface-hub>=0.30.2",
+    "openai>=1.35.10",
+    "safetensors>=0.4.3",
+    "tokenizers>=0.21.0",
+
+    # --- Torch stack (core, not optional) ---
+    "torch>=2.5.1",
+    "torchaudio>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchviz>=0.0.3",
+
+    # --- Transformers ecosystem ---
+    "transformers>=4.51.3",
+    "datasets",
+    "autoawq>=0.1.0",
+    "inflect>=7.0.0",
+
+    # --- LangChain ecosystem ---
+    "langchain>=0.2.0",
+    "langchain-huggingface>=0.0.1",
+    "langchain-community>=0.2.0",
+
+    # --- Geospatial / database ---
+    "psycopg2-binary",
+    "geoalchemy2",
+    "geopandas",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ipykernel",
+    "ipython",
+    "jupyter_client",
+    "jupyter_core",
+    "matplotlib-inline",
+    "notebook",
+]
+
+[project.urls]
+Homepage = "https://github.com/xinzhel/langagent"
+Repository = "https://github.com/xinzhel/langagent"
+Issues = "https://github.com/xinzhel/langagent/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lits*"]
+
+[tool.setuptools]
+license-files = []
