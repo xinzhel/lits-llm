@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional
-from lits.components.structures.base import BaseConfig
+from ..base import BaseConfig
 
 @dataclass
 class BaseSearchConfig(BaseConfig):

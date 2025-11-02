@@ -5,7 +5,7 @@ from collections import defaultdict
 import logging
 import datasets
 import re
-from lits.components.utils import retrieve_answer_from_last_step, eval_output
+from ..components.utils import retrieve_answer_from_last_step, eval_output
 
 logger = logging.getLogger(__name__)
 

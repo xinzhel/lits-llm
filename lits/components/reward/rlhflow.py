@@ -1,7 +1,7 @@
 import logging
 import numpy as np
-from lits.components.utils import extract_existing_steps, create_role
-from lits.components.base import RewardModel
+from ..utils import extract_existing_steps, create_role
+from ..base import RewardModel
 
 logger = logging.getLogger(__name__)
 

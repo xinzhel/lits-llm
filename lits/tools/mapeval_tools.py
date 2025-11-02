@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field
-from langchain.tools import BaseTool
+from .base import BaseTool
 from typing import Type, Optional
 import inflect
-from ..tools.mapeval_client import MapEvalClient
+from ..clients.mapeval_client import MapEvalClient
 
 p = inflect.engine()
 
-# ===== Tool 输入模型 =====
+# ===== Input Schemas =====
 class PlaceSearchInput(BaseModel):
     placeName: str = Field(description="Name and address of the place")
 
@@ -30,7 +30,7 @@ class DirectionsInput(BaseModel):
     travelMode: str = Field(description="Mode of transportation (driving, walking, bicycling, transit)")
 
 
-# ===== 工具实现 =====
+# ===== Tool Implementations =====
 class PlaceSearchTool(BaseTool):
     name: str = "PlaceSearch"
     description: str = "Get place ID for a given location name and address."
@@ -52,7 +52,6 @@ class PlaceSearchTool(BaseTool):
         except Exception as e:
             return f"Error searching place: {str(e)}"
 
-
 class PlaceDetailsTool(BaseTool):
     name: str = "PlaceDetails"
     description: str = "Get detailed information for a given place ID."
@@ -70,7 +69,6 @@ class PlaceDetailsTool(BaseTool):
             return self.place_to_context(place)
         except Exception as e:
             return f"Incorrect Place ID or error: {str(e)}"
-        
     
     def place_to_context(self, place: dict) -> str:
         text = ""
@@ -126,7 +124,6 @@ class PlaceDetailsTool(BaseTool):
         
         return text
 
-
 class NearbyPlacesTool(BaseTool):
     name: str = "NearbyPlaces"
     description: str = "Get nearby places around a location."
@@ -166,7 +163,6 @@ class NearbyPlacesTool(BaseTool):
                 text += f"   - Rating: {place['rating']} ({place.get('user_ratings_total', 0)} ratings)\n"
         
         return text
-
 
 class TravelTimeTool(BaseTool):
     name: str = "TravelTime"

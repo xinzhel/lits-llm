@@ -1,30 +1,27 @@
-import json
-import os
+from typing import Generic, List, Tuple, TypeVar, Union
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple, TypeVar, Union
-
-State = TypeVar("State")
-Action = TypeVar("Action")
-Example = TypeVar("Example")
-Step = TypeVar("Step")
-Trace = Tuple[List[State], List[Action]]
-
-StateByStepList = list[Union[Step]]
-
-PolicyAction = str
-
 
 @dataclass
-class BaseConfig:
-    """Shared configuration base used by different LangTree components."""
+class Step:
+    pass
+@dataclass
+class State:
+    pass
+@dataclass
+class Action:
+    pass
 
-    reasoning_method: str  # "rest", "rap", "bfs", "react"
-    package_version: str = None
+# 泛型类型变量：必须是 State 或其子类
+StateT = TypeVar("StateT", bound=State)
+ActionT = TypeVar("ActionT", bound=Action)
+StepT = TypeVar("StepT", bound=Step)
 
-    def to_dict(self) -> Dict[str, Any]:
-        return self.__dict__
+@dataclass
+class Trace(Generic[StepT]):
+    steps: List[StepT]
 
-    def save_config(self, root_dir: str) -> None:
-        save_config_path = os.path.join(root_dir, f"{self.reasoning_method}_config.json")
-        with open(save_config_path, "w", encoding="utf-8") as f:
-            json.dump(self.to_dict(), f, indent=4)
+    def add(self, step: StepT):
+        self.steps.append(step)
+
+# 类型别名：StateByStepList 表示由 StepT 构成的列表
+StateByStepList = list[Union[StepT]]

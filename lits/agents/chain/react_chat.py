@@ -1,13 +1,34 @@
 import logging
 from pathlib import Path
 from typing import Optional
+from dataclasses import dataclass, asdict
+from ..utils import execute_tool_action
+from ...components.policy.tool_use import ToolUsePolicy
+from ...components.structures import ToolUseState, ToolUseStep
+from ...base_llm import HfChatModel, InferenceLogger
+from ...framework_config import DEFAULT_MODEL_NAME, DEFAULT_DEVICE, PACKAGE_VERSION
+from ..base import BaseConfig
 
-from lits.agents.utils import execute_tool_action
-from lits.components.policy.tool_use import ToolUsePolicy
-from lits.components.structures import ToolUseState, ToolUseStep
-
+    
 logger = logging.getLogger(__name__)
 
+@dataclass
+class ReactChatConfig(BaseConfig):
+    """Persistence helper mirroring other LiTS configs."""
+
+    model_name: Optional[str] = None
+    max_length: Optional[int] = None
+    enable_think: bool = True
+    gpu_device: Optional[str] = None
+    
+    secret_token: str = None
+    client_host: str = None
+    client_port: int = None
+    timeout: int = 30
+
+    def to_dict(self):
+        return asdict(self)
+    
 class ReActChat:
     """Implements a ReAct-style reasoning-and-acting loop for tool-augmented LLMs.
 
@@ -82,3 +103,54 @@ class ReActChat:
 
         return step
 
+def create_react_chat_agent(
+    tools: list,
+    tool_context: str="",
+    root_dir: str = "./results",
+    model_name=DEFAULT_MODEL_NAME, 
+    max_length=32768, 
+    device=DEFAULT_DEVICE, 
+    enable_think_policy=True,
+    max_iter: int = 50,
+    verbose_model=False, 
+):
+    """
+    Build and return a ReAct agent configured for tool-based reasoning.
+
+    This function loads tool definitions (same as CLUE setup) but does not
+    rely on dataset iteration. It is suitable for interactive API calls.
+    """
+
+    # Load LLM backbone
+    base_model = HfChatModel.load_from_hf(
+        model_name,
+        device=device,
+        enable_thinking=enable_think_policy,
+        sys_prompt=None,
+        max_length=max_length,
+        verbose=verbose_model,
+    )
+    inference_logger = InferenceLogger(run_id="", root_dir=root_dir, override=True)
+    base_model.inference_logger = inference_logger
+
+    # Save configuration
+    ReactChatConfig(
+        reasoning_method="react_chat",
+        package_version=PACKAGE_VERSION,
+        model_name=model_name,
+        enable_think=enable_think_policy,
+        gpu_device=device,
+        max_length=max_length,
+    ).save_config(root_dir)
+
+    # Construct policy and agent
+    policy = ToolUsePolicy(
+        base_model=base_model,
+        tools=tools,
+        tool_context=tool_context,
+        task_instruction=None,
+        max_length=max_length,
+        n_actions=1,
+    )
+    agent = ReActChat(policy, max_iter=max_iter)
+    return agent

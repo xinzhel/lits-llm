@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lits-llm"
-version = "0.2.1"
+version = "0.2.3"
 description = "LITS: LLM Inference via Tree Search — modular agentic reasoning framework."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,28 +26,28 @@ dependencies = [
     "filelock>=3.18.0",
     "pydantic>=2.8.2",
     "diskcache",
-    "accelerate>=1.6.0",
-    "huggingface-hub>=0.30.2",
     "openai>=1.35.10",
     "safetensors>=0.4.3",
     "tokenizers>=0.21.0",
 
     # --- Torch stack (core, not optional) ---
-    "torch>=2.5.1",
-    "torchaudio>=2.5.1",
-    "torchvision>=0.20.1",
-    "torchviz>=0.0.3",
+    "accelerate==1.6.0",
+    "torch==2.5.1",
+    "torchaudio==2.5.1",
+    "torchvision==0.20.1",
+    "torchviz==0.0.3",
 
     # --- Transformers ecosystem ---
-    "transformers>=4.51.3",
+    "transformers==4.51.3",
+    "huggingface-hub>=0.30.2",
     "datasets",
-    "autoawq>=0.1.0",
-    "inflect>=7.0.0",
+    "autoawq; platform_system == 'Linux'",
+    "inflect",
 
     # --- LangChain ecosystem ---
-    "langchain>=0.2.0",
-    "langchain-huggingface>=0.0.1",
-    "langchain-community>=0.2.0",
+    "langchain",
+    "langchain-huggingface",
+    "langchain-community",
 
     # --- Geospatial / database ---
     "psycopg2-binary",
@@ -63,6 +63,8 @@ dev = [
     "jupyter_core",
     "matplotlib-inline",
     "notebook",
+    "build", 
+    "twine"
 ]
 
 [project.urls]

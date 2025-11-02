@@ -1,6 +1,6 @@
 from typing import List, Tuple, Dict
-from .framework_config import qa_rest
-import pandas as pd
+from ..framework_config import qa_rest
+
 class PromptTemplate:
     """
     A lightweight string templating utility for safely formatting LLM prompts.

@@ -1,10 +1,11 @@
 import re
 import logging
 from typing import Optional
+from pydantic import BaseModel
 from ..framework_config import gsm8k_rap
 from ..base_llm import HfChatModel, HfModel,DETERMINISTIC_TEMPERATURE
 from .structures import (
-    State, 
+    StateT, 
     StateByStepList,
     SubQAStep,
     ThoughtStep,
@@ -24,7 +25,7 @@ def create_role(llm_role, example_idx=None, from_phase=""):
     role += f"_{from_phase}" if from_phase is not None and from_phase != '' else ''
     return role
     
-def extract_existing_steps(state: State) -> list[str]:
+def extract_existing_steps(state: StateT) -> list[str]:
     existing_steps = []
     for idx, thought in enumerate(state):
         assert isinstance(thought.get_action(), str)
@@ -32,6 +33,58 @@ def extract_existing_steps(state: State) -> list[str]:
     return existing_steps
 
 # ----------------- Verbalization ---------------- 
+# --- Tool verbalization ---
+def verb_tool(tool, include_schema: bool = True) -> str:
+    """Generate a verbal description of a tool, including its schema if requested.
+
+    Args:
+        tool (BaseTool): The tool to describe.
+        include_schema (bool, optional): Whether to include the tool's argument schema in the description. Defaults to False.
+
+    Returns:
+        str: A string describing the tool and its arguments (if included). 
+        
+        Example schema (`props`):
+            {'placeName': {'description': 'Name and address of the place', 'title': 'Placename', 'type': 'string'}}
+    
+        Example output with schema:
+            PlaceSearch: Get place ID for a given location name and address.
+            Arguments:
+            - placeName (string): Name and address of the place
+    """
+    base_info = f"{tool.name}: {tool.description}"
+
+    if include_schema and hasattr(tool, "args_schema"):
+        schema_model = tool.args_schema
+        # Some tools populate args_schema with a BaseModel subclass while others
+        # provide None. Guard against non-class values.
+        if (
+            isinstance(schema_model, type)
+            and issubclass(schema_model, BaseModel)
+            and schema_model is not BaseModel  # 避免直接是 BaseModel
+        ):
+            schema = schema_model.model_json_schema()
+        elif isinstance(schema_model, BaseModel):
+            schema = schema_model.model_json_schema()
+        else:
+            schema = None
+        if schema:
+            # Get property descriptions from JSON schema
+            props = schema.get("properties", {})
+            arg_lines = [
+                f"  - {name} ({prop.get('type', 'object')}): {prop.get('description', 'No description provided')}"
+                for name, prop in props.items()
+            ]
+            schema_text = "\n".join(arg_lines)
+            return f"{base_info}\nArguments:\n{schema_text}"
+    return base_info
+
+def verb_tools(tools, include_schema: bool = True, join_str: str = "\n\n") -> str:
+    """Generate verbal descriptions for a list of tools.
+    """
+    return join_str.join([verb_tool(tool, include_schema) for tool in tools])
+
+# --- State verbalization ---
 def verbalize_rap_state(question, state, n_shots=4):
     usr_msg_dict = gsm8k_rap["actor_dynamics"]
     user_message = usr_msg_dict["question_prefix"].format(idx=n_shots + 1, question=question) + "\n"

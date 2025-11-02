@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Iterable
 
-from ...agents.search.type_registry import TYPE_REGISTRY
+from ...agents.tree_search.type_registry import TYPE_REGISTRY
 
 from .base import StateByStepList
 

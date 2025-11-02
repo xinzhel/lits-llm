@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 
 from ..base import Transition
-from ..tool_use import ToolUseState, ToolUseStep
+from ..structures import ToolUseState, ToolUseStep
 from ...agents.utils import execute_tool_action
 from ..structures import log_state
 

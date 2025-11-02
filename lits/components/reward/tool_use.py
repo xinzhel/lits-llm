@@ -1,4 +1,4 @@
-from lits.components.base import RewardModel
+from ..base import RewardModel
 
 
 class ToolUsePRM(RewardModel):

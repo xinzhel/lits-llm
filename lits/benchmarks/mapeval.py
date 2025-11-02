@@ -1,3 +1,4 @@
+import re
 def construct_prompt(item):
     """ 
     return: 
@@ -39,8 +40,6 @@ def extract(s):
             return char
     return None  # Return None if no numeric character is found
 
-
-import re
 def retrieve_answer(text: str) -> int | None:
     """
     Extracts the option number from a string formatted as ^^Option_Number^^ 

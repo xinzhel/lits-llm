@@ -4,12 +4,13 @@ from collections import defaultdict
 import logging
 import time
 from pyarrow.types import is_temporal
-from lits.components.structures.base import State
-from lits.agents.search.node import SearchNode
-from lits.agents.search.config import BaseSearchConfig
-from lits.agents.search.continuation import _continuation
-from lits.base_llm import DETERMINISTIC_TEMPERATURE  
-from lits.agents.search.common import _world_modeling, _is_terminal_with_depth_limit, _sample_actions_with_existing
+from ...components.structures.base import State
+from .node import SearchNode
+from .base import BaseSearchConfig
+from .continuation import _continuation
+from ...base_llm import DETERMINISTIC_TEMPERATURE  
+from .common import _world_modeling, _is_terminal_with_depth_limit, _sample_actions_with_existing
+
 logger = logging.getLogger(__name__)
 
 @dataclass

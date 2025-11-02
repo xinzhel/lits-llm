@@ -1,9 +1,7 @@
-import json
-import ast
 import re
-from typing import List, Callable, Optional
-from lits.utils.json_parser import parse_json_string
-
+from typing import List, Callable
+from ..utils.json_parser import parse_json_string
+PREFIX_FOR_ERROR_OBSERVATION = "Error executing tool "
 def extract_tag_content(text: str, tag: str) -> list[str]:
     """
     Extracts all contents enclosed within a specific XML-like tag.
@@ -74,7 +72,9 @@ def execute_tool_action(action_data: str, tools: list):
         else:
             raise AttributeError(f"Tool {tool_name} has no callable method.")
     except Exception as e:
-        raise RuntimeError(f"Error executing tool '{tool_name}': {e}")
+        
+        # raise RuntimeError(f"Error executing tool '{tool_name}': {e}")
+        return f"{PREFIX_FOR_ERROR_OBSERVATION}'{tool_name}': {e}"
 
     # --- 5. Return observation ---
     return result

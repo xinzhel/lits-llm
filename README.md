@@ -13,15 +13,15 @@ Personal agent toolkit for modular LLM search, planning, and tool-use workflows.
 - Built-in telemetry hooks for observability and benchmarking.
 
 ## Installation
-### PyPI (recommended)
-```bash
-pip install lits-llm
-```
 
-### Local editable install
-```bash
-pip install -e .
-```
+| Command                                                                                                           | Meaning                                                                                                                          |
+| ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `pip install .`                                                                                                   | Installs your package from the current directory (normal install).                                                               |
+| `pip install -e .`                                                                                                | Installs in **editable mode** — changes to local source code take effect instantly.                                              |
+| `pip install -e .[dev]`                                                                                           | Editable install **plus** development extras (e.g. `pytest`, `black`, etc.).                                                     |
+| `pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple lits-llm==0.2.2` | Installs your package from **Test PyPI**, while resolving dependencies from the **real PyPI** (recommended for testing uploads). |
+
+
 
 ## Quickstart
 TBA
@@ -43,13 +43,15 @@ TBA
 
 ## Distribution on Pypi 
 
+Build
+```bash
+python -m build
+```
+
 Upload to Test PyPI
 ```bash
 pip install twine
 twine upload --repository testpypi dist/*
-pip install --index-url https://test.pypi.org/simple/ \
-            --extra-index-url https://pypi.org/simple \
-            lits-llm==0.2.1
 ```
 
 Upload to official PyPI

@@ -1,4 +1,4 @@
-from langagent.components.base import Policy
+from ..base import Policy
 import logging
 import re
 from ...base_llm import HfChatModel

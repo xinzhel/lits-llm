@@ -2,10 +2,10 @@ from typing import List, Tuple, Optional, Callable, Generic, TypeVar
 import itertools
 import numpy as np
 from typing import Dict, Any
-from lits.components.structures import State, Action
-from lits.agents.search.type_registry import TYPE_REGISTRY
+from ...components.structures import StateT, ActionT
+from .type_registry import TYPE_REGISTRY
 
-class SearchNode(Generic[State, Action]):
+class SearchNode(Generic[StateT, ActionT]):
     
     id_iter = itertools.count()
 
@@ -13,7 +13,15 @@ class SearchNode(Generic[State, Action]):
     def reset_id(cls):
         cls.id_iter = itertools.count()
 
-    def __init__(self, state: Optional[State], action: Optional[Action], parent: Optional['SearchNode'] = None, fast_reward: float = -1, children: Optional[List['BeamSearchNode']] = None, is_terminal: bool = False):
+    def __init__(
+        self, 
+        state: Optional[StateT], 
+        action: Optional[ActionT], 
+        parent: Optional['SearchNode'] = None, 
+        fast_reward: float = -1, 
+        children: Optional[List['SearchNode']] = None, 
+        is_terminal: bool = False
+    ):
         """
         A node in the search tree
 
@@ -42,7 +50,7 @@ class SearchNode(Generic[State, Action]):
     def add_child(self, child: 'SearchNode'):
         self.children.append(child)
     
-    def get_trace(self) -> List[Tuple[Action, State, float]]:
+    def get_trace(self) -> List[Tuple[ActionT, StateT, float]]:
         """ Returns the sequence of actions and states from the root to the current node """
         node, path = self, []
         while node is not None:
@@ -103,8 +111,8 @@ class SearchNode(Generic[State, Action]):
         node.fast_reward = dct.get("fast_reward", -1)
         return node
 
-class MCTSNode(SearchNode[State, Action]):
-    def __init__(self, state: Optional[State], action: Optional[Action], parent: Optional['MCTSNode'] = None,
+class MCTSNode(SearchNode[StateT, ActionT]):
+    def __init__(self, state: Optional[StateT], action: Optional[ActionT], parent: Optional['MCTSNode'] = None,
                  fast_reward: float = -1, fast_reward_details=None,
                  is_terminal: bool = False, calc_q: Callable[[List[float]], float] = None):
         """
@@ -177,7 +185,7 @@ class MCTSNode(SearchNode[State, Action]):
 MCTSNode.set_default_calc_q(np.mean)
   
 
-class BeamSearchNode(SearchNode[State, Action]):
-    def __init__(self, state: State, action: Action, reward: float, parent: Optional['BeamSearchNode'] = None, children: Optional[List['BeamSearchNode']] = None):
+class BeamSearchNode(SearchNode[StateT, ActionT]):
+    def __init__(self, state: StateT, action: ActionT, reward: float, parent: Optional['BeamSearchNode'] = None, children: Optional[List['BeamSearchNode']] = None):
         super().__init__(state, action, parent, children)
         self.reward = reward

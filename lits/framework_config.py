@@ -1,3 +1,8 @@
+
+DEFAULT_MODEL_NAME = "Qwen/Qwen3-32B-AWQ"
+DEFAULT_DEVICE = "cuda"
+PACKAGE_VERSION = "0.2.0"
+
 gsm8k_rap = {
     "actor_dynamics": {
         "instruction": "Given a question, please decompose it into sub-questions. For each sub-question, please answer it in a complete sentence, ending with \"The answer is\". When the original question is answerable, please start the subquestion with \"Now we can answer the question: \".",

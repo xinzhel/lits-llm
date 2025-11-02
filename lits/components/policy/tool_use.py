@@ -3,17 +3,18 @@ from typing import Optional
 
 from lits.base_llm import HfChatModel
 from lits.components.base import Policy
-from lits.components.tool_use import verb_tools
-from lits.components.structures import ToolUseState, ToolUseStep
-from lits.components.utils import create_role
-from lits.agents.prompt import react_chat_tag_template
-from lits.prompt import PromptTemplate
+from ..utils import verb_tools
+from ...components.structures import ToolUseState, ToolUseStep
+from ...components.structures.base import ActionT
+from ...components.utils import create_role
+from ...prompts.policy.tool_use import react_chat_tag_template
+from ...prompts.prompt import PromptTemplate
 
 logger = logging.getLogger(__name__)
 
 sys_msg_template = PromptTemplate(react_chat_tag_template)
 
-class ToolUsePolicy(Policy[ToolUseState, ToolUseStep, str]):
+class ToolUsePolicy(Policy[ToolUseState, ActionT]):
     """Policy that samples the next ReAct tool-use step from a chat model."""
 
     def __init__(

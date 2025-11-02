@@ -1,11 +1,12 @@
+""" Tool use step and state representations."""
 import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, ClassVar, Optional
-
-from lits.agents.search.type_registry import register_type
-from lits.agents.utils import make_tag_extractor
+from .base import Step, State, Action
+from ...agents.tree_search.type_registry import register_type
+from ...agents.utils import make_tag_extractor
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ def _extract_first(extractor: Callable[[str], list], message: str):
 
 @register_type
 @dataclass
-class ToolUseStep:
+class ToolUseStep(Step):
     """Single ReAct step capturing thought, tool invocation, observation, and answer."""
 
     think: str = ""
@@ -170,7 +171,7 @@ class ToolUseStep:
         )
 
 
-class ToolUseState(list[ToolUseStep]):
+class ToolUseState(State, list[ToolUseStep]):
     """State container for tool-use traces; each entry is a ToolUseStep."""
 
     def render_history(self) -> str:

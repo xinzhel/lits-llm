@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from .agents.search.node import SearchNode
+from .agents.tree_search.node import SearchNode
 import json
 import os
 from typing import List, Dict, Union
@@ -10,6 +10,22 @@ logger = logging.getLogger(__name__)
 # Assume SearchNode (and its .to_dict()/.from_dict()) is already defined
 # and in scope, including the is_continuous attribute.
 # -------------------------------------------------------------------
+
+def prepare_dir(benchmark: str, model_name: str, verbose=False):
+    # Prepare directories
+    root_dir = os.path.join(
+        f"../results_{benchmark}",
+        model_name.split("/")[-1],
+    )
+    os.makedirs(root_dir, exist_ok=True)
+    checkpoints_dir = os.path.join(root_dir, "checkpoints")
+    logs_dir = os.path.join(root_dir, "logs")
+    os.makedirs(checkpoints_dir, exist_ok=True)
+    os.makedirs(logs_dir, exist_ok=True)
+    if verbose:
+        print(f"Checkpoints will be saved to: {checkpoints_dir}")
+        print(f"Logs will be saved to: {logs_dir}")
+    return root_dir, checkpoints_dir, logs_dir
 
 class BaseResults(ABC):
     """

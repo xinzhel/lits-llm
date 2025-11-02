@@ -1,4 +1,4 @@
-from lits.agents.search.node import SearchNode
+from .node import SearchNode
 import logging
 import copy
 

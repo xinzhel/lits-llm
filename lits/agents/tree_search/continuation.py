@@ -1,6 +1,6 @@
-from langagent.components.base import Transition, Policy, RewardModel
-from langagent.agents.search.node import SearchNode
-from langagent.agents.search.common import visualize_path, _is_terminal_with_depth_limit
+from ...components.base import Transition, Policy, RewardModel
+from ..tree_search.node import SearchNode
+from ..tree_search.common import visualize_path, _is_terminal_with_depth_limit
 import logging
 
 logger = logging.getLogger(__name__)

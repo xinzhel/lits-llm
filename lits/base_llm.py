@@ -349,8 +349,9 @@ class HfModel:
         max_length, max_new_tokens = self._get_gen_legnth(max_new_tokens, max_length)
 
         # running time
-        torch.cuda.empty_cache()   # releases unreferenced memory
-        torch.cuda.reset_peak_memory_stats() # Resets PyTorch’s bookkeeping counters for memory tracking; Resets PyTorch’s bookkeeping counters for memory tracking.
+        if "cuda" in self.model.device.type:
+            torch.cuda.empty_cache()   # releases unreferenced memory
+            torch.cuda.reset_peak_memory_stats() # Resets PyTorch’s bookkeeping counters for memory tracking; Resets PyTorch’s bookkeeping counters for memory tracking.
 
         start_time = time.time()
         output_ids = self.model.generate(
@@ -439,7 +440,8 @@ class HfModel:
         
         max_length, max_new_tokens = self._get_gen_legnth(max_new_tokens, max_length)
 
-        torch.cuda.empty_cache()
+        if "cuda" in self.model.device.type:
+            torch.cuda.empty_cache()
         start_time = time.time()
         output_ids = self.model.generate(
             **model_inputs,
@@ -542,16 +544,26 @@ class HfModel:
         return selected_logits
 
     @classmethod
-    def _cache_from_hf(cls, model_name: str, device: str="cuda"):
+    def _cache_from_hf(cls, model_name: str, device: str="auto"):
         if model_name in LOADED_MODEL_CACHE:
             model, tokenizer = LOADED_MODEL_CACHE[model_name]
         else:
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                device_map=device,
-                torch_dtype="auto"
-            )
+            tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+            if "Qwen3-235B-A22B-Thinking-2507-FP8" in model_name:
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    device_map="auto",                   # automatically split across all 8 A100 GPUs
+                    torch_dtype="auto",
+                    attn_implementation="flash_attention_2",  # enable flash attention for speed
+                    trust_remote_code=True,
+                    low_cpu_mem_usage=True
+                )
+            else:
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    device_map=device,
+                    torch_dtype="auto"
+                )
             LOADED_MODEL_CACHE[model_name] = (model, tokenizer)
         return model, tokenizer
         

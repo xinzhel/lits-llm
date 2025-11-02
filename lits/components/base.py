@@ -1,19 +1,19 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Union, Tuple
-from .structures import State, Action, Example
+from .structures import StateT, ActionT
 from ..base_llm import DETERMINISTIC_TEMPERATURE
 import logging
 logger = logging.getLogger(__name__)
 
-class Transition(ABC, Generic[State, Action, Example]):
+class Transition(ABC, Generic[StateT, ActionT]):
     def __init__(self) -> None:
         pass
 
     @abstractmethod
-    def init_state(self) -> State: ...
+    def init_state(self) -> StateT: ...
 
     @abstractmethod
-    def step(self, example: str, state: State, action: Action) -> Union[State, Tuple[State, dict]]:
+    def step(self, example: str, state: StateT, action: ActionT) -> Union[StateT, Tuple[StateT, dict]]:
         """ Returns the next state and optionally an auxiliary data dict
 
         :param state: The current state
@@ -23,9 +23,9 @@ class Transition(ABC, Generic[State, Action, Example]):
         ...
 
     @abstractmethod
-    def is_terminal(self, state: State) -> bool: ...
+    def is_terminal(self, state: StateT) -> bool: ...
     
-class Policy(ABC, Generic[State, Action, Example]):
+class Policy(ABC, Generic[StateT, ActionT]):
     def __init__(self,
                  base_model,
                  task_instruction,
@@ -58,7 +58,7 @@ class Policy(ABC, Generic[State, Action, Example]):
         self.depth_limit = depth_limit
         
     
-    def get_actions(self, example, state: State,  n_actions=None, example_idx=None, critic=None, from_phase="") -> list[Action]:
+    def get_actions(self, example, state: StateT,  n_actions=None, example_idx=None, critic=None, from_phase="") -> list[ActionT]:
         logger.debug(f"\n>>>>>>>>> + {n_actions} Policy Call; Outputs (BEGIN) <<<<<<<<<")
         logger.debug("State sent to model: %s", state)
 
@@ -81,10 +81,10 @@ class Policy(ABC, Generic[State, Action, Example]):
         return outputs
     
     @abstractmethod
-    def _get_actions(self, example, state: State, n_actions, temperature, at_depth_limit, example_idx, critic: str=None, from_phase=""):
+    def _get_actions(self, example, state: StateT, n_actions, temperature, at_depth_limit, example_idx, critic: str=None, from_phase=""):
         raise NotImplementedError("_get_actions is not implemented for Policy")
 
-class RewardModel(ABC, Generic[State, Action, Example]):
+class RewardModel(ABC, Generic[StateT, ActionT]):
     def __init__(self,
                  base_model,
                  max_length=None,
