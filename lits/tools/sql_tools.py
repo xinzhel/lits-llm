@@ -5,6 +5,7 @@ The RDB tools are adapters turning LangChain SQLDatabaseTools into LiTS-LLM unif
 from typing import Any, List, Type
 from pydantic import BaseModel, PrivateAttr
 from .base import BaseTool
+from ..clients.sql_client import SQLDBClient
 from langchain_community.tools.sql_database.tool import (
     InfoSQLDatabaseTool as LCInfoSQLDatabaseTool,
     ListSQLDatabaseTool as LCListSQLDatabaseTool,
@@ -14,7 +15,7 @@ from langchain_community.tools.sql_database.tool import (
 class QuerySQLDatabaseTool(LCQuerySQLDatabaseTool, BaseTool): # Method Resolution Order: LCQuerySQLDatabaseTool -> Tool -> object
     """Execute SQL queries on the database."""
     
-    def __init__(self, client):
+    def __init__(self, client: SQLDBClient):
         LCQuerySQLDatabaseTool.__init__(self, db=client.db)
         BaseTool.__init__(self, client=client)
         # self.name = LCQuerySQLDatabaseTool.name

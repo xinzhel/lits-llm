@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class RLHFlowPRM(RewardModel):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(base_model=kwargs.pop("base_model", None), task_prompt_spec=kwargs.pop("task_prompt_spec", None), **kwargs)
         self.reward_alpha = 1 # so that reward == r_useful 
         
     def _fast_reward(self, example, example_idx, state, action, from_phase="") -> tuple[float, dict]:
@@ -34,9 +34,9 @@ class RLHFlowPRM(RewardModel):
         score = get_reward(example, extract_existing_steps(state), action, role=create_role("evaluator_logits", example_idx, from_phase))
         return score
     
-    def calculate_reward(self, useful_prob: float) -> tuple[float, dict]:
+    def calculate_reward(self, fast_reward: float) -> tuple[float, dict]:
         """ Same as RestEvaluator.reward. But maintain it for the calling from QAEvaluator.fast_reward """    
-        return useful_prob
+        return fast_reward
     
     def reward(self, state, action,
             r_useful: float = None,

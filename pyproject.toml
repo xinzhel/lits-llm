@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lits-llm"
-version = "0.2.3"
+version = "0.2.6"
 description = "LITS: LLM Inference via Tree Search — modular agentic reasoning framework."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,6 +19,7 @@ classifiers = [
 
 dependencies = [
     # --- Core Python packages ---
+    "python-dotenv",
     "numpy>=2.2.5",
     "pandas>=2.2.3",
     "regex>=2024.5.15",
@@ -53,6 +54,13 @@ dependencies = [
     "psycopg2-binary",
     "geoalchemy2",
     "geopandas",
+
+    # --- for memory ---
+    "mem0ai",
+    "sentence_transformers",
+    "litellm",
+    "boto3"
+
 ]
 
 [project.optional-dependencies]

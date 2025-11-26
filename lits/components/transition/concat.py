@@ -1,7 +1,8 @@
 import logging
 from typing import Union, Tuple
-from ..structures import StateByStepList, ThoughtStep, log_state
+from ...structures import ThoughtStep, log_state, StateT
 from ..base import Transition
+from ...lm.base import DETERMINISTIC_TEMPERATURE
 from ..utils import verbalize_concat_state, create_role, extract_existing_steps
 
 logger = logging.getLogger(__name__)
@@ -57,14 +58,14 @@ Do not explain anything. Do not add extra text.
     def init_state(self) -> list:
         return []
 
-    def step(self, example: str, state: StateByStepList, action, example_idx: int=None, from_phase="") -> Union[StateByStepList, Tuple[StateByStepList, dict]]:
+    def step(self, example: str, state: StateT, action, example_idx: int=None, from_phase="") -> Union[StateT, Tuple[StateT, dict]]:
         new_state = state.copy()
         new_state.append(ThoughtStep(action))
         log_state(logger, new_state, header="ConcatTransition.step")
         return new_state, {"confidence": 1.}
 
         
-    def is_terminal(self, state: StateByStepList, example: str, fast_reward: float=None, example_idx: int=None, from_phase: str='') -> bool:
+    def is_terminal(self, state: StateT, example: str, fast_reward: float=None, example_idx: int=None, from_phase: str='') -> bool:
         
         if "reward_threshold" in self.terminate_constraints:
             
@@ -123,7 +124,7 @@ Do not explain anything. Do not add extra text.
 
         return True
 
-    def generate_critic(self, state: StateByStepList, example: str, example_idx: int=None, from_phrase:str='') -> bool:
+    def generate_critic(self, state: StateT, example: str, example_idx: int=None, from_phrase:str='') -> bool:
         # usr msg
         example_idx = f"_{example_idx}" if example_idx is not None else ''
         user_message = "Question: " + example + "\n"

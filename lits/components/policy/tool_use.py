@@ -1,27 +1,28 @@
 import logging
 from typing import Optional
 
-from lits.base_llm import HfChatModel
+from ...lm import HfChatModel, HfModel, OpenAIChatModel
+from ...lm.bedrock_chat import BedrockChatModel
+
 from lits.components.base import Policy
 from ..utils import verb_tools
-from ...components.structures import ToolUseState, ToolUseStep
-from ...components.structures.base import ActionT
+from ...structures import ToolUseState, ToolUseStep
+from ...structures.base import ActionT
 from ...components.utils import create_role
 from ...prompts.policy.tool_use import react_chat_tag_template
 from ...prompts.prompt import PromptTemplate
 
 logger = logging.getLogger(__name__)
 
-sys_msg_template = PromptTemplate(react_chat_tag_template)
-
 class ToolUsePolicy(Policy[ToolUseState, ActionT]):
     """Policy that samples the next ReAct tool-use step from a chat model."""
 
     def __init__(
         self,
-        *,
         base_model,
         tools,
+        task_prompt_spec=None,
+        task_type: Optional[str] = None,
         tool_context: str = "",
         stop_token: Optional[str] = "<observation>",
         **kwargs,
@@ -29,17 +30,23 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         self.tools = tools
         self.stop_token = stop_token
         
-        task_instruction = kwargs.pop("task_instruction", None)
-        if task_instruction is None:
-            task_instruction = sys_msg_template.format(
+        # Pass task_type to parent for registry loading
+        super().__init__(base_model=base_model, task_prompt_spec=task_prompt_spec, task_type=task_type, **kwargs)
+
+        # If task_prompt_spec is a PromptTemplate, format it with tool information
+        if isinstance(self.task_prompt_spec, PromptTemplate):
+            self.task_prompt_spec = self.task_prompt_spec.format(
                 tool_context= tool_context.rstrip() + "\n\n" if tool_context else "",
                 tool_string = verb_tools(tools),
                 tool_names = ", ".join([tool.name for tool in tools])
             )
-        super().__init__(base_model=base_model, task_instruction=task_instruction, **kwargs)
+            assert self.task_prompt_spec is not None, "task_prompt_spec is None after formatting."
 
-        if isinstance(self.base_model, HfChatModel):
-            self.base_model.sys_prompt = self.task_instruction
+        if isinstance(self.base_model, (HfChatModel, OpenAIChatModel, BedrockChatModel)):
+            self.base_model.sys_prompt = self.task_prompt_spec
+        else:
+            if self.task_prompt_spec:
+                logger.warning("task_prompt_spec exists but base_model does not support system prompts.")
 
     def _build_messages(self, query: str, state: ToolUseState) -> list[dict]:
         return state.to_messages(query)
@@ -51,7 +58,7 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         n_actions,
         temperature,
         at_depth_limit,
-        example_idx,
+        query_idx,
         critic: str = None,
         from_phase: str = "",
     ) -> list[ToolUseStep]:
@@ -64,7 +71,7 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         for _ in range(n_actions):
             response = self.base_model(
                 messages,
-                role=create_role("policy", example_idx, from_phase),
+                role=create_role("policy", query_idx, from_phase),
                 temperature=temperature,
                 max_length=self.max_length,
                 max_new_tokens=self.max_new_tokens,

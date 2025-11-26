@@ -2,11 +2,11 @@ import re
 import logging
 from typing import Optional
 from pydantic import BaseModel
-from ..framework_config import gsm8k_rap
-from ..base_llm import HfChatModel, HfModel,DETERMINISTIC_TEMPERATURE
-from .structures import (
+from ..prompts.policy.rap import prompt_dict as math_qa_prompt_dict
+from ..lm.base import HfChatModel, HfModel,DETERMINISTIC_TEMPERATURE, LanguageModel
+from ..structures import (
     StateT, 
-    StateByStepList,
+    StepConcatState,
     SubQAStep,
     ThoughtStep,
     ToolUseState,
@@ -86,7 +86,7 @@ def verb_tools(tools, include_schema: bool = True, join_str: str = "\n\n") -> st
 
 # --- State verbalization ---
 def verbalize_rap_state(question, state, n_shots=4):
-    usr_msg_dict = gsm8k_rap["actor_dynamics"]
+    usr_msg_dict = math_qa_prompt_dict["actor_dynamics"]
     user_message = usr_msg_dict["question_prefix"].format(idx=n_shots + 1, question=question) + "\n"
     for idx, (sub_question, sub_answer, _) in enumerate(state):
         user_message += usr_msg_dict["subquestion_prefix"].format(idx=n_shots + 1, sub_idx=idx + 1) + " " + sub_question + "\n"
@@ -122,10 +122,17 @@ def strip_num(num):
 
 def extract_numerical_answer(base_model, solution):
 
-    base_model.sys_prompt = """Given a science or math problem and a corresponding solution, your task is to retrieve a numerical answer from the given solution if it exists. ONLY output the numerical answer as a plain number—parsable by Python’s float(), with no extra characters, commas, or symbols. If the solution does not contain a numerical answer, output an empty string."""
-    user_message = "Solution:\n" + solution
-    answer = base_model(user_message, role=None, temperature=DETERMINISTIC_TEMPERATURE, max_length=32768, max_new_tokens=20, enable_thinking=False).text.lower().strip()
+    base_model.sys_prompt = """Given a question and a corresponding solution, your task is to retrieve a numerical answer from the given solution if it exists. ONLY output the numerical answer as a plain number—parsable by Python’s float(), with no extra characters, commas, or symbols. If the solution does not contain a numerical answer, output an empty string."""
+
+    answer = base_model(solution, role=None, temperature=DETERMINISTIC_TEMPERATURE, max_new_tokens=20, enable_thinking=False).text.lower().strip()
     return answer
+
+def extract_yes_no_answer(base_model, solution):
+
+    base_model.sys_prompt = """You are given a solution to a question. Your task is to extract the yes/no answer from the solution if it is explicitly provided. The output should strictly be one of the following: 'yes', 'no', or an empty string "" if no yes/no answer is present. Do not include any additional text, explanations, or formatting."""
+    answer = base_model(solution, role=None, temperature=DETERMINISTIC_TEMPERATURE, max_new_tokens=20, enable_thinking=False).text.lower().strip()
+    return answer
+    
 
 def eval_output(answer, output, type="number_exact"):
     """Evaluate the output of a model against the expected answer.
@@ -182,13 +189,29 @@ def normalize_yn(text):
         text = "no"
     return text
 
+def get_fn_retrieve_answer(base_model, answer_type="num", append_answer_to_state=False):
+    assert isinstance(base_model, LanguageModel), f"`base_model` should be a subclass of `LanguageModel`"
 
-def make_retrieve_answer(base_model):
-    def retrieve_answer(final_state: StateByStepList, question: str) -> Optional[str]:
+    if answer_type == "num":
+        extract_from_step_fn = retrieve_answer_from_last_step
+        extract_fn = extract_numerical_answer
+    elif answer_type == "yn":
+        extract_from_step_fn = None
+        extract_fn = extract_yes_no_answer
+    else:
+        raise ValueError(f"Answer type should be 'num' or 'yn', got {answer_type}")
+    
+    
+    def retrieve_answer(final_state, question: str) -> Optional[str]:
         '''
         final_state should be a world_model.StateByStepList if being a list
         '''
-        def add_last_step_to_final_state_and_return_float_answer():
+        if final_state is None or len(final_state) == 0:
+            return ""
+        
+        # ensure output is a terminal state
+        assert isinstance(final_state, list), f"final_state should be a list, got {type(final_state)}"
+        def extract_by_llm():
             logger.debug(f"Original last step: {final_state[-1].get_answer()}")
             sample_answers = []
             for _ in range(5):  # sample 5 times
@@ -196,9 +219,11 @@ def make_retrieve_answer(base_model):
                     solution = verbalize_concat_state(question, final_state)
                 elif isinstance(final_state[0], SubQAStep):
                     solution = verbalize_rap_state(question, final_state)
+                elif isinstance(final_state[0], ToolUseStep):
+                    solution = question + "\n\n" + final_state.render_history()
                 else:
                     raise ValueError(f"Unknown step type: {type(final_state[0])}")
-                answer = extract_numerical_answer(base_model, solution)
+                answer = extract_fn(base_model, solution)
                 logger.debug("Retrieve answer from the path, and append it to the final state: " + answer)
                 sample_answers.append(answer)
 
@@ -207,44 +232,35 @@ def make_retrieve_answer(base_model):
             logger.debug("Final answer after sampling: " + answer)
 
             # append the answer as the last step in the final trace
-            if isinstance(final_state[0], ThoughtStep):
-                final_state.append(ThoughtStep(action="The answer is " + answer))
-            elif isinstance(final_state[0], SubQAStep):
-                final_state.append(SubQAStep(sub_question="What is the final answer?", sub_answer="The answer is " + answer, confidence=1.0))
-            else:
-                raise ValueError(f"Unknown step type: {type(final_state[0])}")
-            logger.debug(f"Added last step: {final_state[-1].get_answer()}")
+            if append_answer_to_state:
+                if isinstance(final_state[0], ThoughtStep):
+                    final_state.append(ThoughtStep(action="The answer is " + answer))
+                elif isinstance(final_state[0], SubQAStep):
+                    final_state.append(SubQAStep(sub_question="What is the final answer?", sub_answer="The answer is " + answer, confidence=1.0))
+                else:
+                    raise ValueError(f"Unknown step type: {type(final_state[0])}")
+                logger.debug(f"Added last step: {final_state[-1].get_answer()}")
             return answer
 
-        if final_state is None or len(final_state) == 0:
-            return ""
-        
-        if isinstance(final_state, ToolUseState) or isinstance(final_state[0], ToolUseStep):
-            answer = final_state.get_final_answer() if hasattr(final_state, "get_final_answer") else final_state[-1].get_answer()
-            return answer if answer is not None else ""
-
-        # ensure output is a terminal state
-        assert isinstance(final_state, list), f"final_state should be a list, got {type(final_state)}"
-        assert isinstance(base_model, (HfChatModel, HfModel, type(None))), f"base_model should be HfChatModel or HfModel, got {type(base_model)}"
-
-        # extract the answer from the last step
-        answer = retrieve_answer_from_last_step(final_state[-1])
+        answer = ""
+        if extract_from_step_fn:
+            answer = extract_from_step_fn(final_state[-1])
 
         # use LLM to infer the answer
-        if base_model is not None:
-            # if answer is empty, use LLM to infer the answer
-            if answer == "":
-                answer = add_last_step_to_final_state_and_return_float_answer()
-                return answer
+        if answer == "" or not parsable_by_float(answer):
+            answer = extract_by_llm()
+            return answer
 
-            # if answer is not a number, use LLM to infer the answer
-            try:
-                float(answer)
-            except ValueError:
-                add_last_step_to_final_state_and_return_float_answer()
-        return answer
-                
     return retrieve_answer
+
+def parsable_by_float(text: str) -> bool:
+        # if answer is not a number, use LLM to infer the answer
+        try:
+            float(text)
+        except ValueError:
+            return False
+        return True
+                
 
 def retrieve_answer_from_last_step(step) -> Optional[str]:
     

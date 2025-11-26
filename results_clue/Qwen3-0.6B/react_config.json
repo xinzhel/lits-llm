@@ -1,8 +1,0 @@
-{
-    "reasoning_method": "react",
-    "package_version": "v0.2.1",
-    "model_name": "Qwen/Qwen3-0.6B",
-    "max_length": 32768,
-    "enable_think": true,
-    "gpu_device": "mps"
-}

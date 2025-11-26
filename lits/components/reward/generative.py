@@ -5,8 +5,8 @@ import copy
 import numpy as np
 from ..utils import verbalize_concat_state, create_role, strip_num
 from ..base import RewardModel
-from ..structures import StateByStepList, PolicyAction
-from ...base_llm import HfChatModel
+from ...structures import StateT, ActionT
+from ...lm import HfChatModel, infer_chat_model
 from ...eval import parse_reasoning_and_label
 
 logger = logging.getLogger(__name__)
@@ -14,19 +14,16 @@ logger = logging.getLogger(__name__)
 class GenerativePRM(RewardModel):
     """ A Process Reward Model that evaluates the correctness and usefulness of a new step in the reasoning trace by directly prompting generative LLMs."""
     def __init__(self, **kwargs):
-        task_instruction = kwargs.pop('eval_instruction', None)
-        
-        
         self.think_for_correctness = kwargs.pop('think_for_correctness', True)
         self.think_for_usefulness = kwargs.pop('think_for_usefulness', True)
         if self.think_for_correctness:
-            self.correctness_instruction = task_instruction['correctness_cot']
+            self.correctness_instruction = self.task_prompt_spec['correctness_cot']
         else:
-            self.correctness_instruction = task_instruction['correctness']
+            self.correctness_instruction = self.task_prompt_spec['correctness']
         if self.think_for_usefulness:
-            self.usefulness_instruction = task_instruction['usefulness_cot']
+            self.usefulness_instruction = self.task_prompt_spec['usefulness_cot']
         else:
-            self.usefulness_instruction = task_instruction['usefulness']
+            self.usefulness_instruction = self.task_prompt_spec['usefulness']
         self.n_for_correctness = kwargs.pop('n_for_correctness', 5)
         self.n_for_usefulness = kwargs.pop('n_for_usefulness', 5)
         self.save_dir = kwargs.pop('save_dir', None)
@@ -35,8 +32,9 @@ class GenerativePRM(RewardModel):
             self.file_path_correctness = os.path.join(self.save_dir, f"correctness.jsonl")
             self.file_path_usefulness = os.path.join(self.save_dir, f"usefulness.jsonl")
 
-        super().__init__(**kwargs)
+        super().__init__(base_model=kwargs.pop("base_model", None), task_prompt_spec=kwargs.pop("task_prompt_spec", None), **kwargs)
         self.reward_alpha = 1 # so that reward == r_useful 
+        assert infer_chat_model(self.base_model), f"ReST evaluator only supports Chat Model, got {type(self.base_model)}"
         
         
     def _generate_usr_msg(self, example, state, action) -> str:
@@ -46,11 +44,7 @@ class GenerativePRM(RewardModel):
         return user_message
         
     def _fast_reward(self, example, example_idx, state, action, from_phase="") -> tuple[float, dict]:
-        
-        if isinstance(self.base_model, HfChatModel):
-            user_message = self._generate_usr_msg(example, state, action)
-        else:
-            raise ValueError(f"ReST evaluator only supports HfChatModel, got {type(self.base_model)}")
+        user_message = self._generate_usr_msg(example, state, action)
 
         def save_results(file_path, score, reasoning, full_output):
             save_item = {
@@ -134,16 +128,13 @@ class GenerativePRM(RewardModel):
             self.base_model.sys_prompt = self.usefulness_instruction
             usefulness_score = generate_score(create_role("evaluator_usefulness", example_idx, from_phase), user_message, enable_thinking=self.think_for_usefulness)
             return usefulness_score
-        
-        # logits = self.base_model.get_next_token_logits(model_input, ["Yes", "No"], role=f"evaluator_logits_{example_idx}_{from_phase}")
-        
     
-    def calculate_reward(self, useful_prob: float) -> tuple[float, dict]:
+    def calculate_reward(self, fast_reward: float) -> tuple[float, dict]:
         """ Same as RestEvaluator.reward. But maintain it for the calling from QAEvaluator.fast_reward """    
-        return useful_prob
+        return fast_reward
     
-    def reward(self, state: StateByStepList, action: PolicyAction,
+    def reward(self, state: StateT, action: ActionT,
             r_useful: float = None,
             confidence: float = None) -> tuple[float, dict]:
         
-        return r_useful #, {'r_useful': r_useful, 'r_conf': 1}
+        return r_useful 

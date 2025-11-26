@@ -1,4 +1,4 @@
-from .base_llm import InferenceLogger
+from .lm.base import InferenceLogger
 def get_inference_cost_metrics(root_dir, run_id='', exclude_idx=None, include_idx=None, exclude_roles_prefix=[], max_check=None, return_metrics=None, verbose=True):
     # Efficiency metrics
     metric_all = {'num_calls': None, 'num_batch_calls': None, 'num_flatten_calls': None, 'input_tokens': None, 'output_tokens': None, 'running_time': None,}

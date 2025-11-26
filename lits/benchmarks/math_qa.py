@@ -69,28 +69,6 @@ def get_accuracy(full_dataset, results_from_file, extract_method="dfs", verbose=
     accuracy = correct_count / len(full_dataset)
     return {"accuracy": accuracy, "correct_count": correct_count, "total_examples": len(full_dataset), "incorrect_indices": incorrect_indices}
 
-def get_task_instruction(prompt_dict, method="rap"):
-
-    if method == "rap":
-        instruction = prompt_dict['instruction']
-    elif method == "rest":
-        instruction = prompt_dict["policy_sys"]
-    return instruction
-
-def get_task_instruction_with_examples(prompt_dict, num_shot=0):
-    # prompt dict
-    prompt_dict = copy.deepcopy(prompt_dict) 
-    prompt_dict['interactive_examples']= random.sample(list(prompt_dict['interactive_examples']), k=num_shot)
-    
-    # instruction
-    with io.StringIO() as f:
-        f.write(prompt_dict['instruction'] + '\n\n')
-        for idx, example in enumerate(prompt_dict['interactive_examples']):
-            f.write(example.format(idx=idx + 1) + '\n\n')
-
-        instruction = f.getvalue()
-    
-    return instruction
 
 # ------------------- Answer Extraction ------------------
 def extract_answer_from_aggregation( paths, use_reward=False, weight_policy: str = 'edge', verbose=False):

@@ -3,9 +3,8 @@ import logging
 from typing import Optional
 
 from ..base import Transition
-from ..structures import ToolUseState, ToolUseStep
+from ...structures import ToolUseState, ToolUseStep, log_state
 from ...agents.utils import execute_tool_action
-from ..structures import log_state
 
 logger = logging.getLogger(__name__)
 

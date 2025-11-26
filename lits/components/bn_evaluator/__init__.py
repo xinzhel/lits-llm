@@ -3,7 +3,7 @@ import ast
 from typing import Optional, List, Dict, Tuple, Any
 from ..structures import PolicyAction, StateByStepList, SubQAStep
 from ..utils import verbalize_concat_state,verbalize_rap_state, extract_existing_steps, create_role
-from ...base_llm import DETERMINISTIC_TEMPERATURE, HfChatModel, DEFAULT_MAX_LENGTH
+from ...lm.base import DETERMINISTIC_TEMPERATURE, HfChatModel, DEFAULT_MAX_LENGTH
 from ...prompts.prompt import PromptTemplate
 import itertools
 import logging

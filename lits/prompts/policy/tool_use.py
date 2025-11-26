@@ -1,48 +1,50 @@
-react_chat_template = """Answer the given question as best you can. 
-If you need additional information, you may invoke one of the following tools:
+from ..prompt import PromptTemplate
 
-{tool_context}{tool_string}
+# """Answer the given question as best you can. 
+# If you need additional information, you may invoke one of the following tools:
 
-To invoke a tool, you must output a single JSON blob ($JSON_BLOB) **inside an <action>...</action> tag** and nothing else at that step.
+# {tool_context}{tool_string}
 
-* The JSON must have exactly two keys:
-  - "action": the name of the tool to call (must be one of {tool_names})
-  - "action_input": a JSON object containing all required arguments (can include multiple fields)
-  Example:
-  {{
-    "action": "NearbyPlaces",
-    "action_input": {{
-        "placeId": "100",
-        "type": "restaurant",
-        "rankby": "distance",
-        "radius": 0
-    }}
-  }}
+# To invoke a tool, you must output a single JSON blob ($JSON_BLOB) **inside an <action>...</action> tag** and nothing else at that step.
 
-* The JSON blob must contain only ONE action per step.
+# * The JSON must have exactly two keys:
+#   - "action": the name of the tool to call (must be one of {tool_names})
+#   - "action_input": a JSON object containing all required arguments (can include multiple fields)
+#   Example:
+#   {{
+#     "action": "NearbyPlaces",
+#     "action_input": {{
+#         "placeId": "100",
+#         "type": "restaurant",
+#         "rankby": "distance",
+#         "radius": 0
+#     }}
+#   }}
 
-Always reason step by step using the following format:
+# * The JSON blob must contain only ONE action per step.
 
-Question: the input question you must answer  
-Thought: what you are thinking or planning to do next  
-Action:
-```
-$JSON_BLOB
-```
+# Always reason step by step using the following format:
 
-⚠️ IMPORTANT: After outputting the JSON blob, **stop generation immediately** and wait for the tool’s result (Observation).  
-Do NOT continue to write “Observation” or “Thought” until the Observation is provided.
+# Question: the input question you must answer  
+# Thought: what you are thinking or planning to do next  
+# Action:
+# ```
+# $JSON_BLOB
+# ```
 
-After the Observation is available, continue reasoning in the same format:
-Thought: ...
-Action: ...
-...
+# ⚠️ IMPORTANT: After outputting the JSON blob, **stop generation immediately** and wait for the tool’s result (Observation).  
+# Do NOT continue to write “Observation” or “Thought” until the Observation is provided.
 
-When you are confident about the answer:
-Thought: I now know the final answer  
-Final Answer: <your final answer>
+# After the Observation is available, continue reasoning in the same format:
+# Thought: ...
+# Action: ...
+# ...
 
-Begin! Always use the exact phrase `Final Answer` for your final response."""
+# When you are confident about the answer:
+# Thought: I now know the final answer  
+# Final Answer: <your final answer>
+
+# Begin! Always use the exact phrase `Final Answer` for your final response."""
 
 # redesigned <think> / <action> / <observation> / <answer> prompt has several critical advantages over the earlier “Reasoning–Action–Observation–Final Answer” text-only prompt used in LangChain-style ReAct:
 # 1. Because the model is told explicitly to wait for <observation> and that the process is iterative, it no longer feels pressured to jump to <answer> too early.
@@ -54,21 +56,42 @@ If you need additional information, you may invoke one of the following tools:
 
 {tool_context}{tool_string}
 
-To invoke a tool, you must output a single JSON blob ($JSON_BLOB) **inside an <action>...</action> tag** and nothing else at that step.
-
-* The JSON must have exactly two keys:
-  - "action": the name of the tool to call (must be one of {tool_names})
-  - "action_input": a JSON object containing all required arguments (can include multiple fields) 
-Example:
+If you choose to call a tool, you must output exactly one tool call, using the following strict format:
 <action>
 {{
-"action": "NearbyPlaces",
-"action_input": {{
-    "placeId": "100",
-    "type": "restaurant",
-    "rankby": "distance",
-    "radius": 0
+  "action": "TOOL_NAME",
+  "action_input": {{
+    ... all required fields ...
+  }}
 }}
+</action>
+STRICT FORMAT REQUIREMENTS:
+- The content must be a single JSON blob ($JSON_BLOB) **inside an <action>...</action> tag**.
+- The JSON must contain EXACTLY two keys:
+  1. "action": the tool name  to call (must be one of {tool_names})
+  2. "action_input": a JSON object containing all required arguments (can include multiple fields). The value of "action_input" MUST be a JSON object, NOT a string.
+- Do NOT wrap the JSON object in quotes.
+- Do NOT escape characters inside the JSON.
+- Do NOT include extra fields (e.g., "observation", "assistant_message").
+
+CORRECT EXAMPLE:
+<action>
+{{
+  "action": "NearbyPlaces",
+  "action_input": {{
+      "placeId": "100",
+      "type": "restaurant",
+      "rankby": "distance",
+      "radius": 0
+  }}
+}}
+</action>
+
+INCORRECT EXAMPLE #1 ("action_input" is a string instead of a JSON object):
+<action>
+{{
+  "action": "AWS_Geocode",
+  "action_input": "322 New Street, Brighton 3186, Victoria, Australia"
 }}
 </action>
 
@@ -114,3 +137,4 @@ Your final answer text here.
 ---
 
 Always wrap reasoning in <think>...</think>, tool invocations in <action>...</action>, tool results in <observation>...</observation>, and the final response in <answer>...</answer>."""
+task_prompt_spec = PromptTemplate(react_chat_tag_template)

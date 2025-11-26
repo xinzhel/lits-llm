@@ -1,7 +1,8 @@
-from lits.agents.utils import make_tag_extractor
+from lits.utils import make_tag_extractor
 from lits.tools import build_tools
-from lits.components.structures.tool_use import ToolUseStep
+from lits.structures.tool_use import ToolUseStep
 from datasets import load_dataset
+from .main import infer_task_type
 # DEFAULT_SECRET_TOKEN = (
 #             "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InRlc3QiLCJpc3MiOiJtYXBxdWVzdC1hcHAub25yZW5kZXIu"
 #             "Y29tIiwiaWF0IjoxNzYwMjcyMjIxfQ.DrPXlwpYeFZC8PP1wLabb4tV3yQ5MHcl2LbXhSVZHXE"

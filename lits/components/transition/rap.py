@@ -1,38 +1,46 @@
 import logging
 from collections import defaultdict
-from ..base import Transition
-from ..structures import StateByStepList, PolicyAction, SubQAStep, log_state
+from ..base import LlmTransition
+from ...structures import StateT, Action, SubQAStep, log_state
 from ..utils import verbalize_rap_state, create_role, retrieve_answer_from_last_step
-from ...base_llm import HfChatModel, HfModel
+from ...lm.base import HfChatModel, HfModel
 
 logger = logging.getLogger(__name__)
 
-class RAPTransition(Transition):
+class RAPTransition(LlmTransition):
     """
     GSM8k World Model
     State: [[sub_question_1, sub_answer_1, confidence_1], [sub_question_2, sub_answer_2, confidence_2], ...]
     Action: sub_question
     """
 
-    def __init__(self,
-                 base_model,
-                 task_instruction,
-                 usr_msg_dict,
-                 n_confidence=8,
-                 batch_size=2,
-                 temperature=0.8,
-                 max_length=None,
-                 max_new_tokens=None,
-                 top_k=50,
-                 top_p=0.95,
-                 early_stop_base=None,
-                 early_stop_threshold=1.) -> None:
-        super().__init__()
-        self.base_model = base_model
+    def __init__(
+        self,
+        base_model,
+        task_prompt_spec=None,
+        task_type: str = None,
+        usr_prompt_spec=None,
+        n_confidence=8,
+        batch_size=2,
+        temperature=0.8,
+        max_length=None,
+        max_new_tokens=None,
+        top_k=50,
+        top_p=0.95,
+        early_stop_base=None,
+        early_stop_threshold=1.,
+        **kwargs
+    ) -> None:
+        super().__init__(
+            base_model=base_model,
+            task_prompt_spec=task_prompt_spec,
+            task_type=task_type,
+            usr_prompt_spec=usr_prompt_spec,
+            **kwargs
+        )
         self.temperature = temperature
         self.n_shots = 4
         self.max_length = max_length
-        print("max_length in world model: ", max_length)
         self.max_new_tokens = max_new_tokens
         self.top_k = top_k
         self.top_p = top_p
@@ -40,33 +48,32 @@ class RAPTransition(Transition):
         self.n_confidence = n_confidence
         # self.early_stop_base = early_stop_base if early_stop_base is not None else n_confidence
         self.early_stop_threshold = early_stop_threshold
-        self.task_instruction = task_instruction
-        self.usr_msg_dict = usr_msg_dict
 
     def init_state(self) -> list:
         return []
 
-    def _generate_prompt(self, example: str, state: StateByStepList, action: PolicyAction) -> str:
+    def _generate_prompt(self, example: str, state: StateT, action: Action) -> str:
         
         state = state.copy()
         # system message
-        task_instruction = self.task_instruction
+        task_prompt_spec = self.task_prompt_spec
         
         # user message
         user_message = verbalize_rap_state(example, state)
-        user_message += self.usr_msg_dict["subquestion_prefix"].format(idx=self.n_shots + 1, sub_idx=len(state) + 1) + " " + action + "\n"
-        user_message += self.usr_msg_dict["answer_prefix"].format(idx=self.n_shots + 1, sub_idx=len(state) + 1)
+        usr_prompt_spec = self.usr_prompt_spec or {}
+        user_message += usr_prompt_spec.get("subquestion_prefix", "").format(idx=self.n_shots + 1, sub_idx=len(state) + 1) + " " + action + "\n"
+        user_message += usr_prompt_spec.get("answer_prefix", "").format(idx=self.n_shots + 1, sub_idx=len(state) + 1)
         
         if isinstance(self.base_model, HfChatModel):
             assert self.n_shots == 0
-            self.base_model.sys_prompt = task_instruction
+            self.base_model.sys_prompt = task_prompt_spec
             return user_message
         elif isinstance(self.base_model, HfModel):
-            return task_instruction + user_message
+            return task_prompt_spec + user_message
         else:
             raise ValueError(f"Unknown model type: {type(self.base_model)}")
-        
-    def step(self, example: str, state: StateByStepList, action: PolicyAction, example_idx: int=None, from_phase="") -> tuple[StateByStepList, dict]:
+
+    def step(self, example: str, state: StateT, action: Action, example_idx: int=None, from_phase="") -> tuple[StateT, dict]:
         assert from_phase in ["expand", "continuation", "simulate"]
         model_input = self._generate_prompt(example, state, action)
         # logger.debug("\n>>>>>>>>> + 1 Dynamics Call; Output (BEGIN) <<<<<<<<<")
@@ -107,13 +114,13 @@ class RAPTransition(Transition):
         # logger.debug(">>>>>>>>> + 1 Dynamics Call; Output (END) <<<<<<<<<\n")
         return new_state, aux
 
-    def is_terminal(self, state: StateByStepList, example=None, fast_reward: float=None, example_idx: int=None, from_phase: str='') -> bool:
+    def is_terminal(self, state: StateT, example=None, fast_reward: float=None, example_idx: int=None, from_phase: str='') -> bool:
         if len(state) > 0 and "Now we can answer" in state[-1].sub_question:
             return True
         else:
             return False
         
-def test_rap_world_model():
+def test_rap_transition():
     world_model = RAPTransition(base_model=HfChatModel.load_from_hf("Qwen/Qwen3-14B", device="cuda"), max_length=2048)
     world_model.example = """Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?"""
     state = []
