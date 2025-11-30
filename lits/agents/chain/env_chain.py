@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional, Callable, Optional, List
 from dataclasses import dataclass, asdict
 from ..base import BaseConfig
-from ...components.policy.env_grounded import EnvPolicy
+from ...components.policy.env_grounded import EnvGroundedPolicy
 from ...components.base import Transition
 from ...structures.env_grounded import EnvState, EnvStep
 
@@ -11,17 +11,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class EnvChainConfig(BaseConfig):
-    """Configuration for environment-grounded chain agent."""
+    """
+    Configuration for environment-grounded chain agent.
     
-    model_name: Optional[str] = None
-    max_length: Optional[int] = None
-    gpu_device: Optional[str] = None
-    temperature: float = 0.8
-    max_steps: int = 10
+    Inherits common attributes from BaseConfig:
+        - model_name: Language model name
+        - gpu_device: GPU device identifier
+        - max_length: Maximum token length for generation
+        - max_steps: Maximum number of action steps (default: 30 for env chains)
+    """
     
-    def to_dict(self):
-        return asdict(self)
-
+    max_steps: int = 30  # Override default from BaseConfig
 
 def resume_env_state(checkpoint_path):
     """Resume environment state from checkpoint."""
@@ -75,7 +75,7 @@ class EnvChain:
     
     def __init__(
         self,
-        policy: EnvPolicy,
+        policy: EnvGroundedPolicy,
         world_model: Transition,
         max_steps: int = 10,
     ):
@@ -83,7 +83,7 @@ class EnvChain:
         Initialize the environment chain agent.
         
         Args:
-            policy: EnvPolicy for generating actions.
+            policy: EnvGroundedPolicy for generating actions.
             world_model: Transition model for executing actions and updating state.
             max_steps: Maximum number of action steps (default: 10).
         """
@@ -96,7 +96,7 @@ class EnvChain:
         goals: List[str],
         verb_goals: str,
         init_state_str: str,
-        example_idx: Optional[int] = None,
+        query_idx: Optional[int] = None,
         from_phase: str = "",
         checkpoint_path: Optional[str] = None
     ) -> EnvState:
@@ -106,7 +106,7 @@ class EnvChain:
         Args:
             goals: Goal description or query (e.g., "stack A on B").
             init_state_str: the environment state.
-            example_idx: Optional index for logging/tracking.
+            query_idx: Optional index for logging/tracking.
             from_phase: Description of current phase (e.g., 'planning', 'execution').
             checkpoint_path: Optional path to save/load checkpoints.
         
@@ -152,7 +152,7 @@ class EnvChain:
                 state,
                 n_actions=1,
                 query=verb_goals,
-                query_idx=example_idx,
+                query_idx=query_idx,
                 from_phase=from_phase,
             )
             

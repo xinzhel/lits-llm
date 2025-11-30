@@ -13,7 +13,7 @@ class Transition(ABC, Generic[StateT, ActionT]):
     def init_state(self) -> StateT: ...
 
     @abstractmethod
-    def step(self, example: str, state: StateT, action: ActionT) -> Union[StateT, Tuple[StateT, dict]]:
+    def step(self, state: StateT, action: ActionT, *arg, **kwargs) -> Union[StateT, Tuple[StateT, dict]]:
         """ Returns the next state and optionally an auxiliary data dict
 
         :param state: The current state
@@ -23,7 +23,7 @@ class Transition(ABC, Generic[StateT, ActionT]):
         ...
 
     @abstractmethod
-    def is_terminal(self, state: StateT) -> bool: ...
+    def is_terminal(self, state: StateT, *arg, **kwargs) -> bool: ...
 
 
 class LlmTransition(Transition, Generic[StateT, ActionT]):
@@ -111,8 +111,8 @@ class Policy(ABC, Generic[StateT, ActionT]):
         top_p: Nucleus sampling parameter
         reward_alpha: Weight for reward in action selection
         reward_confidence_default: Default confidence when reward is unavailable
-        depth_limit: Maximum depth for tree search
-        force_terminating_on_depth_limit: Force termination at depth limit
+        max_steps: Maximum depth/steps for tree search
+        force_terminating_on_depth_limit: Force termination at max_steps
     
     Note:
         - task_prompt_spec: For system-level instructions (system prompt)
@@ -168,7 +168,7 @@ class Policy(ABC, Generic[StateT, ActionT]):
         top_p: float = 0.95,
         reward_alpha: float = 0.5,
         reward_confidence_default: float = 0.8,
-        depth_limit: int = 5,
+        max_steps: int = 5,
         force_terminating_on_depth_limit: bool = True
     ) -> None:
         super().__init__()
@@ -188,19 +188,27 @@ class Policy(ABC, Generic[StateT, ActionT]):
         from ..prompts.registry import PromptRegistry
         agent_name = self._get_agent_name()
         
+        logger.debug(f"Policy.__init__: agent_name={agent_name}, task_type={task_type}")
+        logger.debug(f"Policy.__init__: task_prompt_spec (before registry) type={type(task_prompt_spec)}, value={task_prompt_spec}")
+        
         if task_prompt_spec is None:
             task_prompt_spec = PromptRegistry.get('policy', agent_name, task_type)
+            logger.debug(f"Policy.__init__: task_prompt_spec loaded from registry, type={type(task_prompt_spec)}, value={task_prompt_spec}")
         
         if usr_prompt_spec is None:
             usr_prompt_spec = PromptRegistry.get_usr('policy', agent_name, task_type)
+            logger.debug(f"Policy.__init__: usr_prompt_spec loaded from registry, type={type(usr_prompt_spec)}, value={usr_prompt_spec}")
         
         # Store prompts
         self.task_prompt_spec = task_prompt_spec 
         self.usr_prompt_spec = usr_prompt_spec
         
+        logger.debug(f"Policy.__init__: Final task_prompt_spec type={type(self.task_prompt_spec)}")
+        logger.debug(f"Policy.__init__: Final usr_prompt_spec type={type(self.usr_prompt_spec)}")
+        
         # Tree search configuration
         self.force_terminating_on_depth_limit = force_terminating_on_depth_limit
-        self.depth_limit = depth_limit
+        self.max_steps = max_steps
         self.reward_alpha = reward_alpha
     
     def _get_agent_name(self) -> str:
@@ -282,7 +290,18 @@ class Policy(ABC, Generic[StateT, ActionT]):
                 **kwargs
             )
         except Exception as e:
-            logger.error(f"Error in _get_actions: {e}", exc_info=True)
+            # Log the error with full traceback
+            logger.error(
+                f"Error in {self.__class__.__name__}._get_actions(): {e}",
+                exc_info=True,
+                extra={
+                    'policy_class': self.__class__.__name__,
+                    'n_actions': n_actions,
+                    'query_idx': query_idx,
+                    'from_phase': from_phase
+                }
+            )
+            # Create error steps to allow graceful continuation
             outputs = self._create_error_steps(n_actions, str(e))
 
         # Validate outputs
@@ -295,16 +314,44 @@ class Policy(ABC, Generic[StateT, ActionT]):
 
         return outputs
     
+    @abstractmethod
     def _create_error_steps(self, n_actions: int, error_msg: str) -> List[StepT]:
-        """Create error steps when _get_actions fails."""
-        # TODO: Do not put all the n_actions as error steps, consider partial results. To do this, may need to put for loop here instead of in _get_actions and define a _get_action method.
-        return [Step(error=error_msg) for _ in range(n_actions)]
+        """
+        Create error steps when _get_actions fails with an exception.
+        
+        This method is called by get_actions() when _get_actions() raises an exception,
+        allowing the policy to gracefully handle errors by returning valid Step objects
+        with error information instead of crashing the entire search.
+        
+        IMPORTANT: Do NOT add logging in this method. Error logging is already handled
+        by the base class get_actions() method before calling this method. This method
+        should only create and return the appropriate Step objects.
+        
+        When called:
+        - During policy.get_actions() execution
+        - Only when _get_actions() raises an exception (e.g., LLM API failure, parsing error)
+        - After the error has been logged by get_actions()
+        - Before returning to the tree search algorithm
+        
+        Args:
+            n_actions: Number of error steps to create (matches requested action count)
+            error_msg: The exception message to include in error steps
+        
+        Returns:
+            List of Step objects (specific subclass type) with error field set
+        
+        Example implementations:
+            - ConcatPolicy: return [ThoughtStep(action="", error=error_msg) for _ in range(n_actions)]
+            - RAPPolicy: return [SubQAStep(sub_question="", sub_answer="", confidence=0.0, error=error_msg) for _ in range(n_actions)]
+            - ToolUsePolicy: return [ToolUseStep(action=None, observation=None, answer=None, error=error_msg) for _ in range(n_actions)]
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} must implement _create_error_steps")
     
     def _is_at_depth_limit(self, state: StateT) -> bool:
-        """Check if the state has reached the depth limit."""
+        """Check if the state has reached the max_steps limit."""
         if not self.force_terminating_on_depth_limit:
             return False
-        return len(state) + 1 >= self.depth_limit
+        return len(state) + 1 >= self.max_steps
     
     def _determine_n_actions(
         self,
@@ -400,6 +447,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         agent_name = self._get_agent_name()
         
         if task_prompt_spec is None:
+            logger.debug(f"Task prompt spec not provided, loading from registry for agent '{agent_name}' and task '{task_type}'")
             task_prompt_spec = PromptRegistry.get('reward', agent_name, task_type)
         
         if usr_prompt_spec is None:
@@ -418,7 +466,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         self.reward_alpha = reward_alpha
         self.reward_confidence_default = reward_confidence_default
         
-    def fast_reward(self, example, example_idx, state, action, from_phase="") -> tuple[float, dict]:
+    def fast_reward(self, state, action, query, query_idx, from_phase="") -> tuple[float, dict]:
         """
         Generate a reward for an action without executing it.
         
@@ -431,8 +479,8 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         - Pruning unpromising actions early in tree search
         
         Args:
-            example: The problem/question being solved
-            example_idx: Index of the example (for logging)
+            query: The problem/question being solved
+            query_idx: Index of the example (for logging)
             state: Current state before action execution
             action: Proposed action to evaluate
             from_phase: Description of algorithm phase (for logging)
@@ -447,14 +495,14 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         """
         logger.debug("\n>>>>>>>>> + 1 Fast Reward Evaluator Call; Outputs (BEGIN) <<<<<<<<<")
 
-        fast_reward = self._fast_reward(example, example_idx, state, action, from_phase=from_phase)
+        fast_reward = self._fast_reward(state, action, query, query_idx, from_phase=from_phase)
 
         fast_reward = self.calculate_reward(fast_reward)
 
         logger.debug(f"fast_reward: {fast_reward}")
         logger.debug(">>>>>>>>> + 1 Fast Reward Evaluator Call; Outputs (END) <<<<<<<<<\n")
 
-        return fast_reward, {'r_useful': float(useful_prob)}
+        return fast_reward, {'r_useful': float(fast_reward)}
 
     def _get_agent_name(self) -> str:
         """
@@ -478,7 +526,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         return name
     
     @abstractmethod
-    def _fast_reward(self, example, example_idx, state, action, from_phase="") -> float:
+    def _fast_reward(self, state, action,  query, query_idx, from_phase="") -> float:
         raise NotImplementedError("_fast_reward is not implemented for RewardModel")
     
     @abstractmethod

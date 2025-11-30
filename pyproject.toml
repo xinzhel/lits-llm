@@ -59,7 +59,14 @@ dependencies = [
     "mem0ai",
     "sentence_transformers",
     "litellm",
-    "boto3"
+    "boto3",
+
+    # --- for PDF tools ---
+    "pypdf",
+    "qdrant-client",
+
+    # --- for notebook testing ---
+    "ipywidgets"
 
 ]
 

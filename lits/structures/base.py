@@ -27,6 +27,8 @@ class State:
 @dataclass
 class TrajectoryState(State, list):
     """State that accumulates steps as a trajectory. Supports `len()` to return number of accumulated steps"""
+    def get_steps(self) -> list["TrajectoryState"]:
+        return self
     
     def to_dict(self) -> list[dict]:
         """Serialize the entire state as a list of steps."""

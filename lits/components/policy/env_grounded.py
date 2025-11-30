@@ -84,7 +84,7 @@ class EnvGroundedPolicy(Policy):
             goal_reward_default: Reward for non-terminal states (default: 0.0).
             goal_reached_reward: Reward when goal state is reached (default: 100).
             **kwargs: Optional parameters passed to parent Policy class (n_actions, temperature,
-                top_k, top_p, depth_limit, etc.).
+                top_k, top_p, max_steps, etc.).
         """
         super().__init__(
             base_model=base_model,
@@ -95,6 +95,10 @@ class EnvGroundedPolicy(Policy):
         self.generate_all_actions = generate_all_actions
         self.goal_reward_default = goal_reward_default
         self.goal_reached_reward = goal_reached_reward
+
+    def _create_error_steps(self, n_actions: int, error_msg: str) -> List[EnvStep]:
+        """Create EnvStep error steps for EnvGroundedPolicy."""
+        return [EnvStep(action=EnvAction(""), reward=0.0, error=error_msg) for _ in range(n_actions)]
 
     def _get_actions(
         self,

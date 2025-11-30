@@ -14,21 +14,18 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ReactChatConfig(BaseConfig):
-    """Persistence helper mirroring other LiTS configs."""
-
-    model_name: Optional[str] = None
-    max_length: Optional[int] = None
-    enable_think: bool = True
-    gpu_device: Optional[str] = None
+    """
+    Configuration for ReAct-style reasoning and acting agent.
     
+    Inherits common attributes from BaseConfig:
+        - model_name: Language model name
+        - gpu_device: GPU device identifier
+        - max_length: Maximum token length for generation
+        - max_steps: Maximum number of reasoning iterations (default: 10)
+    """
+    enable_think: bool = True
     exclude_think_when_verb: bool = False
-    secret_token: str = None
-    client_host: str = None
-    client_port: int = None
     timeout: int = 30
-
-    def to_dict(self):
-        return asdict(self)
     
 def resume_tool_use_state(checkpoint_path):
     checkpoint_file = Path(checkpoint_path)
@@ -55,7 +52,7 @@ class ReActChat:
         self.policy = policy
         self.max_iter = max_iter
 
-    def run(self, query, example_idx=None, from_phase: str = "", checkpoint_path: Optional[str] = None):
+    def run(self, query, query_idx=None, from_phase: str = "", checkpoint_path: Optional[str] = None):
         """Run the ReAct reasoning-and-acting loop."""
         if checkpoint_path:
             state = resume_tool_use_state(checkpoint_path)
@@ -66,7 +63,7 @@ class ReActChat:
         start_iter = len(state)
         for i in range(start_iter, self.max_iter):
             logger.debug("\n ======== Iteration %d ========\n", i)
-            step = self.get_step(query, state, example_idx=example_idx, from_phase=from_phase)
+            step = self.get_step(query, state, query_idx=query_idx, from_phase=from_phase)
             state.append(step)
 
             if getattr(step, "error", None) is not None:
@@ -84,13 +81,13 @@ class ReActChat:
                 break
         return state
 
-    def get_step(self, query: str, state: ToolUseState, example_idx=None, from_phase: str = "") -> ToolUseStep:
+    def get_step(self, query: str, state: ToolUseState, query_idx=None, from_phase: str = "") -> ToolUseStep:
         """Elicit the next <think>/<action>/<answer> block and run tools when requested."""
         steps = self.policy.get_actions(
             state,
             query=query,
             n_actions=1,
-            query_idx=example_idx,
+            query_idx=query_idx,
             from_phase=from_phase,
         )
         if not steps:

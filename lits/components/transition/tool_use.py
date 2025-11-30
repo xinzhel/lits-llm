@@ -4,12 +4,12 @@ from typing import Optional
 
 from ..base import Transition
 from ...structures import ToolUseState, ToolUseStep, log_state
-from ...agents.utils import execute_tool_action
+from ...tools.utils import execute_tool_action
 
 logger = logging.getLogger(__name__)
 
 
-class ToolUseTransition(Transition[ToolUseState, ToolUseStep, str]):
+class ToolUseTransition(Transition[ToolUseState, ToolUseStep]):
     """Transition model that materializes tool observations for ToolUsePolicy-driven search."""
 
     def __init__(self, tools: list, observation_on_error: str = "Tool execution failed."):
@@ -22,21 +22,21 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseStep, str]):
 
     def step(
         self,
-        example: str,
         state: ToolUseState,
-        action: ToolUseStep,
-        example_idx: Optional[int] = None,
+        step: ToolUseStep,
+        query_or_goals: str=None,
+        query_idx: Optional[int] = None,
         from_phase: str = "",
     ):
         """Append the sampled ToolUseStep and execute the associated tool if needed."""
         new_state = ToolUseState(state.copy())
-        step = copy.deepcopy(action)
+        step = copy.deepcopy(step)
 
         if step.action and step.observation is None:
             try:
                 observation = execute_tool_action(step.action, self.tools)
             except Exception as exc:  # pragma: no cover - defensive logging
-                logger.exception("Tool execution failed for example %s: %s", example_idx, exc)
+                logger.exception("Tool execution failed for example %s: %s", query_idx, exc)
                 observation = f"{self.observation_on_error} Reason: {exc}"
             if not isinstance(observation, str):
                 observation = str(observation)
@@ -48,9 +48,9 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseStep, str]):
     def is_terminal(
         self,
         state: ToolUseState,
-        example: Optional[str] = None,
+        query_or_goals: Optional[str] = None,
         fast_reward: Optional[float] = None,
-        example_idx: Optional[int] = None,
+        query_idx: Optional[int] = None,
         from_phase: str = "",
     ) -> bool:
         """Stop expansion once the latest step provides a final answer."""

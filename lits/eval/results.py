@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from ..agents.tree_search.node import SearchNode
+from ..agents.tree.node import SearchNode
 import json
 import os
 from typing import List, Dict, Union

@@ -201,33 +201,36 @@ def load_default_prompts():
     # Import prompt modules
     try:
         from .policy import rap as rap_policy
-        from .policy import rest as rest_policy
+        from .policy import concat as concat_policy
         from .policy import tool_use as tool_use_policy
         from .reward import rap as rap_reward
+        from .reward import generative as generative_reward
         from .transition import rap as rap_transition
         from .transition import blocksworld as blocksworld_transition
         
         # Register policy prompts
-        if hasattr(rap_policy, 'task_prompt_spec'):
-            PromptRegistry.register('policy', 'rap', None, rap_policy.task_prompt_spec)
+        # if hasattr(rap_policy, 'task_prompt_spec'):
+        #     PromptRegistry.register('policy', 'rap', None, rap_policy.task_prompt_spec)
         if hasattr(rap_policy, 'task_prompt_spec_math_qa'):
             PromptRegistry.register('policy', 'rap', 'math_qa', rap_policy.task_prompt_spec_math_qa)
         if hasattr(rap_policy, 'usr_prompt_spec_math_qa'):
             PromptRegistry.register_usr('policy', 'rap', 'math_qa', rap_policy.usr_prompt_spec_math_qa)
         
-        if hasattr(rest_policy, 'task_prompt_spec'):
-            PromptRegistry.register('policy', 'rest', None, rest_policy.task_prompt_spec)
-        if hasattr(rest_policy, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('policy', 'rest', 'math_qa', rest_policy.task_prompt_spec_math_qa)
+        # if hasattr(concat_policy, 'task_prompt_spec'):
+        #     PromptRegistry.register('policy', 'rest', None, concat_policy.task_prompt_spec)
+        if hasattr(concat_policy, 'task_prompt_spec_math_qa'):
+            PromptRegistry.register('policy', 'concat', 'math_qa', concat_policy.task_prompt_spec_math_qa)
         
         if hasattr(tool_use_policy, 'task_prompt_spec'):
             PromptRegistry.register('policy', 'tool_use', None, tool_use_policy.task_prompt_spec)
 
         # Register reward prompts
-        if hasattr(rap_reward, 'task_prompt_spec'):
-            PromptRegistry.register('reward', 'rap', None, rap_reward.task_prompt_spec)
+        # if hasattr(rap_reward, 'task_prompt_spec'):
+        #     PromptRegistry.register('reward', 'rap', None, rap_reward.task_prompt_spec)
         if hasattr(rap_reward, 'task_prompt_spec_math_qa'):
             PromptRegistry.register('reward', 'rap', 'math_qa', rap_reward.task_prompt_spec_math_qa)
+        if hasattr(generative_reward, 'task_prompt_spec_math_qa'):
+            PromptRegistry.register('reward', 'generative', 'math_qa', generative_reward.task_prompt_spec_math_qa)
         
         # Register transition prompts
         if hasattr(rap_transition, 'task_prompt_spec'):

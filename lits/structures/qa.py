@@ -1,16 +1,18 @@
 from typing import NamedTuple
+from dataclasses import dataclass
 
 from ..type_registry import register_type
 from .base import ActionT, Step, State, TrajectoryState
 
 
 @register_type
+@dataclass
 class SubQAStep(Step):
     """RAP-style sub-question step capturing the decomposition state."""
 
-    sub_question: ActionT
-    sub_answer: str
-    confidence: float
+    sub_question: ActionT = ""
+    sub_answer: str = ""
+    confidence: float = 0.0
 
     def get_action(self) -> ActionT:
         return self.sub_question
@@ -20,10 +22,11 @@ class SubQAStep(Step):
 
 
 @register_type
+@dataclass
 class ThoughtStep(Step):
     """General reasoning step used by concatenation-style policies."""
 
-    action: ActionT
+    action: ActionT = ""
 
     def get_action(self) -> ActionT:
         return self.action

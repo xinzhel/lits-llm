@@ -1,13 +1,13 @@
 import logging
 from typing import Callable
 from ..components.policy.tool_use import ToolUsePolicy
-from ..components.policy.env_grounded import EnvPolicy
+from ..components.policy.env_grounded import EnvGroundedPolicy
 from ..components.base import Transition
 from ..structures import ToolUseState, ToolUseStep
 from ..lm import HfChatModel, InferenceLogger, get_lm
 from ..framework_config import DEFAULT_MODEL_NAME, DEFAULT_DEVICE, PACKAGE_VERSION
 from .base import BaseConfig
-from .chain.react_chat import ReActChat, ReactChatConfig
+from .chain.react import ReActChat, ReactChatConfig
 from .chain.env_chain import EnvChain, EnvChainConfig
 
 logger = logging.getLogger(__name__)
@@ -196,7 +196,7 @@ def create_env_chain_agent(
     ).save_config(root_dir)
     
     # Construct policy
-    policy = EnvPolicy(
+    policy = EnvGroundedPolicy(
         base_model=base_model,
         task_instruction=None,
         prompt_templates=prompt_templates,
@@ -213,7 +213,6 @@ def create_env_chain_agent(
         agent = EnvChain(
             policy=policy,
             world_model=world_model,
-            goal_check=goal_check,
             max_steps=max_steps
         )
     else:

@@ -15,13 +15,13 @@ from ..structures import (
 
 logger = logging.getLogger(__name__)
 
-def create_role(llm_role, example_idx=None, from_phase=""):
+def create_role(llm_role, query_idx=None, from_phase=""):
     VALID_LLM_ROLES = ["evaluator_logits_ORM", "dynamics", "dynamics_verify", "dynamics_critic", "evaluator_logits", "evaluator_correctness", "evaluator_usefulness", "policy", "evaluator_logits", "bn_entropy_agg", "bn_entropy_remove", "bn_eval", "bn_entropy", None, ""]
     VALID_PHASES = ['expand', 'continuation', 'simulate', 'sort', '', None]
     assert llm_role in VALID_LLM_ROLES, f"Invalid llm_role: {llm_role}"
     assert from_phase in VALID_PHASES, f"Invalid from_phase: {from_phase}"
     role = llm_role 
-    role += f"_{example_idx}" if example_idx is not None and example_idx != '' else ''
+    role += f"_{query_idx}" if query_idx is not None and query_idx != '' else ''
     role += f"_{from_phase}" if from_phase is not None and from_phase != '' else ''
     return role
     
@@ -102,6 +102,14 @@ def verbalize_concat_state(question, state):
         ...
         Step n: ...
     """
+    # Debug: Check if question is a string
+    if not isinstance(question, str):
+        logger.error(f"ERROR: question is not a string! Type: {type(question)}, Value: {question}")
+        if isinstance(question, list):
+            logger.error(f"question is a list with {len(question)} elements")
+            logger.error(f"First element type: {type(question[0]) if question else 'empty list'}")
+        raise TypeError(f"question must be a string, got {type(question)}: {question}")
+    
     question = question + '?' if not question.endswith('?') else question
     verbalized_state = "Problem: " + question 
 

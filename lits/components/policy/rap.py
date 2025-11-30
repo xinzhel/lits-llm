@@ -1,6 +1,6 @@
 from typing import Optional, Union, List, Tuple, Dict, Callable, Any
 from ..base import Policy
-from ...structures import State, StateT, ActionT, StepT
+from ...structures import State, StateT, ActionT, StepT, SubQAStep
 from ..utils import verbalize_rap_state, create_role
 from ...lm.base import HfChatModel, HfModel
 import logging
@@ -9,6 +9,10 @@ import re
 logger = logging.getLogger(__name__)
 
 class RAPPolicy(Policy):
+    def _create_error_steps(self, n_actions: int, error_msg: str) -> list[SubQAStep]:
+        """Create SubQAStep error steps for RAPPolicy."""
+        return [SubQAStep(sub_question="", sub_answer="", confidence=0.0, error=error_msg) for _ in range(n_actions)]
+    
     def __init__(self, **kwargs):
         self.force_overall_prompt_on_overall_question = kwargs.pop('force_overall_prompt_on_overall_question', True)
         self.force_overall_question_on_overall_prompt = kwargs.pop('force_overall_question_on_overall_prompt', True)
@@ -47,7 +51,7 @@ class RAPPolicy(Policy):
         critic: Optional[str] = None, 
         from_phase: str = "",
         **kwargs  
-    ) -> list[ActionT]:
+    ) -> list[SubQAStep]:
 
         assert isinstance(state, State)
         assert critic is None, "RAPPolicy does not support critic"
@@ -80,4 +84,6 @@ class RAPPolicy(Policy):
                 if overall_question.lower() == output.lower(): 
                     outputs[i] = self.usr_prompt_spec["overall_question_prefix"] + ' ' + overall_question
         
-        return outputs
+        # Wrap outputs in SubQAStep objects (answer and confidence will be filled by transition)
+        steps = [SubQAStep(sub_question=output, sub_answer="", confidence=0.0) for output in outputs]
+        return steps

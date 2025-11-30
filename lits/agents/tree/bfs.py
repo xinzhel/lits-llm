@@ -24,15 +24,25 @@ class BFSConfig(BaseSearchConfig):
         return asdict(self)
 
 class BFSResult(NamedTuple):
-    trace_of_nodes: list[SearchNode] = None
-    terminal_state: State = None
+    """
+    Unified BFS result structure matching MCTS output format.
+    
+    Post-processing (answer extraction, voting) is done outside bfs_topk,
+    similar to how MCTS works. This makes the signatures identical.
+    
+    Attributes:
+        root: Root node of the search tree
+        terminal_nodes_collected: All terminal nodes collected during search
+        buckets_with_terminal: All nodes organized by depth
+    """
     root: SearchNode = None
-    vote_answers: dict = None
+    terminal_nodes_collected: list[SearchNode] = None
+    buckets_with_terminal: dict = None
 
 ##### EXPAND (Begin) #####
 def _expand(
     example,
-    example_idx,
+    query_idx,
     node,
     policy,
     n_actions,
@@ -46,17 +56,19 @@ def _expand(
     Expand the node with new actions. 
     """
     logger.debug("\n=========== [Expand Begin] ===========")
-    actions = policy.get_actions(example, node.state, critic=None, n_actions=n_actions, example_idx=example_idx, from_phase=from_phase)
+    steps = policy.get_actions(node.state, query=example, critic=None, n_actions=n_actions, query_idx=query_idx, from_phase=from_phase)
 
     fast_rewards = []
     is_terminal_for_repeats = []
-    for action in actions:
+    for step in steps:
+        action = step.get_action()  # Extract action from Step object
         is_terminal_for_repeats.append(True if action == "ALWAY REPEAT. TERMINATE" else False)
         if assign_rewards:
-            fast_reward, _ = reward_model.fast_reward(example, example_idx, node.state, action, from_phase=from_phase) # action evaluation, e.g., usefulness of a subquestion
+            fast_reward, _ = reward_model.fast_reward(node.state, action, example, query_idx, from_phase=from_phase) # action evaluation, e.g., usefulness of a subquestion
             fast_rewards.append(fast_reward)
 
-    for action, is_terminal_for_repeat, fast_reward in zip(actions, is_terminal_for_repeats, fast_rewards):
+    for step, is_terminal_for_repeat, fast_reward in zip(steps, is_terminal_for_repeats, fast_rewards):
+        action = step.get_action()  # Extract action from Step object
         child = SearchNode(state=None, action=action, parent=node)
         child.is_terminal_for_repeat = is_terminal_for_repeat
         child.fast_reward = fast_reward
@@ -68,7 +80,7 @@ def _expand(
 ##### EXPAND With Existing Children (BEGIN) #####
 def _expand_with_existing(
     example,
-    example_idx,
+    query_idx,
     node,
     policy,
     n_actions,
@@ -80,11 +92,11 @@ def _expand_with_existing(
 ):
     """ Expand the node with existing children. 
     This is designed for BFS with continuous phase but compatible for the original BFS. """
-    logger.debug(f"\n=========== [Expand for Example {example_idx} Begin] ===========")
+    logger.debug(f"\n=========== [Expand for Example {query_idx} Begin] ===========")
 
     new_actions = _sample_actions_with_existing(
         example,
-        example_idx,
+        query_idx,
         node,
         policy,
         n_actions,
@@ -94,7 +106,8 @@ def _expand_with_existing(
     )
 
     # Step 3: Assign rewards + terminal flags for new actions
-    for action in new_actions:
+    for step in new_actions:
+        action = step.get_action()  # Extract action from Step object
         child = SearchNode(state=None, action=action, parent=node)
 
         # Assign terminal-for-repeat
@@ -103,7 +116,7 @@ def _expand_with_existing(
         # Assign fast_reward
         if assign_rewards and (child.fast_reward == -1):
             fast_reward, _ = reward_model.fast_reward(
-                example, example_idx, node.state, child.action, from_phase=from_phase
+                node.state, child.action, example, query_idx, from_phase=from_phase
             )
             child.fast_reward = fast_reward
 
@@ -114,29 +127,27 @@ def _expand_with_existing(
 
         if assign_rewards and (child.fast_reward == -1):
             fast_reward, _ = reward_model.fast_reward(
-                example, example_idx, node.state, child.action, from_phase=from_phase
+                node.state, child.action, example, query_idx, from_phase=from_phase
             )
             child.fast_reward = fast_reward
 
-    logger.debug(f"=========== [Expand for Example {example_idx} End] ===========\n")
+    logger.debug(f"=========== [Expand for Example {query_idx} End] ===========\n")
 ##### EXPAND With Existing Children (END) #####
 
 
 def bfs_topk(
     question, 
-    example_idx, 
+    query_idx, 
     search_config, 
     world_model, 
     policy, 
     evaluator, 
-    retrieve_answer, 
     bn_evaluator=None, 
     max_leaves_to_terminate=5,
-    only_continuation_at_head=False,
-    return_buckets=False
-):
+    only_continuation_at_head=False
+) -> BFSResult:
     logger.debug(f"Question: {question}")
-    logger.debug(f"\n\n\n=========== [BFS for Example {example_idx} Begin] ===========")
+    logger.debug(f"\n\n\n=========== [BFS for Example {query_idx} Begin] ===========")
     stop_continuation = False
     root = SearchNode(state=world_model.init_state(), action=None, parent=None)
     terminal_nodes = []
@@ -150,7 +161,7 @@ def bfs_topk(
     buckets_with_terminal[0].append(root)
     start_time = time.time()   # <--- record start time
      
-    for depth in range(search_config.depth_limit):
+    for depth in range(search_config.max_steps):
         if search_config.runtime_limit_before_iter and time.time() - start_time > search_config.runtime_limit_before_iter: 
             logger.debug(f"Runtime limit exceeded: {search_config.runtime_limit_before_iter}")
             break
@@ -168,7 +179,7 @@ def bfs_topk(
                 if node.fast_reward == -1 or node.fast_reward is None:
                     logger.debug(f"Fast reward not computed for node {node.action} for sort")
                     fast_reward, _ = evaluator.fast_reward(
-                        question, example_idx, node.parent.state, node.action, from_phase="sort"
+                        node.parent.state, node.action, question, query_idx, from_phase="sort"
                     )
                     node.fast_reward = fast_reward
             frontier.sort(key=lambda n: n.fast_reward, reverse=True)
@@ -176,7 +187,7 @@ def bfs_topk(
         
         # 2) Loop each node in the frontier at this depth (Begin)
         for node in frontier:
-            if _is_terminal_with_depth_limit(node, search_config.depth_limit, search_config.force_terminating_on_depth_limit):
+            if _is_terminal_with_depth_limit(node, search_config.max_steps, search_config.force_terminating_on_depth_limit):
                 if node not in terminal_nodes:
                     terminal_nodes.append(node)
                 continue
@@ -188,7 +199,7 @@ def bfs_topk(
 
             # Ensure node.state is materialized
             if node.state is None:
-                _world_modeling(question, example_idx, node, world_model, evaluator, from_phase="expand")
+                _world_modeling(question, query_idx, node, world_model, evaluator, from_phase="expand")
 
             # Continuation + PostProcessing (Begin)
             if search_config.add_continuation and not stop_continuation:
@@ -196,7 +207,7 @@ def bfs_topk(
                     stop_continuation = True
                 cont_trace = _continuation(
                     question, 
-                    example_idx, 
+                    query_idx, 
                     node, 
                     world_model, 
                     policy,
@@ -217,7 +228,7 @@ def bfs_topk(
                 for i, cnode in enumerate(cont_trace[1:]):
                     assert cnode.state is not None, f"`_continuation` returns a node without materialized state"
 
-                    if _is_terminal_with_depth_limit(cnode, search_config.depth_limit, search_config.force_terminating_on_depth_limit):
+                    if _is_terminal_with_depth_limit(cnode, search_config.max_steps, search_config.force_terminating_on_depth_limit):
                         if cnode not in terminal_nodes:
                             terminal_nodes.append(cnode)
                         assert len(cont_trace[1:]) == i + 1, f"Continuation trace includes node(s) at the depth beyond the depth limit"
@@ -229,7 +240,7 @@ def bfs_topk(
                     buckets_with_terminal[cnode.depth].append(cnode)
                 node = cont_trace[-1]
 
-                if _is_terminal_with_depth_limit(node, search_config.depth_limit, search_config.force_terminating_on_depth_limit):
+                if _is_terminal_with_depth_limit(node, search_config.max_steps, search_config.force_terminating_on_depth_limit):
                     if node not in terminal_nodes:
                         terminal_nodes.append(node)
                     continue
@@ -242,7 +253,7 @@ def bfs_topk(
             assert node.state is not None
             _expand_with_existing(
                 question, 
-                example_idx, 
+                query_idx, 
                 node,
                 policy, 
                 search_config.n_actions,
@@ -250,8 +261,8 @@ def bfs_topk(
                 from_phase="expand"
             )
             for child in node.children:
-                _world_modeling(question, example_idx, child, world_model, evaluator, from_phase="expand")
-                if _is_terminal_with_depth_limit(child, search_config.depth_limit, search_config.force_terminating_on_depth_limit):
+                _world_modeling(question, query_idx, child, world_model, evaluator, from_phase="expand")
+                if _is_terminal_with_depth_limit(child, search_config.max_steps, search_config.force_terminating_on_depth_limit):
                     if child not in terminal_nodes:
                         terminal_nodes.append(child)
                 else:
@@ -267,57 +278,29 @@ def bfs_topk(
             break
         logger.debug(f"=========== [BFS: Depth {depth} End] ===========\n")
     
-    check_nodes = []
-    if len(terminal_nodes) > 0:
-        logger.debug(f"Number of terminal nodes: {len(terminal_nodes)}")
-        # answer = retrieve_answer(node.state, question)
-        # vote_answers, answer_reward_d = {answer: 1}, {answer: [float(node.fast_reward)]}
-        check_nodes = terminal_nodes
+    # Collect all terminal nodes from various sources
+    terminal_nodes_collected = terminal_nodes.copy()
     
+    # Check frontier for additional terminal nodes
     for node in frontier:
-        if node.is_terminal:
-            check_nodes.append(node)
-
+        if node.is_terminal and node not in terminal_nodes_collected:
+            terminal_nodes_collected.append(node)
+    
+    # Check deepest bucket for terminal nodes
     if buckets_with_terminal:
         max_d = max(buckets_with_terminal.keys())
-        logger.debug(f"Number of frontier cancidates at depth {max_d}: {len(buckets_with_terminal[max_d])}")
+        logger.debug(f"Number of frontier candidates at depth {max_d}: {len(buckets_with_terminal[max_d])}")
         for n in buckets_with_terminal[max_d]:
-            if n.is_terminal:
-                check_nodes.append(n)
+            if n.is_terminal and n not in terminal_nodes_collected:
+                terminal_nodes_collected.append(n)
     
-    extracted_answers = [retrieve_answer(node.state, question) for node in check_nodes]
-    extracted_rewards = [float(node.fast_reward) for node in check_nodes]
-    logger.debug(f"Extracted answers: {extracted_answers}")
-    logger.debug(f"Extracted rewards: {extracted_rewards}")
-
-    vote_answers = defaultdict(lambda: 0)
-    answer_reward_d = defaultdict(lambda: [])
-    for answer, reward in zip(extracted_answers, extracted_rewards):
-        vote_answers[answer] += 1
-        answer_reward_d[answer].append(reward)
+    logger.debug(f"Total terminal nodes collected: {len(terminal_nodes_collected)}")
+    logger.debug(f"=========== [BFS for Example {query_idx} End] ===========\n")
     
-    logger.debug(f"=========== [BFS for Example {example_idx} End] ===========\n")
-    if return_buckets:
-        return dict(vote_answers), dict(answer_reward_d), buckets_with_terminal
-    return dict(vote_answers), dict(answer_reward_d)
-
-
-# def bfs_search(example, example_idx, world_model, policy, reward_model, n_actions):
-#     root = SearchNode(state=world_model.init_state(), action=None, parent=None)
-#     # Initialize the BFS queue
-#     queue = [root]
-
-#     while queue:
-#         current_node = queue.pop(0)
-#         if current_node.state.is_terminal():
-#             # If we reached a terminal state, we can return the result
-#             return current_node
-#         # Expand the current node
-#         _expand(
-#             example, example_idx, current_node,
-#             world_model, policy, reward_model,
-#             n_actions
-#         )
-#         for child in current_node.children:
-#             queue.append(child)
-#     return None
+    # Return unified BFSResult structure (post-processing done outside)
+    return BFSResult(
+        root=root,
+        terminal_nodes_collected=terminal_nodes_collected,
+        buckets_with_terminal=buckets_with_terminal
+    )
+    

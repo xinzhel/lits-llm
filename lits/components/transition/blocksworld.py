@@ -175,7 +175,7 @@ class BlocksWorldTransition(LlmTransition):
         return EnvState(step_idx=0, last_env_state="", env_state=
                        state_str, buffered_action="")
 
-    def step(self, state: EnvState, action: EnvAction, goals: List[str]) -> tuple[EnvState, dict]:
+    def step(self, state: EnvState, action: EnvAction, query_or_goals: List[str]) -> tuple[EnvState, dict]:
         """Take a step in the world model.
         
         :param state: the current state
@@ -195,7 +195,7 @@ class BlocksWorldTransition(LlmTransition):
 
         state = EnvState(step_idx=step_idx+1, last_env_state=state.env_state,
                         env_state=env_state, buffered_action=new_buffered_action)
-        return state, {"goal_reached": self.goal_check(goals, env_state)}
+        return state, {"goal_reached": self.goal_check(query_or_goals, env_state)}
 
     def _get_prompt_tempate(self, action:str) -> str:
         if "pick" in action:
@@ -210,7 +210,7 @@ class BlocksWorldTransition(LlmTransition):
             raise ValueError("Invalid action")
         return self.usr_prompt_spec[key]
         
-    def update_blocks(self, env_state: str, action: EnvAction, example_idx: int=None, from_phase: str='') -> str:
+    def update_blocks(self, env_state: str, action: EnvAction, query_idx: int=None, from_phase: str='') -> str:
         """Update the block states with the action.
 
         :param block_states: the current block states. Note that this argument is a string,
@@ -223,8 +223,8 @@ class BlocksWorldTransition(LlmTransition):
         assert isinstance(self.task_prompt_spec, str), "task_prompt_spec must be of type str in `BlocksWorldTransition`"
         prompt_template = self._get_prompt_tempate(str(action))
         world_update_prompt = prompt_template.format(env_state, str(action).capitalize() + ".")
-        base_model.sys_prompt = self.task_prompt_spec
-        world_output = self.base_model(world_update_prompt, new_line_stop=True, role=create_role("dynamics", example_idx, from_phase), temperature=DETERMINISTIC_TEMPERATURE).text.strip()
+        self.base_model.sys_prompt = self.task_prompt_spec
+        world_output = self.base_model(world_update_prompt, new_line_stop=True, role=create_role("dynamics", query_idx, from_phase), temperature=DETERMINISTIC_TEMPERATURE).text.strip()
         logger.warning("[CHANGE] %s", world_output)
         new_state = apply_change(world_output, env_state)
         logger.warning("[NEW STATE] %s", new_state)

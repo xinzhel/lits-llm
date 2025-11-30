@@ -52,14 +52,14 @@ class RAPTransition(LlmTransition):
     def init_state(self) -> list:
         return []
 
-    def _generate_prompt(self, example: str, state: StateT, action: Action) -> str:
+    def _generate_prompt(self, query_or_goals: str, state: StateT, action: Action) -> str:
         
         state = state.copy()
         # system message
         task_prompt_spec = self.task_prompt_spec
         
         # user message
-        user_message = verbalize_rap_state(example, state)
+        user_message = verbalize_rap_state(query_or_goals, state)
         usr_prompt_spec = self.usr_prompt_spec or {}
         user_message += usr_prompt_spec.get("subquestion_prefix", "").format(idx=self.n_shots + 1, sub_idx=len(state) + 1) + " " + action + "\n"
         user_message += usr_prompt_spec.get("answer_prefix", "").format(idx=self.n_shots + 1, sub_idx=len(state) + 1)
@@ -73,16 +73,16 @@ class RAPTransition(LlmTransition):
         else:
             raise ValueError(f"Unknown model type: {type(self.base_model)}")
 
-    def step(self, example: str, state: StateT, action: Action, example_idx: int=None, from_phase="") -> tuple[StateT, dict]:
+    def step(self, state: StateT, action: Action,  query_or_goals: str, query_idx: int=None, from_phase="") -> tuple[StateT, dict]:
         assert from_phase in ["expand", "continuation", "simulate"]
-        model_input = self._generate_prompt(example, state, action)
+        model_input = self._generate_prompt(query_or_goals, state, action)
         # logger.debug("\n>>>>>>>>> + 1 Dynamics Call; Output (BEGIN) <<<<<<<<<")
         answer_dict = defaultdict(list)
         for start1 in range(0, self.n_confidence, self.batch_size):
             end1 = min(start1 + self.batch_size, self.n_confidence)
             num = end1 - start1
             
-            outputs = self.base_model.batch_generate([model_input]*num, role=create_role("dynamics", example_idx, from_phase), temperature=self.temperature, max_length=self.max_length, max_new_tokens=self.max_new_tokens, do_sample=True, top_k=self.top_k, top_p=self.top_p, stop='\n', new_line_stop=True)
+            outputs = self.base_model.batch_generate([model_input]*num, role=create_role("dynamics", query_idx, from_phase), temperature=self.temperature, max_length=self.max_length, max_new_tokens=self.max_new_tokens, do_sample=True, top_k=self.top_k, top_p=self.top_p, stop='\n', new_line_stop=True)
                            
             for output in outputs:
                 result = output.strip()
@@ -104,7 +104,7 @@ class RAPTransition(LlmTransition):
             confidence = max_len / sum(len(v) for v in answer_dict.values())
 
         new_state = state.copy()
-        new_state.append(SubQAStep(action, answer, confidence))
+        new_state.append(SubQAStep(sub_question=action, sub_answer=answer, confidence=confidence))
         log_state(logger, new_state, header="RAPTransition.step")
         aux = {'confidence': confidence}
 
@@ -114,7 +114,7 @@ class RAPTransition(LlmTransition):
         # logger.debug(">>>>>>>>> + 1 Dynamics Call; Output (END) <<<<<<<<<\n")
         return new_state, aux
 
-    def is_terminal(self, state: StateT, example=None, fast_reward: float=None, example_idx: int=None, from_phase: str='') -> bool:
+    def is_terminal(self, state: StateT, query_or_goals=None, fast_reward: float=None, query_idx: int=None, from_phase: str='') -> bool:
         if len(state) > 0 and "Now we can answer" in state[-1].sub_question:
             return True
         else:
@@ -125,6 +125,6 @@ def test_rap_transition():
     world_model.example = """Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?"""
     state = []
     action1 = "How many eggs are left after Janet eats three for breakfast?"
-    rap_step1 = SubQAStep(action1, "", 0)
+    rap_step1 = SubQAStep(sub_question=action1, sub_answer="", confidence=0)
     state.append(rap_step1)
     world_model.step(state, action1)

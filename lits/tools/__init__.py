@@ -69,14 +69,18 @@ def build_tools(
         from ..clients.sql_client import SQLDBClient
         from ..clients.geosql_client import GeoSQLDBClient
         from ..clients.als_client import AmazonLocationClient
+        from ..clients.pdf_client import PDFClient
         from .geosql_tools import ListSpatialFunctionsTool, InfoSpatialFunctionTool, UniqueValuesTool
         from .sql_tools import QuerySQLDatabaseTool, InfoSQLDatabaseTool, ListSQLDatabaseTool
         from .aws_geocode import AWSGeocodeTool
+        from .pdf_tools import PDFQueryTool
         
         connection = get_db_connection()
         db_client = SQLDBClient(connection, schema=db_schema)
         geosql_db_client = GeoSQLDBClient(connection, schema=db_schema)
         geocode_client = AmazonLocationClient()
+        client = PDFClient(storage_path="qdrant_pdf/")
+        
         tools = [
             QuerySQLDatabaseTool(client=db_client),
             InfoSQLDatabaseTool(client=db_client),
@@ -85,7 +89,10 @@ def build_tools(
             ListSpatialFunctionsTool(geosql_db_client),
             InfoSpatialFunctionTool(geosql_db_client),
             UniqueValuesTool(geosql_db_client),
-        ] + [ AWSGeocodeTool(geocode_client)]
+        ] + [ 
+             AWSGeocodeTool(geocode_client),
+             PDFQueryTool(client=client)
+        ]
         return tools
     else:
         raise ValueError(f"Unsupported Benchmark: {benchmark_name}")

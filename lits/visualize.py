@@ -304,3 +304,340 @@ def plot_tradeoff_curves(budgets, curves, xlabel="Budget", title=None, y_limits=
     plt.tight_layout()
     plt.show()
     
+
+
+# ============================================================================
+# Tree Visualization Module
+# ============================================================================
+
+import re
+import textwrap
+from typing import List, Dict, Any, Optional
+
+
+def _short(text: str, n: int = 80) -> str:
+    """Shorten text to n characters, replacing whitespace with single spaces."""
+    if not text:
+        return ""
+    text = re.sub(r"\s+", " ", str(text)).strip()
+    return text if len(text) <= n else text[:n-1] + "…"
+
+
+def _wrap(text: str, n: int = 80) -> str:
+    """Wrap long text into multiple lines for Graphviz labels."""
+    if not text:
+        return ""
+    text = re.sub(r"\s+", " ", str(text)).strip()
+    lines = textwrap.wrap(text, width=n)
+    return "\n".join(lines)
+
+
+def _make_label(d: Dict[str, Any]) -> str:
+    """
+    Create a node label from node dictionary.
+    
+    Args:
+        d: Node dictionary with keys like id, action, fast_reward, cum_rewards, etc.
+    
+    Returns:
+        Formatted label string for visualization
+    """
+    # First line = symbols
+    symbols = []
+    if d.get("is_terminal"):
+        symbols.append("⏹")
+    if d.get("is_continuous"):
+        symbols.append("--")
+    if d.get("is_expanded"):
+        symbols.append("⇲")
+    if d.get("is_simulated"):
+        symbols.append("∼")
+    
+    parts_in_lines = [f"id={d.get('id', '?')}"]
+    
+    # Add reward info
+    fr = d.get("fast_reward", None)
+    if isinstance(fr, (int, float)):
+        parts_in_lines.append(f"r={fr:g}")
+    
+    cr = d.get("cum_rewards", None)
+    if isinstance(cr, list) and cr:
+        parts_in_lines.append(f"R̄≈{sum(cr)/len(cr):.2f}")
+    
+    # Add action text
+    act = _wrap(d.get("action"), 60)
+    if act:
+        parts_in_lines.append(f"{act}")
+    
+    # Add sub_answer if present
+    if len(d.get("state", [])) > 0:
+        if isinstance(d["state"][-1], dict) and "sub_answer" in d["state"][-1]:
+            parts_in_lines.append(_wrap(f"{d['state'][-1]['sub_answer']}"))
+    
+    # Combine lines: symbols first, then details
+    lines = []
+    if symbols:
+        lines.append("".join(symbols))
+    lines.extend(parts_in_lines)
+    return "\n".join(lines)
+
+
+def _escape_label(s: str) -> str:
+    """Escape string for DOT format."""
+    return s.replace("\\", "\\\\").replace('"', r'\"').replace("\n", r"\n")
+
+
+def buckets_to_paths(buckets_with_terminal: Dict[int, List]) -> List[List]:
+    """
+    Convert BFS buckets (breadth-wise organization) to paths (depth-wise).
+    
+    Args:
+        buckets_with_terminal: Dictionary mapping depth -> list of nodes at that depth
+    
+    Returns:
+        List of paths, where each path is a list of nodes from root to leaf
+    
+    Example:
+        >>> buckets = {0: [root], 1: [child1, child2], 2: [grandchild1, grandchild2]}
+        >>> paths = buckets_to_paths(buckets)
+        >>> # Returns: [[root, child1, grandchild1], [root, child2, grandchild2]]
+    """
+    paths = []
+    if buckets_with_terminal:
+        for depth, nodes in sorted(buckets_with_terminal.items()):
+            for node in nodes:
+                # Reconstruct path from node to root
+                path = []
+                current = node
+                while current is not None:
+                    path.insert(0, current)
+                    current = current.parent
+                if path:
+                    paths.append(path)
+    return paths
+
+
+def path_to_dict(path: List[Any], add_init_question: bool = True, idx: Optional[int] = None, full_dataset: Optional[List] = None) -> List[Dict]:
+    """
+    Convert a path of nodes to a list of dictionaries.
+    
+    Args:
+        path: List of node objects
+        add_init_question: Whether to add the initial question to the first node
+        idx: Example index for retrieving question from dataset
+        full_dataset: Dataset containing questions and answers
+    
+    Returns:
+        List of node dictionaries
+    """
+    lst_d = []
+    for i, node in enumerate(path):
+        if add_init_question and i == 0 and idx is not None and full_dataset is not None:
+            node.action = full_dataset[idx]["question"] + f" (Answer: {full_dataset[idx]['answer']})"
+        lst_d.append(node.to_dict())
+    return lst_d
+
+
+def build_anytree_from_paths(paths: List[List[Dict]]):
+    """
+    Build a deduplicated anytree from a list of paths.
+    
+    Nodes with the same `id` are treated as the same tree node.
+    
+    Args:
+        paths: List of paths, where each path is a list of node dictionaries
+    
+    Returns:
+        Root Node of the constructed tree
+    
+    Requires:
+        pip install anytree
+    """
+    try:
+        from anytree import Node
+    except ImportError:
+        raise ImportError("anytree is required for tree visualization. Install with: pip install anytree")
+    
+    nodes = {}
+    
+    def get_or_create(d):
+        k = d["id"]
+        if k not in nodes:
+            nodes[k] = Node(name=_make_label(d), meta=d)
+        else:
+            # Merge richer info if available
+            old = nodes[k]
+            merged = dict(old.meta)
+            merged.update({k2: v for k2, v in d.items() if v not in (None, [], "", -1)})
+            old.meta = merged
+            old.name = _make_label(merged)
+        return nodes[k]
+    
+    # Connect nodes along each path
+    root = None
+    for path in paths:
+        parent = None
+        for d in path:
+            node = get_or_create(d)
+            if parent is None:
+                if root is None:
+                    root = node
+            else:
+                if node.parent is None:
+                    node.parent = parent
+            parent = node
+    
+    if root is None and paths:
+        root = get_or_create(paths[0][0])
+    
+    return root
+
+
+def nodeattrfunc(node):
+    """Generate Graphviz node attributes."""
+    d = getattr(node, "meta", {})
+    label = _escape_label(node.name)
+    attrs = [
+        f'label="{label}"',
+        'shape=box',
+        'fontname="Helvetica"',
+        'fontsize=10',
+    ]
+    if d.get("is_terminal"):
+        attrs.append('style="filled,rounded"')
+        attrs.append('fillcolor="#E6FFE6"')
+    elif d.get("is_expanded"):
+        attrs.append('style="rounded"')
+    return " ".join(attrs)
+
+
+def nodenamefunc(node):
+    """Generate unique node name for Graphviz."""
+    d = getattr(node, "meta", {})
+    node_id = d.get("id", "x")
+    return f"n{node_id}_{id(node) % 100000}"
+
+
+def plot_save_tree(tree_in_paths: List[List[Dict]], save_path: str, format: str = "pdf"):
+    """
+    Visualize and save a search tree from paths.
+    
+    Args:
+        tree_in_paths: List of paths, where each path is a list of node dictionaries
+        save_path: Path to save the visualization (without extension)
+        format: Output format (pdf, png, svg, etc.)
+    
+    Requires:
+        pip install anytree graphviz
+        System graphviz installation (brew install graphviz on macOS)
+    
+    Example:
+        >>> paths = [[node1.to_dict(), node2.to_dict()], [node1.to_dict(), node3.to_dict()]]
+        >>> plot_save_tree(paths, "output/tree", format="pdf")
+    """
+    try:
+        from anytree.exporter import DotExporter
+    except ImportError:
+        raise ImportError("anytree is required for tree visualization. Install with: pip install anytree")
+    
+    root = build_anytree_from_paths(tree_in_paths)
+    
+    # Save DOT file
+    dot_path = save_path + ".dot"
+    DotExporter(
+        root,
+        nodenamefunc=nodenamefunc,
+        nodeattrfunc=nodeattrfunc,
+        edgeattrfunc=lambda p, c: 'arrowsize=0.7'
+    ).to_dotfile(dot_path)
+    
+    # Try to render to image
+    try:
+        output_path = f"{save_path}.{format}"
+        DotExporter(
+            root,
+            nodenamefunc=nodenamefunc,
+            nodeattrfunc=nodeattrfunc,
+            edgeattrfunc=lambda p, c: 'arrowsize=0.7'
+        ).to_picture(output_path)
+        print(f"✓ Saved tree visualization: {output_path}")
+    except Exception as e:
+        print(f"⚠ Graphviz 'dot' not found on PATH; generated {dot_path} instead.")
+        print(f"  Install graphviz: brew install graphviz (macOS) or apt-get install graphviz (Linux)")
+        print(f"  Error: {e}")
+
+
+def visualize_mcts_result(result, save_path: str, format: str = "pdf", add_init_question: bool = False, idx: Optional[int] = None, full_dataset: Optional[List] = None):
+    """
+    Visualize MCTS search result.
+    
+    Args:
+        result: MCTSResult object from mcts() function
+        save_path: Path to save visualization (without extension)
+        format: Output format (pdf, png, svg, etc.)
+        add_init_question: Whether to add initial question to root node
+        idx: Example index
+        full_dataset: Dataset for retrieving question
+    
+    Example:
+        >>> result = mcts(question, idx, config, world_model, policy, evaluator)
+        >>> visualize_mcts_result(result, "output/mcts_tree", format="pdf")
+    """
+    paths = [result.trace_of_nodes] + (result.trace_in_each_iter or [])
+    tree_in_paths = [path_to_dict(path, add_init_question, idx, full_dataset) for path in paths if path]
+    plot_save_tree(tree_in_paths, save_path, format)
+
+
+def visualize_bfs_result(result, save_path: str, format: str = "pdf", add_init_question: bool = False, idx: Optional[int] = None, full_dataset: Optional[List] = None):
+    """
+    Visualize BFS search result.
+    
+    Args:
+        result: BFSResult object from bfs_topk() function
+        save_path: Path to save visualization (without extension)
+        format: Output format (pdf, png, svg, etc.)
+        add_init_question: Whether to add initial question to root node
+        idx: Example index
+        full_dataset: Dataset for retrieving question
+    
+    Example:
+        >>> result = bfs_topk(question, idx, config, world_model, policy, evaluator, retrieve_answer, return_buckets=True)
+        >>> visualize_bfs_result(result, "output/bfs_tree", format="pdf")
+    """
+    # Convert buckets to paths
+    paths = buckets_to_paths(result.buckets_with_terminal)
+    
+    tree_in_paths = [path_to_dict(path, add_init_question, idx, full_dataset) for path in paths if path]
+    plot_save_tree(tree_in_paths, save_path, format)
+
+
+def get_tree_from_result(result, idx: Optional[int] = None, full_dataset: Optional[List] = None) -> List[List[Dict]]:
+    """
+    Extract tree paths from MCTS or BFS result.
+    
+    Args:
+        result: MCTSResult or BFSResult object
+        idx: Example index
+        full_dataset: Dataset for retrieving question
+    
+    Returns:
+        List of paths, where each path is a list of node dictionaries
+    
+    Example:
+        >>> result = mcts(question, idx, config, world_model, policy, evaluator)
+        >>> paths = get_tree_from_result(result, idx, full_dataset)
+        >>> # paths[0] is the best path, paths[1:] are traces from each iteration
+    """
+    from .agents.tree.mcts import MCTSResult
+    from .agents.tree.bfs import BFSResult
+    
+    if isinstance(result, MCTSResult):
+        paths = [result.trace_of_nodes] + (result.trace_in_each_iter or [])
+        return [path_to_dict(path, True, idx, full_dataset) for path in paths if path]
+    
+    elif isinstance(result, BFSResult):
+        paths = buckets_to_paths(result.buckets_with_terminal)
+        return [path_to_dict(path, True, idx, full_dataset) for path in paths if path]
+    
+    else:
+        raise TypeError(f"Unsupported result type: {type(result)}")

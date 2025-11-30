@@ -249,7 +249,8 @@ class LanguageModel:
 
     def __init__(
         self, 
-        model, 
+        model_name,
+        model=None, 
         tokenizer=None, 
         inference_logger: InferenceLogger=None, 
         enable_thinking=False, 
@@ -257,6 +258,7 @@ class LanguageModel:
         max_new_tokens=None, 
         verbose=False
     ):
+        self.model_name = model_name
         self.model = model
         self.tokenizer = tokenizer
         self.inference_logger = inference_logger
@@ -287,12 +289,65 @@ class LanguageModel:
     def __call__(self, *args, **kwds):
         raise NotImplementedError
     
+    def _get_gen_legnth(self, max_new_tokens, max_length):
+        """Helper to resolve generation length parameters."""
+        max_length = self.max_length if max_length is None else max_length 
+        max_length = None if max_new_tokens is not None else max_length
+        return max_length, max_new_tokens
+    
+    def sample_binary_output(self, user_message, sample_size, target="yes", contrast="no", role=None, temperature=0.6, max_new_tokens=None, max_length=None):
+        """Sample binary outputs (e.g., yes/no) from the model.
+        
+        Args:
+            user_message: The prompt to send to the model
+            sample_size: Number of samples to generate
+            target: The target response (default: "yes")
+            contrast: The contrasting response (default: "no")
+            role: Role for logging purposes
+            temperature: Sampling temperature
+            max_new_tokens: Maximum new tokens to generate
+            max_length: Maximum total length
+            
+        Returns:
+            Dict with counts for target and contrast responses
+        """
+        answer_samples = {target: 0, contrast: 0}
+        orig_verbose = self.verbose
+        
+        max_length, max_new_tokens = self._get_gen_legnth(max_new_tokens, max_length)
+
+        for i in range(sample_size):  
+            while True:
+                self.verbose = (i == 0) and orig_verbose  # only verbose for the first sample
+                output_text = self(user_message, role=role, temperature=temperature, max_new_tokens=max_new_tokens, max_length=max_length, enable_thinking=False).text.strip()
+                output_text = output_text.lower().strip()
+                output_text = output_text[:-1] if output_text.endswith('.') else output_text # remove period
+                if output_text in [target, contrast]:
+                    break
+                else:
+                    user_message += f"Please answer with only one word: {target} or {contrast}.\n"
+
+            if output_text.lower() == target:
+                answer_samples[target] += 1
+            elif output_text.lower() == contrast:
+                answer_samples[contrast] += 1
+            else:
+                raise ValueError(f"Unknown output_text: {output_text}")
+        
+        self.verbose = orig_verbose
+        if self.verbose and self.LOG_MODEL_OUTPUT:
+            logger.debug(f">>>>> Sample Output (BEGIN) <<<<<")
+            logger.debug(str(answer_samples[target]) + " out of " + str(sample_size) + " samples")
+            logger.debug(f">>>>> Sample Output (END) <<<<<")
+        return answer_samples
+    
 
         
 class HfModel(LanguageModel):
 
     def __init__(
         self, 
+        model_name,
         model, 
         tokenizer, 
         inference_logger: InferenceLogger=None, 
@@ -302,6 +357,7 @@ class HfModel(LanguageModel):
         verbose=False
     ):
         super().__init__(
+            model_name=model_name,
             model=model, 
             tokenizer=tokenizer, 
             inference_logger=inference_logger, 
@@ -337,42 +393,10 @@ class HfModel(LanguageModel):
         return attn_mask
 
 
-    def sample_binary_output(self,user_message, sample_size, target="yes", contrast="no", role=None, temperature=0.6, max_new_tokens=None, max_length=None):
-        # assert lower case target/contrast
-        # assert target.islower() and contrast.islower(), "target and contrast must be lower case"
-        answer_samples = {target: 0, contrast: 0}
-        orig_verbose = self.verbose
-        
-        max_length, max_new_tokens = self._get_gen_legnth(max_new_tokens, max_length)
-
-        for i in range(sample_size):  
-            while True:
-                self.verbose = (i == 0) and orig_verbose  # only verbose for the first sample
-                output_text = self(user_message, role=role, temperature=temperature, max_new_tokens=max_new_tokens, max_length=max_length, enable_thinking=False).text.strip()
-                output_text = output_text.lower().strip()
-                output_text = output_text[:-1] if output_text.endswith('.') else output_text # remove period
-                if output_text in [target, contrast]:
-                    break
-                else:
-                    user_message += f"Please answer with only one word: {target} or {contrast}.\n"
-
-            if output_text.lower() == target:
-                answer_samples[target] += 1
-            elif output_text.lower() == contrast:
-                answer_samples[contrast] += 1
-            else:
-                raise ValueError(f"Unknown output_text: {output_text}")
-        self.verbose = orig_verbose
-        if self.verbose and self.LOG_MODEL_OUTPUT:
-            logger.debug(f">>>>> Sample Output (BEGIN) <<<<<")
-            logger.debug(str(answer_samples[target]) + " out of " + str(sample_size) + " samples")
-            logger.debug(f">>>>> Sample Output (END) <<<<<")
-        return answer_samples
-    
     def _get_gen_legnth(self, max_new_tokens, max_length):
-        # set generation length
+        # Override base implementation: Huggingface will ignore max_length if max_new_tokens is set
         max_length = self.max_length if max_length is None else max_length 
-        max_length = None if max_new_tokens is not None else max_length # Huggingface will ignore max_length if max_new_tokens is set. We explicitly set it to None to avoid confusion.
+        max_length = None if max_new_tokens is not None else max_length
         return max_length, max_new_tokens
 
     def __call__(
@@ -429,7 +453,7 @@ class HfModel(LanguageModel):
         prompt_length = model_inputs['input_ids'].shape[-1]
         all_ids = output_ids[0]
         gen_ids = all_ids[prompt_length:]
-        if self.inference_logger:
+        if self.inference_logger and role is not None:
             self.inference_logger.update_usage(
                 input_tokens=prompt_length,
                 output_tokens=len(gen_ids),
@@ -513,7 +537,7 @@ class HfModel(LanguageModel):
         end_time = time.time()
         running_time = end_time - start_time
         
-        if self.inference_logger:
+        if self.inference_logger and role is not None:
             input_ids = model_inputs['input_ids']
             total_input  = int(input_ids.numel())
             total_output = int(output_ids.numel() - input_ids.numel())
@@ -578,7 +602,7 @@ class HfModel(LanguageModel):
         running_time = end_time - start_time
         logits = output.logits[0, toekn_idx_for_logit]  
 
-        if self.inference_logger:
+        if self.inference_logger and role is not None:
             total_input  = int(input_ids['input_ids'].numel())
             
             self.inference_logger.update_usage(
@@ -628,12 +652,12 @@ class HfModel(LanguageModel):
     @classmethod
     def load_from_hf(cls, model_name: str, device: str="cuda", inference_logger: str=None, **kwargs):
         model, tokenizer = cls._cache_from_hf(model_name, device)
-        return cls(model, tokenizer, inference_logger=inference_logger, **kwargs)
+        return cls(model_name, model, tokenizer, inference_logger=inference_logger, **kwargs)
 
 class HfChatModel(HfModel):
-    def __init__(self, model, tokenizer, sys_prompt=None, inference_logger=None, **kwargs):
+    def __init__(self, model_name, model, tokenizer, sys_prompt=None, inference_logger=None, **kwargs):
         """ Same as HfModel, with additional argument: `sys_prompt` """
-        super().__init__(model, tokenizer, inference_logger, **kwargs)
+        super().__init__(model_name, model, tokenizer, inference_logger, **kwargs)
         self.sys_prompt = sys_prompt
         
     def tokenize(self, usr_prompt_or_prompts, enable_thinking=None):
@@ -703,4 +727,4 @@ class HfChatModel(HfModel):
     def load_from_hf(cls, model_name: str, sys_prompt: str=None, device: str="cuda", inference_logger: str=None, **kwargs):
         """ Same as HfModel, with additional argument: `sys_prompt` """
         model, tokenizer = cls._cache_from_hf(model_name, device)
-        return cls(model,  tokenizer, sys_prompt, inference_logger, **kwargs)
+        return cls(model_name, model,  tokenizer, sys_prompt, inference_logger, **kwargs)

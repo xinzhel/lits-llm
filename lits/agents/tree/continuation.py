@@ -1,6 +1,6 @@
 from ...components.base import Transition, Policy, RewardModel
-from ..tree_search.node import SearchNode
-from ..tree_search.common import visualize_path, _is_terminal_with_depth_limit
+from .node import SearchNode
+from .common import visualize_path, _is_terminal_with_depth_limit
 import logging
 
 logger = logging.getLogger(__name__)
@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 ##### CONTINUATION (BEGIN) #####
 def _continuation(
     example, 
-    example_idx, 
+    query_idx, 
     node: SearchNode,
     world_model: Transition,
     policy: Policy,
@@ -29,14 +29,14 @@ def _continuation(
     stepping the model, and chaining forward while
     reward ≥ reward_threshold.
     """
-    # example_idx is a number
-    assert isinstance(example_idx, int)
-    logger.debug(f"\n=========== [Continuation for Example {example_idx} Begin] ===========")
+    # query_idx is a number
+    assert isinstance(query_idx, int)
+    logger.debug(f"\n=========== [Continuation for Example {query_idx} Begin] ===========")
     continuous_trace = [node]
     while True:
         
         if node.state is None: # state is required for expansion
-            world_modeling_func(example, example_idx, node, world_model, reward_model, from_phase="continuation")
+            world_modeling_func(example, query_idx, node, world_model, reward_model, from_phase="continuation")
             if node.is_terminal:
                 logger.debug(f"[continuation exit] node is terminal, stopping continuation")
                 break
@@ -48,7 +48,7 @@ def _continuation(
         # ===== Fast Reward (Begin) =====
         if threshold_alpha is not None:
             assert bn_evaluator is None or bn_evaluator.eval_method not in ["entropy", "sc"], "BN-entropy and -SC evaluator is not compatible with fast reward thresholding so far"
-            expand_func(example, example_idx, node, policy, n_actions=1, reward_model=reward_model, use_critic=use_critic, from_phase="continuation") # world model should be used only once if the intital node's state is not materialized
+            expand_func(example, query_idx, node, policy, n_actions=1, reward_model=reward_model, use_critic=use_critic, from_phase="continuation") # world model should be used only once if the intital node's state is not materialized
             # if reward is “good”, chain forward; otherwise, stop
             if node.children[0].fast_reward < threshold_alpha:
                 logger.debug(f"[continuation exit] fast_reward={child.fast_reward:.3f} < {threshold_alpha}, stopping continuation")
@@ -60,16 +60,16 @@ def _continuation(
             if bn_evaluator.eval_method == "entropy" or bn_evaluator.eval_method == "sc":
                 actions_for_eval = []
                 assert n_actions_for_bne is not None
-                expand_func(example, example_idx, node, policy, n_actions_for_bne, reward_model=None, assign_rewards=False, from_phase="continuation")
+                expand_func(example, query_idx, node, policy, n_actions_for_bne, reward_model=None, assign_rewards=False, from_phase="continuation")
                 
                 if threshold_gamma1 is not None:
                     for child_node in node.children:
-                        fast_reward, _ = reward_model.fast_reward(example, example_idx, node.state, child_node.action, from_phase="continuation")
+                        fast_reward, _ = reward_model.fast_reward(example, query_idx, node.state, child_node.action, from_phase="continuation")
                         if fast_reward >= threshold_gamma1:
                             actions_for_eval.append(child_node.action)
                 else:
                     actions_for_eval.extend([child_node.action for child_node in node.children])
-                bn_score, canonical_action = bn_evaluator.evaluate(example, node.state, actions_for_eval, example_idx=example_idx)
+                bn_score, canonical_action = bn_evaluator.evaluate(example, node.state, actions_for_eval, query_idx=query_idx)
                 if bn_score >= threshold_gamma:
                     assert canonical_action is not None and canonical_action != "", f"Canonical action is None or empty string: {canonical_action}"
                     node.children = [node.children[0]]
@@ -79,8 +79,8 @@ def _continuation(
             else:
                 assert bn_evaluator.eval_method == "direct"
                 if len(node.children) == 0:
-                    expand_func(example, example_idx, node, policy, n_actions=1, reward_model=reward_model, assign_rewards=False, use_critic=use_critic, from_phase="continuation")
-                bn_score = bn_evaluator.evaluate(example, node.state, [node.children[0].action], example_idx=example_idx)
+                    expand_func(example, query_idx, node, policy, n_actions=1, reward_model=reward_model, assign_rewards=False, use_critic=use_critic, from_phase="continuation")
+                bn_score = bn_evaluator.evaluate(example, node.state, [node.children[0].action], query_idx=query_idx)
                 node.children[0].bn_score = bn_score
 
             if bn_score < threshold_gamma:
@@ -93,7 +93,7 @@ def _continuation(
             child = node.children[0]
             # set state/reward/is_terminal for the child node
             if world_modeling_func is not None:
-                world_modeling_func(example, example_idx, child, world_model, reward_model, from_phase="continuation")
+                world_modeling_func(example, query_idx, child, world_model, reward_model, from_phase="continuation")
             logger.debug(f"[continuation] took step to={child.state}, reward={child.reward:.3f}")
             if child.state_conf < threshold_conf:
                 logger.debug(f"[continuation exit] state_conf={child.state_conf:.3f} < {threshold_conf}, stopping continuation")
@@ -107,6 +107,6 @@ def _continuation(
         continuous_trace.append(node)
     
     logger.debug("Continuous Trace: " + visualize_path(continuous_trace))
-    logger.debug(f"===========[Continuation for Example {example_idx} End]==========\n")
+    logger.debug(f"===========[Continuation for Example {query_idx} End]==========\n")
     return continuous_trace
 ##### CONTINUATION (END) #####

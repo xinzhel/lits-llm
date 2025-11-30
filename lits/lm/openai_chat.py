@@ -25,7 +25,8 @@ class OpenAIChatModel(LanguageModel):
         if unsupported_kwargs:
             warnings.warn(f"Unsupported kwargs for OpenAI chat models: {unsupported_kwargs}")
         super().__init__(
-            model=model_name,
+            model_name=model_name,
+            model=None,
             tokenizer=None,
             inference_logger=inference_logger,
             enable_thinking=enable_thinking,
@@ -94,7 +95,7 @@ class OpenAIChatModel(LanguageModel):
         input_toks = getattr(resp.usage, "prompt_tokens", 0)
         output_toks = getattr(resp.usage, "completion_tokens", 0)
 
-        if self.inference_logger:
+        if self.inference_logger and role is not None:
             self.inference_logger.update_usage(
                 input_tokens=input_toks,
                 output_tokens=output_toks,

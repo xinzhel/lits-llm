@@ -3,10 +3,17 @@
 import json
 import logging
 from typing import Iterable
+from dataclasses import is_dataclass, asdict
 
 from ..type_registry import TYPE_REGISTRY
 
 def _serialize_obj(obj):
+    # Handle dataclasses (like ThoughtStep, SubQAStep)
+    if is_dataclass(obj):
+        data = asdict(obj)
+        data["__type__"] = type(obj).__name__
+        return data
+    # Handle NamedTuples
     if hasattr(obj, "_asdict"):
         data = obj._asdict()
         data["__type__"] = type(obj).__name__

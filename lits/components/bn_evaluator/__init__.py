@@ -1,7 +1,7 @@
 import re
 import ast
 from typing import Optional, List, Dict, Tuple, Any
-from ..structures import PolicyAction, StateByStepList, SubQAStep
+from ...structures import Action, TrajectoryState, SubQAStep
 from ..utils import verbalize_concat_state,verbalize_rap_state, extract_existing_steps, create_role
 from ...lm.base import DETERMINISTIC_TEMPERATURE, HfChatModel, DEFAULT_MAX_LENGTH
 from ...prompts.prompt import PromptTemplate
@@ -149,7 +149,7 @@ def cluster_entropy(
     best = max(clusters, key=lambda c: c.get("count", 0)).get("canonical_action")
     return H_norm, best
 
-def check_overlap_with_context(clusters, base_model, context, example_idx='', is_subquestion=False, max_length=None, max_new_tokens=None):
+def check_overlap_with_context(clusters, base_model, context, query_idx='', is_subquestion=False, max_length=None, max_new_tokens=None):
     n = len(clusters)
     root = list(range(n))
 
@@ -181,7 +181,7 @@ Do these steps express the same underlying operation given the context?
 """
         answer_samples = base_model.sample_binary_output(
             user_message,
-            sample_size=3, target="yes", contrast="no", role=create_role("bn_entropy_agg", example_idx),
+            sample_size=3, target="yes", contrast="no", role=create_role("bn_entropy_agg", query_idx),
             max_length=max_length, max_new_tokens=max_new_tokens
         )
 
@@ -206,7 +206,7 @@ Do these steps express the same underlying operation given the context?
     aggregated_clusters = list(merged.values())
     return aggregated_clusters
 
-def check_overlap(clusters, base_model, existing_steps=None, example_idx='', is_subquestion=False):
+def check_overlap(clusters, base_model, existing_steps=None, query_idx='', is_subquestion=False):
     """
     Given a list of clusters [{canonical_action, count}], 
     call an LLM to check pairwise semantic overlap.
@@ -241,7 +241,7 @@ Do these overlap semantically?
 """
         answer_samples = base_model.sample_binary_output(
             user_message,
-            sample_size=3, target="yes", contrast="no", role=create_role("bn_entropy_agg", example_idx)
+            sample_size=3, target="yes", contrast="no", role=create_role("bn_entropy_agg", query_idx)
         )
 
         if answer_samples["yes"] > 1:
@@ -287,7 +287,7 @@ Do these overlap semantically?
 """
                 answer_samples = base_model.sample_binary_output(
                     user_message,
-                    sample_size=3, target="yes", contrast="no", role=create_role("bn_entropy_remove", example_idx)
+                    sample_size=3, target="yes", contrast="no", role=create_role("bn_entropy_remove", query_idx)
                 )
                 if answer_samples["yes"] > 1:
                     keep = False
@@ -317,34 +317,34 @@ class BNEvaluator:
         self.max_new_tokens_for_bn_eval = max_new_tokens_for_bn_eval
         self.max_try_for_bn_eval = max_try_for_bn_eval
 
-    def _generate_prompt(self, example, state: list[SubQAStep], action: PolicyAction):
+    def _generate_prompt(self, example, state: list[SubQAStep], action: Action):
         partial_path = "\n".join([f"{step.get_action()}" for step in state])
         partial_path = "<No Existing Steps>" if partial_path.strip() == "" else partial_path
         candidate_step = action
         model_input = usr_prompt_template.format(task=example, partial_path=partial_path, candidate_step=candidate_step)
         return model_input
 
-    def evaluate(self, example, state: StateByStepList, actions: list[PolicyAction], example_idx: int=None) -> int:
+    def evaluate(self, example, state: TrajectoryState, actions: list[Action], query_idx: int=None) -> int:
         logger.debug(f">>>>>>>>> BN Evaluation (Begin)  <<<<<<<<<")
         if self.eval_method == "direct":
             assert len(actions) == 1, "direct eval only supports single action"
-            bn_score = self.direct_eval(example, state, actions[0], example_idx) # action
+            bn_score = self.direct_eval(example, state, actions[0], query_idx) # action
         elif self.eval_method == "entropy":
-            bn_score = self.entropy_eval(example, state, actions, example_idx) # actions
+            bn_score = self.entropy_eval(example, state, actions, query_idx) # actions
         elif self.eval_method == "sc":
-            bn_score = self.sc_eval(example, state, actions, example_idx) # actions
+            bn_score = self.sc_eval(example, state, actions, query_idx) # actions
         else:
             raise ValueError(f"Unknown eval method: {self.eval_method}")
         logger.debug(f"\n Output from BN evaluator: {bn_score}")
         logger.debug(f">>>>>>>>> BN Evaluation (End) <<<<<<<<<")
         return bn_score
 
-    def direct_eval(self, example, state: StateByStepList, action: PolicyAction, example_idx: int=None) -> int:
+    def direct_eval(self, example, state: TrajectoryState, action: Action, query_idx: int=None) -> int:
         model_input = self._generate_prompt(example, state, action)
         self.base_model.sys_prompt = self._sys_prompt_direct
         success_try = False
         for i_try in range(self.max_try_for_bn_eval):
-            output = self.base_model(model_input, role=create_role("bn_eval", example_idx), max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval, temperature=0.3, enable_thinking=self.enable_thinking).text.strip()
+            output = self.base_model(model_input, role=create_role("bn_eval", query_idx), max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval, temperature=0.3, enable_thinking=self.enable_thinking).text.strip()
             try:
                 output = int(output)
             except ValueError:
@@ -357,7 +357,7 @@ class BNEvaluator:
             return 0
         return output/4
 
-    def sc_eval(self, example, state, actions, example_idx=None, is_subquestion=False):
+    def sc_eval(self, example, state, actions, query_idx=None, is_subquestion=False):
         # remove empty actions
         actions = [action for action in actions if action.strip() != ""]
         if len(actions) == 1:
@@ -371,7 +371,7 @@ class BNEvaluator:
         
         clusters = [ {"canonical_action": action, "count": 1} for action in actions]
         logger.debug(f"\n Input clusters: {clusters}")
-        clusters = check_overlap_with_context(clusters, self.base_model, context, example_idx, is_subquestion,  max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval)
+        clusters = check_overlap_with_context(clusters, self.base_model, context, query_idx, is_subquestion,  max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval)
         logger.debug(f"\n Output clusters: {clusters}")
         # select the action with the highest count and its proportion
         selected_dict = max(clusters, key=lambda x: x["count"])
@@ -380,7 +380,7 @@ class BNEvaluator:
         return bn_score, selected_dict["canonical_action"]
         
 
-    def entropy_eval(self, example, state, actions, example_idx=None, is_subquestion=False):
+    def entropy_eval(self, example, state, actions, query_idx=None, is_subquestion=False):
         """
         Args:
         actions (list[str]): 
@@ -441,7 +441,7 @@ Rules:
         success = 0
         lst_actions_with_counts = []
         for i_try in range(self.max_try_for_bn_eval):
-            output = self.base_model(msg, role=create_role("bn_entropy", example_idx), max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval, temperature=DETERMINISTIC_TEMPERATURE, enable_thinking=self.enable_thinking).text
+            output = self.base_model(msg, role=create_role("bn_entropy", query_idx), max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval, temperature=DETERMINISTIC_TEMPERATURE, enable_thinking=self.enable_thinking).text
             output = extract_bne_output(output)
 
             try:
@@ -458,7 +458,7 @@ Rules:
             return 0, None
 
         existing_steps = extract_existing_steps(state)
-        lst_actions_with_counts = check_overlap(lst_actions_with_counts, self.base_model, existing_steps, example_idx=example_idx, is_subquestion=is_subquestion)
+        lst_actions_with_counts = check_overlap(lst_actions_with_counts, self.base_model, existing_steps, query_idx=query_idx, is_subquestion=is_subquestion)
         logger.debug(f"clusters after check overlap: {lst_actions_with_counts}")
         lst_actions_with_counts= truncate_clusters(lst_actions_with_counts, len(actions))
         logger.debug(f"clusters after truncate: {lst_actions_with_counts}")

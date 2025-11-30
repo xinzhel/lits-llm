@@ -25,9 +25,10 @@ from lits.memory import (
 class Mem0BackendIntegrationTest(unittest.TestCase):
     """
     Mirrors the LiTS-Mem algorithm with a real mem0/Qdrant backend:
-    (1) store policy messages along trajectories, (2) inherit ancestor memories,
-    (3) compute similarity on normalized memory sets, (4) select only missing units
-    for augmentation.
+    (1) store policy messages along trajectories, 
+    (2) inherit ancestor memories,
+    (3) compute similarity on normalized memory sets, 
+    (4) select only missing units for augmentation.
     """
 
     def setUp(self):

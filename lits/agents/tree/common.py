@@ -4,19 +4,40 @@ import copy
 
 logger = logging.getLogger(__name__)
 
-def _is_terminal_with_depth_limit(node, depth_limit, force_terminating_on_depth_limit):
-
+def _is_terminal_with_depth_limit(node, max_steps, force_terminating_on_depth_limit):
+    """
+    Check if a node is terminal based on its state or depth limit.
+    
+    Args:
+        node: The search node to check
+        max_steps: Maximum depth/steps allowed in the search tree
+        force_terminating_on_depth_limit: Whether to force termination at max_steps
+    
+    Returns:
+        True if the node is terminal, False otherwise
+    """
     if node.is_terminal or node.is_terminal_for_repeat:
         logger.debug(f"Node {node.id} is terminal, terminating.")
         return True
-    if (force_terminating_on_depth_limit and node.depth >= depth_limit):
-        logger.debug(f"Node {node.id} reached depth limit {depth_limit}, terminating.")
+    if (force_terminating_on_depth_limit and node.depth >= max_steps):
+        logger.debug(f"Node {node.id} reached max_steps {max_steps}, terminating.")
         return True
     return False
 
-def _is_terminal_with_depth_limit_and_r_threshold(node, depth_limit, force_terminating_on_depth_limit, r_terminating):
-
-    if _is_terminal_with_depth_limit(node, depth_limit, force_terminating_on_depth_limit):
+def _is_terminal_with_depth_limit_and_r_threshold(node, max_steps, force_terminating_on_depth_limit, r_terminating):
+    """
+    Check if a node is terminal based on depth limit and reward threshold.
+    
+    Args:
+        node: The search node to check
+        max_steps: Maximum depth/steps allowed in the search tree
+        force_terminating_on_depth_limit: Whether to force termination at max_steps
+        r_terminating: Reward threshold for termination (optional)
+    
+    Returns:
+        True if the node is terminal, False otherwise
+    """
+    if _is_terminal_with_depth_limit(node, max_steps, force_terminating_on_depth_limit):
         if r_terminating is None:
             return True
         else:
@@ -47,7 +68,7 @@ def visualize_path(path: list[SearchNode], only_last_step=True):
 
 def _sample_actions_with_existing(
     example,
-    example_idx,
+    query_idx,
     node,
     policy,
     n_actions,
@@ -75,23 +96,23 @@ def _sample_actions_with_existing(
 
     critic = None
     if use_critic:
-        critic = world_model.generate_critic(node.state, example, example_idx)
+        critic = world_model.generate_critic(node.state, example, query_idx)
         if critic == "" or critic is None:
             logger.debug(f"Critic is empty")
             critic = "No Critic"
     new_actions = []
     if n_needed > 0:
         new_actions = policy.get_actions(
-            example,
             node.state,
+            query=example,
             critic=critic,  # can extend later if use_critic=True
             n_actions=n_needed,
-            example_idx=example_idx,
+            query_idx=query_idx,
             from_phase=from_phase
         )
     return new_actions
     
-def _world_modeling(example, example_idx, node, world_model, reward_model, from_phase="expand"):
+def _world_modeling(example, query_idx, node, world_model, reward_model, from_phase="expand"):
     assert from_phase in ["expand", "simulate", "continuation"]
     
     logger.debug(f"\n=========== [Set State for Node {node.id} Begin] ===========")
@@ -100,7 +121,7 @@ def _world_modeling(example, example_idx, node, world_model, reward_model, from_
         logger.debug(f"The state is not None.")
     else:
         node_state_copy = copy.deepcopy(node.parent.state)
-        node.state, aux = world_model.step(example, node.parent.state, node.action, example_idx=example_idx, from_phase=from_phase)
+        node.state, aux = world_model.step(node.parent.state, node.action, query_or_goals=example, query_idx=query_idx, from_phase=from_phase)
         assert node_state_copy == node.parent.state, "node.state is changed in world_model.step"
         node.state_conf = aux.get("confidence", -1)
         logger.debug(f"State is set to: {node.state}")
@@ -111,15 +132,75 @@ def _world_modeling(example, example_idx, node, world_model, reward_model, from_
             if node.fast_reward == -1:
                 logger.debug(f"Assigning fast reward for the child: Node {node.id}")
                 fast_reward, fast_reward_details = reward_model.fast_reward(
-                    example, example_idx, node.parent.state, node.action, from_phase=from_phase
+                    node.parent.state, node.action, example=example, query_idx=query_idx, from_phase=from_phase
                 ) # action evaluation, e.g., usefulness of a subquestion
                 node.fast_reward = fast_reward
                 node.fast_reward_details = fast_reward_details
             logger.debug(f"Reward is set via {node.fast_reward_details} and {aux}")
             node.reward = reward_model.reward(node.parent.state, node.action, **node.fast_reward_details, **aux) # usefulness of a subquestion + s_{t+1} confidence (from world_model.step)
             assert isinstance(node.reward, float), f"reward should be a float, got {type(node.reward)} from {reward_model.__class__}"
-        node.is_terminal = world_model.is_terminal(node.state, example, fast_reward=node.fast_reward, example_idx=example_idx, from_phase=from_phase)
+        node.is_terminal = world_model.is_terminal(node.state, example, fast_reward=node.fast_reward, query_idx=query_idx, from_phase=from_phase)
         
         if node.is_terminal:
             logger.debug(f"The state is terminal")
     logger.debug(f"\n=========== [Set State for Node {node.id} End] ===========\n")
+
+
+def extract_answers_from_terminal_nodes(
+    terminal_nodes_collected,
+    retrieve_answer,
+    question
+):
+    """
+    Extract answers and compute votes/rewards from collected terminal nodes.
+    
+    This function processes terminal nodes from tree search (MCTS or BFS).
+    It computes answer votes, reward distributions, and identifies the best path.
+    
+    Args:
+        terminal_nodes_collected: List of all terminal nodes collected from search
+        retrieve_answer: Function to extract answer from node state
+        question: Question being answered
+    
+    Returns:
+        Tuple of:
+            - answers_to_vote: Dict mapping answer -> vote count
+            - answers_to_rewards: Dict mapping answer -> list of rewards
+            - best_node: Node with highest reward
+            - trace_of_nodes: Path from root to best_node
+    """
+    from collections import defaultdict
+    
+    check_nodes = terminal_nodes_collected
+    logger.debug(f"Processing {len(check_nodes)} terminal nodes")
+    
+    # Extract answers and rewards
+    extracted_answers = [retrieve_answer(node.state, question) for node in check_nodes]
+    extracted_rewards = [float(node.fast_reward) for node in check_nodes]
+    logger.debug(f"Extracted answers: {extracted_answers}")
+    logger.debug(f"Extracted rewards: {extracted_rewards}")
+    
+    # Compute vote counts and reward distributions
+    answers_to_vote = defaultdict(lambda: 0)
+    answers_to_rewards = defaultdict(lambda: [])
+    for answer, reward in zip(extracted_answers, extracted_rewards):
+        answers_to_vote[answer] += 1
+        answers_to_rewards[answer].append(reward)
+    
+    # Select best node based on highest reward
+    best_node = None
+    if check_nodes:
+        best_node = max(
+            check_nodes,
+            key=lambda n: n.fast_reward if n.fast_reward is not None else -float('inf')
+        )
+    
+    # Reconstruct path from best node to root
+    trace_of_nodes = []
+    if best_node:
+        current = best_node
+        while current is not None:
+            trace_of_nodes.insert(0, current)
+            current = current.parent
+    
+    return dict(answers_to_vote), dict(answers_to_rewards), best_node, trace_of_nodes

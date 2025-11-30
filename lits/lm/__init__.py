@@ -30,7 +30,7 @@ def get_lm(model_name:str, **kwargs):
         if not model_exists_on_hf(model_name):
             raise ValueError(f"Model {model_name} not supported. Please use an OpenAI-based model or a model hosted on Hugging Face.")
         
-        is_chat = infer_hf_chat_model(model_name)["is_chat_model"]
+        is_chat = infer_chat_model(model_name)["is_chat_model"]
         if is_chat:
             base_model = HfChatModel.load_from_hf(
                 model_name,

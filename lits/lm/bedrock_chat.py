@@ -71,7 +71,8 @@ class BedrockChatModel(LanguageModel):
         **kwargs
     ):
         super().__init__(
-            model=model_name,
+            model_name=model_name,
+            model=None,
             tokenizer=None,
             inference_logger=inference_logger,
             enable_thinking=enable_thinking,
@@ -177,7 +178,7 @@ class BedrockChatModel(LanguageModel):
             messages, _ = self._format_messages(prompt, embed_system_prompt=True)
             text, input_tokens, output_tokens = self._invoke_request(messages, max_new_tokens, temperature, top_p, stop)
 
-        if self.inference_logger:
+        if self.inference_logger and role is not None:
             # Bedrock responses don’t always return usage counts, so just log approximate tokens
             self.inference_logger.update_usage(
                 input_tokens=input_tokens,

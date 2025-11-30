@@ -13,4 +13,4 @@ Please follow the restricted output format:
 * Otherwise, following the given step(s), output ONLY ONE step within 1000 tokens. SHOULD NOT output multiple steps.
 * DO NOT repeat Problem or any Existing Steps.
 * Your output should be a complete reasoning step that includes calculations, reasoning, choosing answers, etc. 
-* When the final answer is/has been reached, begin the step with EXACTLY the phrase:\"Now we can answer the question: The answer is \", followed by EXACTLY one number. Do not include any other words, punctuation, or explanation after the number.""",
+* When the final answer is/has been reached, begin the step with EXACTLY the phrase:\"Now we can answer the question: The answer is \", followed by EXACTLY one number. Do not include any other words, punctuation, or explanation after the number."""

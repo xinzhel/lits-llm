@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 class ToolUsePolicy(Policy[ToolUseState, ActionT]):
     """Policy that samples the next ReAct tool-use step from a chat model."""
 
+    def _create_error_steps(self, n_actions: int, error_msg: str) -> list[ToolUseStep]:
+        """Create ToolUseStep error steps for ToolUsePolicy."""
+        return [ToolUseStep(action=None, observation=None, answer=None, error=error_msg) for _ in range(n_actions)]
+
     def __init__(
         self,
         base_model,
@@ -61,6 +65,7 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         query_idx,
         critic: str = None,
         from_phase: str = "",
+        **kwargs
     ) -> list[ToolUseStep]:
         assert critic is None, "ToolUsePolicy does not support critic guidance"
         messages = self._build_messages(query, state)

@@ -23,6 +23,7 @@ class MCTSResult(NamedTuple):
     root: MCTSNode
     trace_in_each_iter: list[list[MCTSNode]] = None
     unselected_terminal_paths_during_simulate: list[list[MCTSNode]] = None
+    terminal_nodes_collected: list[MCTSNode] = None  # For unified post-processing with BFS
 
 def get_result_from_mcts( root: MCTSNode[State, Action], question, retrieve_answer, weight_policy: str = 'edge') -> Optional[Hashable]:
     assert weight_policy in ['edge', 'edge_inverse_depth']
@@ -86,7 +87,7 @@ def _name_to_func(name: str) -> Callable:
     raise KeyError(f"Callable '{name}' not in FUNC_REGISTRY. Add it first.")
 
 @dataclass
-class MCTSSearchConfig(BaseSearchConfig):
+class MCTSConfig(BaseSearchConfig):
     """
     MCTS-specific search configuration
     """
@@ -136,7 +137,19 @@ class MCTSSearchConfig(BaseSearchConfig):
 # ~~~~~~~ Search Config (BEGIN ~~~~~~~~~
 
 ##### SELECT (Begin) #####
-def _select(w_exp: float, node: MCTSNode, depth_limit: int, force_terminating_on_depth_limit: bool) -> list[MCTSNode]:
+def _select(w_exp: float, node: MCTSNode, max_steps: int, force_terminating_on_depth_limit: bool) -> list[MCTSNode]:
+    """
+    Select a path from root to a leaf node using UCT (Upper Confidence Bound for Trees).
+    
+    Args:
+        w_exp: Exploration weight for UCT formula
+        node: Root node to start selection from
+        max_steps: Maximum depth/steps allowed in the search tree
+        force_terminating_on_depth_limit: Whether to force termination at max_steps
+    
+    Returns:
+        List of nodes representing the selected path
+    """
     logger.debug("\n=========== [Select Begin] ===========")
     def _uct_select(w_exp: float, node: MCTSNode, return_detail=False) -> MCTSNode:
         best_child = None
@@ -161,7 +174,7 @@ def _select(w_exp: float, node: MCTSNode, depth_limit: int, force_terminating_on
         path.append(node)
         
         if node.children is None or len(node.children) <= 0 or \
-            _is_terminal_with_depth_limit(node, depth_limit, force_terminating_on_depth_limit):
+            _is_terminal_with_depth_limit(node, max_steps, force_terminating_on_depth_limit):
 
             logger.debug(visualize_path(path))
             select_types_str = "->".join(record_select_types)
@@ -193,7 +206,7 @@ def _select(w_exp: float, node: MCTSNode, depth_limit: int, force_terminating_on
 ##### EXPAND (Begin) #####
 def _expand(
     example, 
-    example_idx, 
+    query_idx, 
     node, 
     policy, 
     n_actions, 
@@ -203,11 +216,11 @@ def _expand(
     use_critic=False, 
     from_phase="expand"
 ):
-    logger.debug(f"\n=========== [Expand for Example {example_idx} Begin] ===========")
+    logger.debug(f"\n=========== [Expand for Example {query_idx} Begin] ===========")
 
     new_actions = _sample_actions_with_existing(
         example,
-        example_idx,
+        query_idx,
         node,
         policy,
         n_actions,
@@ -216,7 +229,8 @@ def _expand(
         from_phase=from_phase
     )
     
-    for action in new_actions:
+    for step in new_actions:
+        action = step.get_action()  # Extract action from Step object
         child = MCTSNode(state=None, action=action, parent=node)
         # Assign terminal-for-repeat
         child.is_terminal_for_repeat = (action == "ALWAY REPEAT. TERMINATE")
@@ -226,7 +240,7 @@ def _expand(
             assert child.fast_reward == -1, "fast_reward should be -1 for newly created child"
             logger.debug(f"Assigning fast reward for newly created child: Node {child.id}")
             fast_reward, fast_reward_details = reward_model.fast_reward(
-                example, example_idx, node.state, action, from_phase=from_phase
+                example, query_idx, node.state, action, from_phase=from_phase
             ) # action evaluation, e.g., usefulness of a subquestion
             child.fast_reward = fast_reward
             child.fast_reward_details = fast_reward_details
@@ -250,7 +264,7 @@ def _expand(
         if child.fast_reward == -1:
             if assign_rewards:
                 fast_reward, fast_reward_details = reward_model.fast_reward(
-                    example, example_idx, node.state, child.action, from_phase=from_phase
+                    example, query_idx, node.state, child.action, from_phase=from_phase
                 )
                 child.fast_reward = fast_reward
                 child.fast_reward_details = fast_reward_details
@@ -265,7 +279,7 @@ def _expand(
 ##### SIMULATE (Begin) (REUSE EXPAND...) #####
 def _simulate(
     example, 
-    example_idx, 
+    query_idx, 
     path, 
     mcts_search_config, 
     world_model, 
@@ -285,7 +299,7 @@ def _simulate(
         
         _expand(
             example, 
-            example_idx, 
+            query_idx, 
             node, 
             policy, 
             n_actions=mcts_search_config.n_action_for_simulate,
@@ -305,7 +319,7 @@ def _simulate(
         selected_idx = mcts_search_config.simulate_choice(fast_rewards)
         node = node.children[selected_idx]
         node.is_simulated = True
-        _world_modeling(example, example_idx, node, world_model, reward_model, from_phase="simulate")
+        _world_modeling(example, query_idx, node, world_model, reward_model, from_phase="simulate")
         logger.debug(f"NEW NODE Transfer with the action: {node.action}. The resulting state: {node.state}")
         path.append(node)
 
@@ -313,7 +327,7 @@ def _simulate(
             if i != selected_idx and node.children[i].is_terminal:
                 unselected_terminal_paths.append(deepcopy(path + [node.children[i]]))
         # ====== Terminate Check (Begin) ======
-        if _is_terminal_with_depth_limit_and_r_threshold(node,  mcts_search_config.depth_limit, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
+        if _is_terminal_with_depth_limit_and_r_threshold(node,  mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
             logger.debug("=========== [Simulate End] ===========\n")
             return False, unselected_terminal_paths
         # ====== Terminate Check (End) ======
@@ -351,9 +365,9 @@ def _back_propagate(path: list[MCTSNode], cum_reward_func):
 ##### BACK-PROPAGATE (END)
 
 ##### MCTS (BEGIN) #####
-def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_model, bn_evaluator=None) -> MCTSResult:
+def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_model, bn_evaluator=None) -> MCTSResult:
     logger.debug(f"Question: {example}")
-    logger.debug(f"\n\n\n=========== [MCTS for Example {example_idx} Begin] ===========")
+    logger.debug(f"\n\n\n=========== [MCTS for Example {query_idx} Begin] ===========")
     
     MCTSNode.set_default_calc_q(mcts_search_config.calc_q)
     
@@ -385,10 +399,10 @@ def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_m
                 raise ValueError(f"MCTS exceeded runtime limit: {mcts_search_config.runtime_limit_before_iter}")  # will be caught by except below
             logger.debug(f"\n\n\n=========== [MCTS iteration {idx_iter} Begin] ===========")
             is_terminal_for_repeat = False
-            path = _select(mcts_search_config.w_exp, root, mcts_search_config.depth_limit, mcts_search_config.force_terminating_on_depth_limit)  ####### select
+            path = _select(mcts_search_config.w_exp, root, mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit)  ####### select
             
             # ====== Terminate Check (Begin) ======
-            if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.depth_limit, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
+            if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
                 if mcts_search_config.terminate_on_terminal_node:
                     logger.debug(f"!!!!! The MCTS terminates due to terminal node")
@@ -402,7 +416,7 @@ def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_m
                 # no branching; no exploration selection
                 continuous_trace = _continuation(
                     example, 
-                    example_idx, 
+                    query_idx, 
                     path[-1], 
                     world_model, 
                     policy, 
@@ -410,7 +424,7 @@ def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_m
                     expand_func=_expand, 
                     world_modeling_func=_world_modeling, 
                     bn_evaluator=bn_evaluator, 
-                    depth_limit=mcts_search_config.depth_limit,
+                    depth_limit=mcts_search_config.max_steps,
                     threshold_alpha=mcts_search_config.reward_alpha, 
                     threshold_conf=mcts_search_config.reward_beta, 
                     threshold_gamma=mcts_search_config.reward_gamma,
@@ -420,7 +434,7 @@ def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_m
                 path.extend(continuous_trace[1:]) # the 1st node is the last node from selection    
 
                 # ====== Terminate Check (Begin) ======
-                if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.depth_limit, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
+                if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                     trace_in_each_iter.append(deepcopy(path))
                     if mcts_search_config.terminate_on_terminal_node:
                         logger.debug(f"!!!!! The MCTS terminates due to terminal node")
@@ -432,9 +446,9 @@ def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_m
        
             # ====== Expansion (Begin) ======
             if path[-1].state is None:
-                _world_modeling(example, example_idx, path[-1], world_model, reward_model, from_phase="expand")
+                _world_modeling(example, query_idx, path[-1], world_model, reward_model, from_phase="expand")
             # ====== Terminate Check (Begin) ======
-            if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.depth_limit, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
+            if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
                 if mcts_search_config.terminate_on_terminal_node:
                     logger.debug(f"!!!!! The MCTS terminates due to terminal node")
@@ -446,7 +460,7 @@ def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_m
     
             _expand(
                 example, 
-                example_idx, 
+                query_idx, 
                 path[-1], 
                 policy, 
                 n_actions=policy.n_actions,
@@ -460,9 +474,9 @@ def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_m
 
             # ====== Simulate (Begin) ======
             if path[-1].state is None:
-                _world_modeling(example, example_idx, path[-1], world_model, reward_model, from_phase="expand")
+                _world_modeling(example, query_idx, path[-1], world_model, reward_model, from_phase="expand")
             # ====== Terminate Check (Begin) ======
-            if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.depth_limit, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
+            if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
                 if mcts_search_config.terminate_on_terminal_node:
                     logger.debug(f"!!!!! The MCTS terminates due to terminal node")
@@ -473,7 +487,7 @@ def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_m
             # ====== Terminate Check (End) ======
             is_terminal_for_repeat, unselected_terminal_paths = _simulate(
                 example, 
-                example_idx, 
+                query_idx, 
                 path, 
                 mcts_search_config,
                 world_model, 
@@ -507,14 +521,28 @@ def mcts(example, example_idx, mcts_search_config, world_model, policy, reward_m
     if mcts_search_config.output_strategy == 'max_reward':
         _output_cum_reward, _output_iter = _dfs_max_reward([root])
     
-    logger.debug(f"=========== [MCTS for Example {example_idx} End] ===========\n")
+    # Collect all terminal nodes for unified post-processing
+    def collect_terminal_nodes(node, terminals):
+        """Recursively collect all terminal nodes from the tree."""
+        if node.is_terminal:
+            terminals.append(node)
+        if node.children:
+            for child in node.children:
+                collect_terminal_nodes(child, terminals)
+    
+    terminal_nodes_collected = []
+    collect_terminal_nodes(root, terminal_nodes_collected)
+    logger.debug(f"Total terminal nodes collected: {len(terminal_nodes_collected)}")
+    
+    logger.debug(f"=========== [MCTS for Example {query_idx} End] ===========\n")
         
     result = MCTSResult(cum_reward=_output_cum_reward,
                         trace=([node.state for node in _output_iter], [node.action for node in _output_iter[1:]]) if _output_iter is not None else None,
                         trace_of_nodes=_output_iter,
                         root=root,
                         trace_in_each_iter=trace_in_each_iter,
-                        unselected_terminal_paths_during_simulate=unselected_terminal_paths_during_simulate)
+                        unselected_terminal_paths_during_simulate=unselected_terminal_paths_during_simulate,
+                        terminal_nodes_collected=terminal_nodes_collected)
         
     return result
 ##### MCTS (END) #####
