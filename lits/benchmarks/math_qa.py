@@ -26,9 +26,6 @@ def load_qa_dataset(dataset_name):
         raise ValueError(f"Unknown dataset name: {dataset_name}")
     
     return full_dataset
-
-def is_mcts_method(reasoning_method):
-    return reasoning_method == "rest" or reasoning_method == "rap"
           
 def get_accuracy(full_dataset, results_from_file, extract_method="dfs", verbose=False):
     correct_count = 0

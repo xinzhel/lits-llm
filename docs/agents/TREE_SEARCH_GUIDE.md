@@ -49,15 +49,8 @@ result = bfs_topk(
     bn_evaluator=None
 )
 
-# Post-process: extract answers from terminal nodes
-vote_answers, answer_rewards, best_node, trace = extract_answers_from_terminal_nodes(
-    terminal_nodes_collected=result.terminal_nodes_collected,
-    retrieve_answer=retrieve_answer_fn,
-    question=question
-)
-
-# Get final answer
-answer = max(vote_answers, key=lambda a: vote_answers[a])
+# Terminal nodes are automatically saved to checkpoint files
+# Post-processing (answer extraction) is done separately using eval_search.py
 ```
 
 ## Configuration

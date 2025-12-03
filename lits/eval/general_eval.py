@@ -94,28 +94,31 @@ class GeneralEvaluator:
 
     Example
     -------
-    >>> from types import SimpleNamespace
-    >>> class DummyModel(LanguageModel):
-    ...     def __init__(self):
-    ...         super().__init__(model=None, tokenizer=None)
-    ...         self.sys_prompt = None
-    ...     def __call__(self, prompt, role=None, temperature=0.0, max_new_tokens=128):
-    ...         _ = (prompt, role, temperature, max_new_tokens)
-    ...         fake = '{"yn": "yes", "act_on_PSR_POINT": "no", "act_on_PSR_POINT2": "NA"}'
-    ...         return SimpleNamespace(text=fake)
-    >>> evaluator = GeneralEvaluator(
-    ...     base_model=DummyModel(),
-    ...     eval_perspectives=[
-    ...         {"eval_id": "yn", "description": "is the final answer correct?", "options": ["yes", "no"]},
-    ...         {"eval_id": "act_on_PSR_POINT", "description": "did the agent query PSR_POINT?", "options": ["yes", "no"]},
-    ...         {"eval_id": "act_on_PSR_POINT2", "description": "was the query successful?", "options": ["yes", "no", "NA"]},
-    ...     ],
-    ... )
-    >>> evaluator.evaluate(
-    ...     solution="The agent queried PSR_POINT but read no rows",
-    ...     truth="Successful execution requires at least one matching PSR_POINT row."
-    ... )
-    {'yn': 'yes', 'act_on_PSR_POINT': 'no', 'act_on_PSR_POINT2': 'NA'}
+    ```python
+    base_model = get_lm("bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0")
+    evaluator = GeneralEvaluator(
+        base_model=base_model,
+        eval_perspectives=[
+            {
+                "eval_id": "yn", 
+                "description": "Is the final answer correct?", 
+                "options": ["yes", "no"]
+            },
+        ]
+    )
+    eval_input = {
+        'question': 'Given the site located at 322 New Street, Brighton 3186, is the site a priority site?',
+        'truth': 'Yes.',
+        'solution': "<answer>Yes, the site located at 322 New Street, Brighton 3186 is a priority site.</answer>",
+        'others': 'Desired Table(s):PSR_POLYGON'
+    }
+    eval_criteria = evaluator.evaluate(
+            solution=eval_input["solution"],
+            question=eval_input["question"],
+            truth=eval_input["truth"],
+            others=eval_input["others"]
+    )
+    ```
     """
 
     def __init__(
@@ -151,6 +154,11 @@ class GeneralEvaluator:
 
         self._eval_block_text = self._format_eval_block(self._perspectives)
         self._example_json_block = self._build_example_json_block(self._perspectives)
+    
+    @property
+    def eval_perspectives(self) -> Tuple[EvalPerspective, ...]:
+        """Expose evaluation perspectives for external access."""
+        return self._perspectives
 
     @property
     def eval_block(self) -> str:
@@ -173,9 +181,14 @@ class GeneralEvaluator:
     def evaluate(
         self,
         solution: str,
+        question: str=None,
         truth: Optional[str]=None,
         others: Optional[str]=None,
+        include_input:bool=True,
         *,
+        result_saver=None,
+        row_identifier: str = 'idx',
+        identifier_value: Any = None,
         role: str = "evaluator_general",
         temperature: Optional[float] = None,
         max_new_tokens: Optional[int] = None,
@@ -188,9 +201,22 @@ class GeneralEvaluator:
         ----------
         solution:
             The candidate solution or trace produced by the model under test.
+        question:
+            The question being answered (optional).
         truth:
             Reference answer, rubric, or policy description that the evaluator compares
             against. When ``None`` an explicit ``"N/A"`` placeholder is used.
+        others:
+            Additional context information (optional).
+        include_input:
+            Whether to include input fields (question, truth, solution, others) in result.
+        result_saver:
+            Optional ResultDictToCSV instance to automatically save results.
+            If provided, results are immediately saved to CSV after evaluation.
+        row_identifier:
+            Column name to identify rows when using result_saver (default: 'idx').
+        identifier_value:
+            Value for the row identifier when using result_saver.
         role:
             Role string passed to :meth:`LanguageModel.__call__` for logging/monitoring.
         temperature:
@@ -202,8 +228,40 @@ class GeneralEvaluator:
         extra_template_values:
             Additional named fields to feed into :attr:`prompt_template`. This allows
             downstream code to extend the prompt without modifying this class.
+        
+        Returns
+        -------
+        Dict[str, str] or Tuple[Dict[str, str], str]:
+            Evaluation results. If return_raw_output is True, returns tuple of (results, raw_text).
+        
+        Example
+        -------
+        # Without result_saver (manual saving)
+        result = evaluator.evaluate(solution, question, truth, others)
+        result['idx'] = 0
+        saver.append_result(result)
+        
+        # With result_saver (automatic saving)
+        result = evaluator.evaluate(
+            solution, question, truth, others,
+            result_saver=saver,
+            identifier_value=0
+        )
+        # Result automatically saved to CSV
         """
-
+        # Initialize eval_result
+        if include_input:
+            eval_result = {
+                "question": question,
+                "truth": truth,
+                "solution": solution,
+                "others": others
+            }
+        else:
+            eval_result = {}
+        
+        if question is not None and "question:" not in question.lower():
+            solution = f"Question: {question} " + solution
         prompt = self.build_prompt(
             solution=solution,
             truth=truth,
@@ -219,18 +277,43 @@ class GeneralEvaluator:
         last_error: Optional[Exception] = None
         attempts = self.max_retries + 1
         for attempt in range(1, attempts + 1):
-            response = self.base_model(
-                prompt,
-                role=role,
-                temperature=generation_temperature,
-                max_new_tokens=generation_max_tokens,
-            )
+            try:
+                response = self.base_model(
+                    prompt,
+                    role=role,
+                    temperature=generation_temperature,
+                    max_new_tokens=generation_max_tokens,
+                )
+            except Exception as e:
+                # Log error (verbose output already handled at source)
+                logger.warning(f"Evaluation API call failed: {type(e).__name__}: {e}")
+                
+                eval_result['out_of_context'] = "yes"
+                eval_result['error'] = str(e)
+                
+                # Save error result if result_saver provided
+                if result_saver is not None:
+                    if identifier_value is not None:
+                        eval_result[row_identifier] = identifier_value
+                    result_saver.append_result(eval_result)
+                
+                return eval_result
+                
             raw_text = response.text.strip()
             try:
                 parsed = self._parse_output(raw_text)
+                eval_result["out_of_context"] = "no"
+                eval_result.update(parsed)
                 if return_raw_output:
-                    return parsed, raw_text
-                return parsed
+                    eval_result["raw_llm_eval"] = raw_text
+                
+                # Automatically save to result_saver if provided
+                if result_saver is not None:
+                    if identifier_value is not None:
+                        eval_result[row_identifier] = identifier_value
+                    result_saver.append_result(eval_result)
+                
+                return eval_result
             except ValueError as exc:
                 last_error = exc
                 logger.warning(
@@ -348,3 +431,125 @@ class GeneralEvaluator:
                     )
             normalized[eval_id] = value
         return normalized
+    
+    def evaluate_incremental(
+        self,
+        solution: str,
+        question: str,
+        truth: Optional[str],
+        others: Optional[str],
+        result_saver,
+        row_identifier: str = 'idx',
+        identifier_value: Any = None,
+        eval_only_perspectives: Optional[Sequence[str]] = None,
+        **kwargs
+    ) -> Dict[str, str]:
+        """
+        Incrementally evaluate only new perspectives without re-running existing ones.
+        
+        This method checks existing results and only evaluates perspectives that are
+        missing or specified in eval_only_perspectives, avoiding expensive re-evaluation.
+        
+        Args:
+            solution: The candidate solution to evaluate
+            question: The question being answered
+            truth: Reference answer
+            others: Additional context
+            result_saver: ResultDictToCSV instance containing existing results
+            row_identifier: Column name to identify rows (e.g., 'idx')
+            identifier_value: Value to match in identifier column
+            eval_only_perspectives: List of perspective IDs to evaluate (None = all missing)
+            **kwargs: Additional arguments passed to evaluate()
+        
+        Returns:
+            Dictionary of newly evaluated perspectives
+        
+        Example:
+            # First run: evaluate with perspectives ['yn', 'correctness']
+            evaluator = GeneralEvaluator(base_model, perspectives=[...])
+            result = evaluator.evaluate(solution, question, truth, others)
+            saver.append_result(result)
+            
+            # Second run: add new perspective 'spatial_correctness' without re-evaluating
+            evaluator_with_new = GeneralEvaluator(
+                base_model, 
+                perspectives=[...] + [{'eval_id': 'spatial_correctness', ...}]
+            )
+            new_result = evaluator_with_new.evaluate_incremental(
+                solution, question, truth, others,
+                result_saver=saver,
+                row_identifier='idx',
+                identifier_value=0,
+                eval_only_perspectives=['spatial_correctness']
+            )
+            # Only 'spatial_correctness' is evaluated, existing perspectives reused
+        """
+        # Load existing results
+        existing_results = result_saver.load_results(result_saver.filepath)
+        existing_row = next(
+            (r for r in existing_results if str(r.get(row_identifier)) == str(identifier_value)),
+            None
+        )
+        
+        if not existing_row:
+            # No existing result, do full evaluation with automatic saving
+            logger.info(f"No existing result for {row_identifier}={identifier_value}, performing full evaluation")
+            return self.evaluate(
+                solution, question, truth, others,
+                result_saver=result_saver,
+                row_identifier=row_identifier,
+                identifier_value=identifier_value,
+                **kwargs
+            )
+        
+        # Determine which perspectives to evaluate
+        if eval_only_perspectives:
+            # Evaluate only specified perspectives
+            perspectives_to_eval = [
+                p for p in self._perspectives 
+                if p.eval_id in eval_only_perspectives
+            ]
+        else:
+            # Evaluate only missing perspectives
+            perspectives_to_eval = [
+                p for p in self._perspectives 
+                if p.eval_id not in existing_row
+            ]
+        
+        if not perspectives_to_eval:
+            logger.info(f"All perspectives already evaluated for {row_identifier}={identifier_value}")
+            return {}
+        
+        # Create temporary evaluator with only the perspectives to evaluate
+        temp_evaluator = GeneralEvaluator(
+            base_model=self.base_model,
+            eval_perspectives=perspectives_to_eval,
+            prompt_template=self.prompt_template,
+            default_temperature=self.default_temperature,
+            default_max_new_tokens=self.default_max_new_tokens,
+            max_retries=self.max_retries
+        )
+        
+        # Evaluate only the new perspectives
+        new_results = temp_evaluator.evaluate(
+            solution=solution,
+            question=question,
+            truth=truth,
+            others=others,
+            include_input=False,  # Don't duplicate input fields
+            **kwargs
+        )
+        
+        # Update the result saver with new perspectives
+        result_saver.update_column(
+            row_identifier=row_identifier,
+            identifier_value=identifier_value,
+            column_updates=new_results
+        )
+        
+        logger.info(
+            f"Incrementally evaluated {len(perspectives_to_eval)} perspectives for "
+            f"{row_identifier}={identifier_value}: {[p.eval_id for p in perspectives_to_eval]}"
+        )
+        
+        return new_results

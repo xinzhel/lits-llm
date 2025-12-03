@@ -27,6 +27,9 @@ class State:
 @dataclass
 class TrajectoryState(State, list):
     """State that accumulates steps as a trajectory. Supports `len()` to return number of accumulated steps"""
+    
+    default_step: Step = None
+    
     def get_steps(self) -> list["TrajectoryState"]:
         return self
     
@@ -45,14 +48,15 @@ class TrajectoryState(State, list):
         
         state = cls()
         for step_data in payload:
+            step_type_name = step_data.get("__type__", cls.default_step)
             # Extract the type information
-            if "__type__" not in step_data:
+            if step_type_name is None:
                 raise ValueError(
                     f"Step data missing '__type__' field. Ensure Step.to_dict() includes type information. "
                     f"Got: {step_data}"
                 )
             
-            step_type_name = step_data["__type__"]
+            
             step_class = TYPE_REGISTRY.get(step_type_name)
             
             if step_class is None:

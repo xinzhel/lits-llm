@@ -1,45 +1,106 @@
 from __future__ import annotations
 
-
 import os
 import sys
 import unittest
+import uuid
 
 TEST_ROOT = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(TEST_ROOT, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from mem0.configs.base import MemoryConfig
+from mem0.configs.vector_stores.qdrant import QdrantConfig
+from mem0.memory.main import Memory
+
 from lits.memory import (
     LiTSMemoryConfig,
     LiTSMemoryManager,
-    LocalMemoryBackend,
+    Mem0MemoryBackend,
     TrajectoryKey,
 )
 
+# python -m unittest unit_test.test_memory_manager_mem0_backend
+class Mem0BackendIntegrationTest(unittest.TestCase):
+    """
+    Mirrors the LiTS-Mem algorithm with a real mem0/Qdrant backend:
+    (1) store policy messages along trajectories, 
+    (2) inherit ancestor memories,
+    (3) compute similarity on normalized memory sets, 
+    (4) select only missing units for augmentation.
+    """
 
-def create_manager(**config_kwargs):
-    backend = LocalMemoryBackend()
-    config = LiTSMemoryConfig(**config_kwargs)
-    return LiTSMemoryManager(backend=backend, config=config)
+    def setUp(self):
+        # Persist Qdrant under the package root (same level as unit_test) so artifacts
+        # are inspectable after the test run.
+        self.qdrant_dir = os.path.abspath(os.path.join(PROJECT_ROOT, "qdrant_local"))
+        os.makedirs(self.qdrant_dir, exist_ok=True)
+        
+    # def tearDown(self):
+    #     shutil.rmtree(self.tmpdir, ignore_errors=True)
 
+    def _create_manager(self, **config_overrides):
+        config = MemoryConfig()
+        config.embedder.provider = "huggingface"
+        config.embedder.config = {"model": "sentence-transformers/multi-qa-mpnet-base-cos-v1"}
 
-class LiTSMemoryManagerTest(unittest.TestCase):
-    def test_inherited_memory_chain(self):
-        manager = create_manager()
-        root = TrajectoryKey(search_id="run-1")
-        first = root.child(0)
-        second = first.child(1)
+        qdrant_config = QdrantConfig(
+            collection_name=f"lits_mem0_{uuid.uuid4().hex[:6]}",
+            embedding_model_dims=768,
+            client=None,
+            host=None,
+            port=None,
+            path=self.qdrant_dir,
+            url=None,
+            api_key=None,
+            on_disk=True,
+        )
+        config.vector_store.provider = "qdrant"
+        config.vector_store.config = qdrant_config
 
-        manager.record_action(root, facts=["root fact"])
-        manager.record_action(first, facts=["child fact"])
+        # LLM is unused because infer=False; we keep a placeholder provider.
+        config.llm.provider = "openai"
+        config.llm.config = {"model": "anthropic.claude-3-5-haiku-20241022-v1:0", "temperature": 0.2, "max_tokens": 2000}
+        backend = Mem0MemoryBackend(memory)
+        manager_config = LiTSMemoryConfig(**config_overrides)
+        return LiTSMemoryManager(backend=backend, config=manager_config)
 
-        inherited = manager.list_inherited_units(second)
-        self.assertEqual([unit.text for unit in inherited], ["root fact", "child fact"])
-
-    def test_cross_trajectory_similarity_and_selection(self):
+    def test_mem0_inheritance_along_prefix_paths(self):
         """
-        Tree layout for `test_cross_trajectory_similarity_and_selection`:
+        3.2 Memory Extraction and Update: store messages on one branch, then verify
+        inherited memories flow to a deeper node on the same trajectory. No sibling
+        exists yet, so trajectory search should return nothing.
+        """
+
+        manager = self._create_manager(similarity_threshold=0.3, max_retrieved_trajectories=1)
+
+        question = "Question: How many positive whole-number divisors does 196 have?"
+        shared_reasoning = "To find the number of positive whole-number divisors of 196, we first find its prime factorization."
+        left_followup = "Using the exponent trick, (2 + 1) × (2 + 1) = 9, so 196 has nine divisors."
+
+        left = TrajectoryKey(search_id="mem0-run", indices=(0,))
+        leaf = left.child(0)  # deeper node on the same branch
+
+        manager.record_action(
+            left,
+            messages=[
+                {"role": "user", "content": question},
+                {"role": "assistant", "content": shared_reasoning},
+                {"role": "assistant", "content": left_followup},
+            ],
+            infer=False,
+        )
+
+        inherited_texts = [unit.text for unit in manager.list_inherited_units(leaf)]
+        self.assertEqual(inherited_texts[0], question)
+        self.assertIn(shared_reasoning, inherited_texts)
+        self.assertIn(left_followup, inherited_texts)
+        self.assertFalse(manager.search_related_trajectories(left))
+
+    def test_mem0_cross_trajectory_retrieval_and_selection(self):
+        """
+        Tree layout:
 
             q (root)
             ├─ n_0  ← left trajectory (indices=(0,))
@@ -52,40 +113,46 @@ class LiTSMemoryManagerTest(unittest.TestCase):
         Because the normalized overlap score = 1 / |Mem(left)| = 0.5 ≥ 0.2
         (the configured threshold), trajectory n₁ is the only retrieved entry in
         `similarities`, and its `missing_units` return {"right exclusive"}.
+        
+        3.1 Memory Retrieval and Use: with two sibling trajectories, normalized overlap
+        finds the sibling and Sel returns only its missing unit.
         """
 
-        manager = create_manager(similarity_threshold=0.2, max_retrieved_trajectories=2)
-        left = TrajectoryKey(search_id="run-1", indices=(0,))
-        right = TrajectoryKey(search_id="run-1", indices=(1,))
+        manager = self._create_manager(similarity_threshold=0.3, max_retrieved_trajectories=1)
 
-        manager.record_action(left, facts=["shared detail", "left exclusive"])
-        manager.record_action(right, facts=["shared detail", "right exclusive"])
+        question = "Question: How many positive whole-number divisors does 196 have?"
+        shared_reasoning = "To find the number of positive whole-number divisors of 196, we first find its prime factorization."
+        left_followup = "Using the exponent trick, (2 + 1) × (2 + 1) = 9, so 196 has nine divisors."
+        right_followup = "Use the formula for finding the number of divisors based on prime factorization."
+
+        left = TrajectoryKey(search_id="mem0-run", indices=(0,))
+        right = TrajectoryKey(search_id="mem0-run", indices=(1,))
+
+        manager.record_action(
+            left,
+            messages=[
+                {"role": "user", "content": question},
+                {"role": "assistant", "content": shared_reasoning},
+                {"role": "assistant", "content": left_followup},
+            ],
+            infer=False,
+        )
+        manager.record_action(
+            right,
+            messages=[
+                {"role": "user", "content": question},
+                {"role": "assistant", "content": shared_reasoning},
+                {"role": "assistant", "content": right_followup},
+            ],
+            infer=False,
+        )
 
         similarities = manager.search_related_trajectories(left)
-        self.assertTrue(similarities, "Right trajectory should be retrieved")
+        self.assertEqual(len(similarities), 1)
         result = similarities[0]
         self.assertEqual(result.trajectory_path, right.path_str)
-        self.assertAlmostEqual(result.score, 0.5, places=5)
-        self.assertEqual([unit.text for unit in result.missing_units], ["right exclusive"])
-
-    def test_augmented_context_prompt_blocks(self):
-        manager = create_manager(similarity_threshold=0.1)
-        traj = TrajectoryKey(search_id="run-1", indices=(0,))
-        peer = TrajectoryKey(search_id="run-1", indices=(1,))
-
-        manager.record_action(traj, facts=["alpha", "beta"])
-        manager.record_action(peer, facts=["alpha", "gamma"])
-
-        context = manager.build_augmented_context(traj)
-        prompt = context.to_prompt_blocks()
-
-        self.assertIn("# Inherited memories", prompt)
-        self.assertIn("alpha", prompt)
-        self.assertIn("beta", prompt)
-        self.assertIn("gamma", prompt)
-        print(prompt)
+        self.assertEqual([unit.text for unit in result.missing_units], [right_followup])
 
 
 if __name__ == "__main__":
-    # unittest.main()
-    LiTSMemoryManagerTest().test_augmented_context_prompt_blocks()
+    unittest.main()

@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, List, Union, Tuple, Optional
+from typing import Generic, TypeVar, List, Union, Tuple, Optional, Callable
 from ..structures import StateT, ActionT, StepT, Step
 from ..lm.base import DETERMINISTIC_TEMPERATURE
+from ..lm import OpenAIChatModel, BedrockChatModel, HfChatModel, HfModel
 import logging
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,35 @@ class Policy(ABC, Generic[StateT, ActionT]):
         - task_prompt_spec: For system-level instructions (system prompt)
         - usr_prompt_spec: For user-level content (user message)
     
+    Dynamic Notes Injection:
+        Policies support injecting dynamic notes from external sources (memory, database, files)
+        into the system prompt. This is useful for:
+        - Adding context from cross-trajectory memory
+        - Including user preferences or past errors
+        - Injecting task-specific hints or constraints
+        
+        Usage:
+            ```python
+            # Define a function that returns notes
+            def get_memory_notes() -> List[str]:
+                return memory_backend.get_relevant_memories()
+            
+            # Set the function on the policy
+            policy.set_dynamic_notes_fn(get_memory_notes)
+            
+            # Notes will be automatically appended to system prompt during generation
+            ```
+        
+        The notes are formatted as bullet points and appended to the system prompt:
+            ```
+            [Base system prompt]
+            
+            Additional Notes:
+            * note1
+            * note2
+            * note3
+            ```
+    
     ## Guide on Subclass Implementation:
     Subclass `__init__` methods should only explicitly declare required parent parameters (e.g., `base_model`, `task_prompt_spec`) 
     and use `**kwargs` for optional ones, reducing redundancy and preventing default value mismatches. Same for `_get_actions`
@@ -210,6 +240,9 @@ class Policy(ABC, Generic[StateT, ActionT]):
         self.force_terminating_on_depth_limit = force_terminating_on_depth_limit
         self.max_steps = max_steps
         self.reward_alpha = reward_alpha
+        
+        # Dynamic notes injection callback
+        self._dynamic_notes_fn: Optional[Callable[[], List[str]]] = None
     
     def _get_agent_name(self) -> str:
         """
@@ -229,6 +262,99 @@ class Policy(ABC, Generic[StateT, ActionT]):
         name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', class_name)
         name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
         return name
+    
+    def set_dynamic_notes_fn(self, fn: Callable[[], List[str]]) -> None:
+        """
+        Set a callback function to retrieve dynamic notes for system prompt injection.
+        
+        The callback function should return a list of strings that will be formatted
+        as bullet points and appended to the system prompt during construction.
+        
+        Args:
+            fn: A callable that takes no arguments and returns List[str] of notes
+        
+        Example:
+            ```python
+            def get_memory_notes() -> List[str]:
+                return [
+                    "User prefers concise answers",
+                    "Previous error: division by zero in step 3",
+                    "Context: working on algebra problems"
+                ]
+            
+            policy.set_dynamic_notes_fn(get_memory_notes)
+            ```
+        """
+        self._dynamic_notes_fn = fn
+        logger.debug(f"Dynamic notes function set for {self.__class__.__name__}")
+    
+    def _get_dynamic_notes(self) -> str:
+        """
+        Retrieve and format dynamic notes from the callback function.
+        
+        Returns:
+            Formatted string with bullet points, or empty string if no notes available.
+            Format: "\n\nAdditional Notes:\n* note1\n* note2\n* note3"
+        """
+        if self._dynamic_notes_fn is None:
+            return ""
+        
+        try:
+            notes = self._dynamic_notes_fn()
+            if not notes:
+                return ""
+            
+            formatted_notes = "\n".join(f"* {note}" for note in notes)
+            return f"\n\nAdditional Notes:\n{formatted_notes}"
+        except Exception as e:
+            logger.error(f"Error retrieving dynamic notes: {e}", exc_info=True)
+            return ""
+    
+    def set_system_prompt(self) -> None:
+        """
+        Set the system prompt for the base model based on the task prompt specification.
+        
+        This method is called every time get_action is invoked, in case of dynamic system prompt construction.
+        It automatically appends dynamic notes if a notes function has been set via set_dynamic_notes_fn().
+        """
+        
+        if isinstance(self.base_model, (HfChatModel, OpenAIChatModel, BedrockChatModel)):
+            if self.task_prompt_spec:
+                # Build base system prompt from subclass implementation
+                base_prompt = self._build_system_prompt()
+                # Append dynamic notes if available
+                dynamic_notes = self._get_dynamic_notes()
+                self.base_model.sys_prompt = base_prompt + dynamic_notes
+            else:
+                logger.warning("Chat Model but no system prompt constructed since `task_prompt_spec` is None ")
+        else:
+            if self.task_prompt_spec:
+                logger.warning("task_prompt_spec exists but base_model does not support system prompts.")
+         
+    
+    @abstractmethod
+    def _build_system_prompt(self) -> str:
+        """
+        Build the base system prompt for the LLM.
+        
+        Subclasses should implement this method to construct the system prompt
+        from task_prompt_spec. Dynamic notes will be automatically appended by
+        set_system_prompt(), so subclasses don't need to handle that.
+        
+        Returns:
+            The base system prompt string (without dynamic notes)
+        
+        Example implementation:
+            ```python
+            def _build_system_prompt(self) -> str:
+                return self.task_prompt_spec
+            ```
+        
+        Note:
+            Do NOT call self._get_dynamic_notes() in this method. Dynamic notes
+            are automatically appended by set_system_prompt().
+        """
+        raise NotImplementedError()
         
     def get_actions(
         self,
@@ -263,6 +389,8 @@ class Policy(ABC, Generic[StateT, ActionT]):
         Return:
             List of Step objects with length exactly n_actions.
         """
+        
+        self.set_system_prompt()
 
         # Determine if we're at the depth limit
         at_depth_limit = self._is_at_depth_limit(state)

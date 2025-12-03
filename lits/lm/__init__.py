@@ -1,6 +1,7 @@
 from .base import LanguageModel, HfChatModel, HfModel, DEFAULT_MAX_LENGTH, InferenceLogger
 
 from .openai_chat import OpenAIChatModel
+from .bedrock_chat import BedrockChatModel
 from huggingface_hub import model_info
 from transformers import AutoTokenizer, AutoConfig
 import logging

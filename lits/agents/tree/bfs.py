@@ -100,7 +100,7 @@ def _expand_with_existing(
         node,
         policy,
         n_actions,
-        world_model=world_model,
+        transition_model=world_model,
         use_critic=use_critic,
         from_phase=from_phase
     )
@@ -199,7 +199,7 @@ def bfs_topk(
 
             # Ensure node.state is materialized
             if node.state is None:
-                _world_modeling(question, query_idx, node, world_model, evaluator, from_phase="expand")
+                _world_modeling(question, query_idx, node, transition_model=world_model, reward_model=evaluator, from_phase="expand")
 
             # Continuation + PostProcessing (Begin)
             if search_config.add_continuation and not stop_continuation:
@@ -261,7 +261,7 @@ def bfs_topk(
                 from_phase="expand"
             )
             for child in node.children:
-                _world_modeling(question, query_idx, child, world_model, evaluator, from_phase="expand")
+                _world_modeling(question, query_idx, child, transition_model=world_model, reward_model=evaluator, from_phase="expand")
                 if _is_terminal_with_depth_limit(child, search_config.max_steps, search_config.force_terminating_on_depth_limit):
                     if child not in terminal_nodes:
                         terminal_nodes.append(child)

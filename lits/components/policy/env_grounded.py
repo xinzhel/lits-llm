@@ -17,7 +17,7 @@ class EnvGroundedPolicy(Policy):
     
     Args:
         base_model: Language model for action selection. If None, returns all valid actions.
-        task_prompt_spec: Dict containing prompt templates. Must include "policy" key with
+        usr_prompt_spec: Dict containing prompt templates. Must include "policy" key with
             placeholders: <init_state>, <goals>, <action>.
         generate_all_actions: Callable that takes env_state (str) and returns list of
             valid action strings for that state.
@@ -39,7 +39,7 @@ class EnvGroundedPolicy(Policy):
         >>> # Create policy
         >>> policy = EnvGroundedPolicy(
         ...     base_model=base_model,
-        ...     task_prompt_spec=None,
+        ...     usr_prompt_spec=None,
         ...     generate_all_actions=generate_all_actions,
         ...     goal_reached_reward=100,
         ...     goal_reward_default=0.0
@@ -66,7 +66,7 @@ class EnvGroundedPolicy(Policy):
     def __init__(
         self,
         base_model,  # Required parameter from parent
-        task_prompt_spec:dict,  # Required parameter from parent
+        usr_prompt_spec:dict,  # Required parameter from parent
         generate_all_actions,  # Function to generate all valid actions
         goal_reward_default: float = 0.,  # Subclass-specific parameter
         goal_reached_reward: float = 100,  # Subclass-specific parameter
@@ -77,7 +77,7 @@ class EnvGroundedPolicy(Policy):
         
         Args:
             base_model: Language model for action selection. Pass None to return all valid actions.
-            task_prompt_spec: Dictionary with "policy" key containing prompt template with
+            usr_prompt_spec: Dictionary with "policy" key containing prompt template with
                 placeholders: <init_state>, <goals>, <action>.
             generate_all_actions: Function(env_state: str) -> List[str] that returns valid
                 action strings for the given environment state.
@@ -88,10 +88,10 @@ class EnvGroundedPolicy(Policy):
         """
         super().__init__(
             base_model=base_model,
-            task_prompt_spec=task_prompt_spec,
+            usr_prompt_spec=usr_prompt_spec,
             **kwargs
         )
-        self.task_prompt_spec = task_prompt_spec
+        self.usr_prompt_spec = usr_prompt_spec
         self.generate_all_actions = generate_all_actions
         self.goal_reward_default = goal_reward_default
         self.goal_reached_reward = goal_reached_reward
@@ -147,7 +147,7 @@ class EnvGroundedPolicy(Policy):
         if self.base_model:
             for _ in range(n_actions):
                 options = '\t'+'\n\t'.join(valid_actions)
-                prompt = self.task_prompt_spec["policy"].replace("<init_state>", state.env_state)\
+                prompt = self.usr_prompt_spec["policy"].replace("<init_state>", state.env_state)\
                             .replace("<goals>", query).replace("<action>", options)
                 
                 valid_gen = False

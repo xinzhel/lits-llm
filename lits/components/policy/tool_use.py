@@ -46,12 +46,9 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
             )
             assert self.task_prompt_spec is not None, "task_prompt_spec is None after formatting."
 
-        if isinstance(self.base_model, (HfChatModel, OpenAIChatModel, BedrockChatModel)):
-            self.base_model.sys_prompt = self.task_prompt_spec
-        else:
-            if self.task_prompt_spec:
-                logger.warning("task_prompt_spec exists but base_model does not support system prompts.")
-
+    def _build_system_prompt(self) -> str:
+        return self.task_prompt_spec
+        
     def _build_messages(self, query: str, state: ToolUseState) -> list[dict]:
         return state.to_messages(query)
 

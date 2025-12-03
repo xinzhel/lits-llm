@@ -72,8 +72,14 @@ class PDFClient(BaseClient):
         self.embedding_model = embedding_model
         
         # Initialize embedding model
+        print("\n" + "="*70)
+        print(f"Initializing PDF Client - Loading embedding model: {embedding_model}")
+        print("="*70)
         self.encoder = SentenceTransformer(embedding_model)
         self.embedding_dim = self.encoder.get_sentence_embedding_dimension()
+        print("="*70)
+        print("PDF Client initialization complete!")
+        print("="*70 + "\n")
         
         # Initialize Qdrant client
         self.qdrant = QdrantClient(path=str(self.storage_path))

@@ -56,10 +56,6 @@ class ConcatPolicy(Policy):
     MAX_RETRY_REPEAT = 2
     STEP_PREFIX_PATTERN = r"Step \d+:"
     
-    def _create_error_steps(self, n_actions: int, error_msg: str) -> list[ThoughtStep]:
-        """Create ThoughtStep error steps for ConcatPolicy."""
-        return [ThoughtStep(action="", error=error_msg) for _ in range(n_actions)]
-    
     def __init__(self, **kwargs):
         """Initialize ConcatPolicy with action similarity checking option."""
         self.check_action_sim = kwargs.pop('check_action_sim', False)
@@ -71,6 +67,13 @@ class ConcatPolicy(Policy):
         
         logger.debug(f"ConcatPolicy.__init__: After super().__init__, task_prompt_spec type = {type(self.task_prompt_spec)}")
         self._validate_task_prompt_spec()
+        
+    def _build_system_prompt(self) -> str:
+        return self.task_prompt_spec
+        
+    def _create_error_steps(self, n_actions: int, error_msg: str) -> list[ThoughtStep]:
+        """Create ThoughtStep error steps for ConcatPolicy."""
+        return [ThoughtStep(action="", error=error_msg) for _ in range(n_actions)]
     
     def _validate_task_prompt_spec(self):
         """Validate that task_prompt_spec is a string, not a tuple."""
@@ -79,7 +82,7 @@ class ConcatPolicy(Policy):
             logger.error(f"Tuple contents: {self.task_prompt_spec}")
             raise TypeError(f"task_prompt_spec should be a string, not a tuple: {self.task_prompt_spec}")
 
-    def _generate_msg(self, query: str, state: State, critic: str = None, at_depth_limit: bool = False) -> str:
+    def _build_messages(self, query: str, state: State, critic: str = None, at_depth_limit: bool = False) -> str:
         """
         Generate the user message for the LLM.
         
@@ -92,7 +95,7 @@ class ConcatPolicy(Policy):
         Returns:
             Formatted user message string
         """
-        logger.debug(f"_generate_msg called with query type: {type(query)}, query value: {query}")
+        logger.debug(f"_build_messages called with query type: {type(query)}, query value: {query}")
         
         user_message = verbalize_concat_state(query, state)
         
@@ -104,7 +107,6 @@ class ConcatPolicy(Policy):
         if at_depth_limit:
             user_message += "This is the last step, and the answer to the question has to be reached. "
         
-        self.base_model.sys_prompt = self.task_prompt_spec
         return user_message
 
     def _check_similarity(self, embedding, existing_embeddings):
@@ -296,7 +298,7 @@ class ConcatPolicy(Policy):
         assert isinstance(query_idx, int), f"query_idx should be an integer, got {query}"
         
         # Build prompt
-        user_message = self._generate_msg(query, state, critic=critic, at_depth_limit=at_depth_limit)
+        user_message = self._build_messages(query, state, critic=critic, at_depth_limit=at_depth_limit)
         if isinstance(self.base_model, HfChatModel):
             prompt = user_message
         else:

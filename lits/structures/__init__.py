@@ -12,7 +12,7 @@ from .base import (
 )
 from .env_grounded import EnvState, EnvAction
 from .qa import SubQAStep, ThoughtStep, StepConcatState
-from .tool_use import ToolUseState, ToolUseStep
+from .tool_use import ToolUseState, ToolUseStep, ToolUseAction
 from .trace import serialize_state, deserialize_state, log_state
 
 __all__ = [
@@ -31,6 +31,7 @@ __all__ = [
     "ThoughtStep",
     "ToolUseState",
     "ToolUseStep",
+    "ToolUseAction",
     "serialize_state",
     "deserialize_state",
     "log_state",

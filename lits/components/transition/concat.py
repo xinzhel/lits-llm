@@ -64,7 +64,6 @@ Do not explain anything. Do not add extra text.
         log_state(logger, new_state, header="ConcatTransition.step")
         return new_state, {"confidence": 1.}
 
-        
     def is_terminal(self, state: StateT, query_or_goals: str, fast_reward: float=None, query_idx: int=None, from_phase: str='') -> bool:
         
         if "reward_threshold" in self.terminate_constraints:
@@ -84,7 +83,6 @@ Do not explain anything. Do not add extra text.
             self.base_model.sys_prompt = self.terminate_prompt
             user_message = verbalize_concat_state(query_or_goals, state) + f"Do the above step(s) already provide the final answer to the question: '{query_or_goals}'"
 
-            
             answer_samples = self.base_model.sample_binary_output(user_message, sample_size = self.sample_size_terminate, target="yes", contrast="no", max_length=self.max_length, max_new_tokens=self.max_new_tokens, role=create_role("dynamics", query_idx, from_phase))
             terminal_score = answer_samples['yes'] / self.sample_size_terminate
         
@@ -107,20 +105,6 @@ Do not explain anything. Do not add extra text.
                         action=state[-1].get_action() + f"One numerical value is expected to directly answer the proposed question. The next step should take this into account."
                     )
                 return False
-            
-            # Revise non-numeric answers
-            # if output_text not in ["INCOMPLETE", "NON-NUMERIC"]:
-            #     try:
-            #         float(output_text)
-            #         return True
-            #     except ValueError:
-            #         state[-1].action += f"The task requires a numeric answer that can be parsed by `float()` in Python. The next step should take this into account."
-            #         return False
-            # elif output_text == "NON-NUMERIC":
-            #     state[-1].action += f"The task requires a numeric answer. The next step should take this into account."
-            #     return False
-            # else:
-            #     return False
 
         return True
 

@@ -14,76 +14,8 @@ except Exception:  # pragma: no cover - qdrant optional for tests
 from .types import MemoryUnit, TrajectoryKey, ancestry_from_indices, decode_path, encode_path
 
 
-class BaseMemoryBackend(ABC):
+class Mem0MemoryBackend:
     """
-    Abstract base class that describes the operations LiTS-Mem expects from a memory
-    backend.  Tree-search components never interact with a backend directly; instead
-    they call :class:`~lits.memory.manager.LiTSMemoryManager`, which in turn delegates
-    to a backend instance injected at construction time.
-    """
-
-    def __init__(self, scroll_batch_size: int = 256):
-        self.scroll_batch_size = scroll_batch_size
-
-    @abstractmethod
-    def add_messages(
-        self,
-        trajectory: TrajectoryKey,
-        messages: Sequence[Dict[str, str]],
-        metadata: Optional[Dict] = None,
-        infer: bool = True,
-    ) -> List[MemoryUnit]:
-        """
-        Store a conversation (whether raw or action snippets) along ``trajectory``.
-        Implementations may call into mem0 to run LLM-based fact extraction.
-        """
-        pass
-        
-    def add_facts(
-        self,
-        trajectory: TrajectoryKey,
-        facts: Sequence[str],
-        metadata: Optional[Dict] = None,
-    ) -> List[MemoryUnit]:
-        """Insert already-extracted facts for ``trajectory``."""
-        if not facts:
-            return []
-        metadata = dict(metadata or {})
-        origin_path = metadata.get("trajectory_path", trajectory.path_str)
-        depth = metadata.get("trajectory_depth", trajectory.depth)
-        ancestry_paths = tuple(metadata.get("ancestry_paths", trajectory.ancestry_paths))
-        units: List[MemoryUnit] = []
-        now = _dt.datetime.utcnow().isoformat()
-        for fact in facts:
-            mem_id = str(uuid.uuid4())
-            payload = dict(metadata)
-            payload.setdefault("data", fact)
-            payload.setdefault("created_at", now)
-            payload.setdefault("hash", hashlib.md5(fact.encode("utf-8")).hexdigest())
-            unit = MemoryUnit(
-                id=mem_id,
-                text=fact,
-                search_id=trajectory.search_id,
-                origin_path=origin_path,
-                depth=depth,
-                ancestry_paths=ancestry_paths,
-                metadata=payload,
-                created_at=now,
-                content_hash=payload.get("hash"),
-            )
-            units.append(unit)
-        self._store.setdefault(trajectory.search_id, []).extend(units)
-        return units
-
-    @abstractmethod
-    def list_all_units(self, search_id: str) -> List[MemoryUnit]:
-        """Return every memory unit scoped to ``search_id``."""
-
-
-class Mem0MemoryBackend(BaseMemoryBackend):
-    """
-    Adapter that exposes mem0's :class:`mem0.Memory` API through
-    :class:`BaseMemoryBackend`.
 
     The backend is intentionally thin: storage, deduplication, and vector operations
     are delegated to mem0.  LiTS-specific metadata (trajectory path, ancestry, etc.) is
@@ -91,11 +23,12 @@ class Mem0MemoryBackend(BaseMemoryBackend):
     """
 
     def __init__(self, memory, scroll_batch_size: int = 256):
-        super().__init__(scroll_batch_size=scroll_batch_size)
         self.memory = memory
         self.vector_store = getattr(memory, "vector_store", None)
         if self.vector_store is None:
             raise ValueError("mem0 Memory instance must expose `vector_store`.")
+        
+        self.scroll_batch_size = scroll_batch_size
 
     def add_messages(
         self,
@@ -165,30 +98,3 @@ class Mem0MemoryBackend(BaseMemoryBackend):
             content_hash=content_hash,
         )
 
-
-class LocalMemoryBackend(BaseMemoryBackend):
-    """
-    Lightweight backend useful for unit tests and interactive notebooks.  It keeps all
-    memories in Python dictionaries so the LiTS-Mem stack can be exercised without
-    mem0/Qdrant dependencies.  The backend implements the same interface as
-    :class:`Mem0MemoryBackend`, enabling drop-in replacement.
-    """
-
-    def __init__(self):
-        super().__init__(scroll_batch_size=0)
-        self._store: Dict[str, List[MemoryUnit]] = {}
-
-    def add_messages(
-        self,
-        trajectory: TrajectoryKey,
-        messages: Sequence[Dict[str, str]],
-        metadata: Optional[Dict] = None,
-        infer: bool = True,
-    ) -> List[MemoryUnit]:
-        if infer:
-            raise ValueError("LocalMemoryBackend cannot perform LLM-based inference.")
-        facts = [msg["content"] for msg in messages]
-        return self.add_facts(trajectory, facts, metadata=metadata)
-
-    def list_all_units(self, search_id: str) -> List[MemoryUnit]:
-        return list(self._store.get(search_id, []))

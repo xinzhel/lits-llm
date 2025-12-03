@@ -304,3 +304,259 @@ class ResultDictToJsonl(BaseResults):
             f.write("\n")
         self._append_result(entry)
 
+
+class ResultDictToCSV(BaseResults):
+    """
+    Utility class to save evaluation results to CSV format with immediate write-through.
+    
+    Each result is a dictionary that gets appended as a new row in the CSV file.
+    The CSV header is written on first append based on the keys in the first result.
+    
+    Usage:
+        result_saver = ResultDictToCSV(
+            run_id='eval',
+            root_dir='results/model_name',
+            override=False,
+            exclude_columns=['trajectory']  # Optional: columns to exclude from CSV
+        )
+        
+        # Append results one at a time (immediately written to file)
+        result_saver.append_result({
+            'idx': 0,
+            'answer': 'yes',
+            'num_calls': 10,
+            'input_tokens': 1000,
+            'output_tokens': 500
+        })
+    """
+    def __init__(
+        self,
+        run_id: str,
+        root_dir: Optional[str] = None,
+        override: bool = False,
+        exclude_columns: Optional[List[str]] = None
+    ):
+        """
+        Args:
+            run_id: Identifier for this result file
+            root_dir: Directory to save the CSV file
+            override: If True, overwrite existing file; if False, append to it
+            exclude_columns: List of column names to exclude from CSV output
+        """
+        self.exclude_columns = exclude_columns or []
+        self.header_written = False
+        self.columns = None
+        
+        # use .csv extension
+        super().__init__(run_id, root_dir, override, ext="csv")
+        
+        # Check if file exists and has content (header already written)
+        if os.path.isfile(self.filepath) and os.path.getsize(self.filepath) > 0:
+            self.header_written = True
+            # Read existing columns from header using pandas
+            import pandas as pd
+            try:
+                df = pd.read_csv(self.filepath, nrows=0)
+                self.columns = list(df.columns)
+            except Exception:
+                self.columns = None
+    
+    def load_results(self, filepath: str) -> List[Dict[str, Any]]:
+        """
+        Load existing CSV results into a list of dictionaries using pandas.
+        """
+        try:
+            import pandas as pd
+            df = pd.read_csv(filepath)
+            return df.to_dict('records')
+        except FileNotFoundError:
+            return []
+        except Exception as e:
+            logger.warning(f"Error loading CSV: {e}")
+            return []
+
+    def append_result(self, result: Dict[str, Any]) -> None:
+        """
+        Append a single result dictionary as a new row in the CSV file using pandas.
+        
+        The result is immediately written to disk (no buffering).
+        On first call, the CSV header is written based on the result keys.
+        
+        Args:
+            result: Dictionary containing the evaluation result
+        """
+        import pandas as pd
+        
+        if not isinstance(result, dict):
+            raise ValueError(f"Result must be a dictionary, got {type(result)}")
+        
+        # Filter out excluded columns
+        filtered_result = {
+            k: v for k, v in result.items() 
+            if k not in self.exclude_columns
+        }
+        
+        # Determine columns from first result
+        if not self.header_written:
+            self.columns = list(filtered_result.keys())
+            
+            # Write header with pandas
+            df = pd.DataFrame([filtered_result])
+            df.to_csv(self.filepath, index=False, encoding='utf-8')
+            
+            self.header_written = True
+        else:
+            # Append the row using pandas
+            # Ensure all columns are present
+            row_to_write = {k: filtered_result.get(k, '') for k in self.columns}
+            df = pd.DataFrame([row_to_write])
+            df.to_csv(self.filepath, mode='a', header=False, index=False, encoding='utf-8')
+        
+        # Keep in-memory copy
+        self._append_result(filtered_result)
+    
+    def update_column(self, row_identifier: str, identifier_value: Any, 
+                     column_updates: Dict[str, Any], create_if_missing: bool = True) -> None:
+        """
+        Update specific columns for rows matching the identifier without re-evaluating.
+        
+        This allows adding new evaluation perspectives (columns) to existing results
+        without re-running expensive LLM evaluations.
+        
+        Args:
+            row_identifier: Column name to identify rows (e.g., 'idx')
+            identifier_value: Value to match in the identifier column
+            column_updates: Dictionary of {column_name: new_value} to update
+            create_if_missing: If True, add new columns to CSV if they don't exist
+        
+        Example:
+            # Add a new evaluation perspective without re-running previous evaluations
+            saver = ResultDictToCSV(run_id='eval', root_dir='results')
+            
+            # Update row where idx=5 with new evaluation perspective
+            saver.update_column(
+                row_identifier='idx',
+                identifier_value=5,
+                column_updates={'new_perspective': 'yes', 'new_score': 0.95}
+            )
+        """
+        import pandas as pd
+        
+        # Load existing results as DataFrame
+        try:
+            df = pd.read_csv(self.filepath)
+        except FileNotFoundError:
+            logger.warning(f"No existing results found in {self.filepath}")
+            return
+        
+        if df.empty:
+            logger.warning(f"CSV file is empty: {self.filepath}")
+            return
+        
+        # Find rows to update
+        mask = df[row_identifier].astype(str) == str(identifier_value)
+        
+        if not mask.any():
+            logger.warning(
+                f"No rows found with {row_identifier}={identifier_value}"
+            )
+            return
+        
+        # Update columns for matching rows
+        for col, val in column_updates.items():
+            if col not in self.exclude_columns:
+                df.loc[mask, col] = val
+        
+        # Preserve original column order and add new columns at the end
+        if self.columns:
+            existing_cols = [c for c in self.columns if c in df.columns]
+            new_cols = [c for c in df.columns if c not in self.columns]
+            ordered_columns = existing_cols + sorted(new_cols)
+            df = df[ordered_columns]
+        
+        # Write updated DataFrame back to CSV
+        df.to_csv(self.filepath, index=False, encoding='utf-8')
+        
+        # Update internal state
+        self.columns = list(df.columns)
+        self.results = df.to_dict('records')
+        
+        logger.info(
+            f"Updated {row_identifier}={identifier_value} with columns: "
+            f"{list(column_updates.keys())}"
+        )
+    
+    def update_columns_batch(self, row_identifier: str, 
+                            updates: List[Dict[str, Any]]) -> None:
+        """
+        Batch update multiple rows with new column values using pandas.
+        
+        More efficient than calling update_column() multiple times as it only
+        rewrites the CSV file once.
+        
+        Args:
+            row_identifier: Column name to identify rows (e.g., 'idx')
+            updates: List of dicts, each containing:
+                - identifier_value: Value to match in identifier column
+                - column_updates: Dict of {column_name: new_value}
+        
+        Example:
+            # Add new evaluation perspective to multiple rows at once
+            saver = ResultDictToCSV(run_id='eval', root_dir='results')
+            
+            updates = [
+                {'identifier_value': 0, 'column_updates': {'new_eval': 'yes'}},
+                {'identifier_value': 1, 'column_updates': {'new_eval': 'no'}},
+                {'identifier_value': 2, 'column_updates': {'new_eval': 'yes'}},
+            ]
+            saver.update_columns_batch(row_identifier='idx', updates=updates)
+        """
+        import pandas as pd
+        
+        # Load existing results as DataFrame
+        try:
+            df = pd.read_csv(self.filepath)
+        except FileNotFoundError:
+            logger.warning(f"No existing results found in {self.filepath}")
+            return
+        
+        if df.empty:
+            logger.warning(f"CSV file is empty: {self.filepath}")
+            return
+        
+        # Apply updates
+        updated_count = 0
+        for update in updates:
+            identifier_val = str(update['identifier_value'])
+            column_updates = update['column_updates']
+            
+            # Find matching rows
+            mask = df[row_identifier].astype(str) == identifier_val
+            
+            if mask.any():
+                # Update columns for matching rows
+                for col, val in column_updates.items():
+                    if col not in self.exclude_columns:
+                        df.loc[mask, col] = val
+                updated_count += mask.sum()
+        
+        if updated_count == 0:
+            logger.warning("No rows were updated")
+            return
+        
+        # Preserve original column order and add new columns at the end
+        if self.columns:
+            existing_cols = [c for c in self.columns if c in df.columns]
+            new_cols = [c for c in df.columns if c not in self.columns]
+            ordered_columns = existing_cols + sorted(new_cols)
+            df = df[ordered_columns]
+        
+        # Write updated DataFrame back to CSV
+        df.to_csv(self.filepath, index=False, encoding='utf-8')
+        
+        # Update internal state
+        self.columns = list(df.columns)
+        self.results = df.to_dict('records')
+        
+        logger.info(f"Batch updated {updated_count} rows")
+

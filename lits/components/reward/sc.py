@@ -1,7 +1,7 @@
 from ..base import RewardModel
 
 
-class ToolUsePRM(RewardModel):
+class SCPRM(RewardModel):
     """No-op PRM that keeps the tree-search interface satisfied for tool-use benchmarks."""
 
     def __init__(self, **kwargs):
@@ -18,3 +18,6 @@ class ToolUsePRM(RewardModel):
     def reward(self, state, action, **kwargs) -> float:
         """Emit a neutral reward that keeps downstream accounting consistent."""
         return float(kwargs.get("confidence", 0.0))
+    
+    
+

@@ -32,7 +32,10 @@ def _extract_first(extractor: Callable[[str], list], message: str):
         return None
     return results[0].strip()
 
-ToolUseAction = StringAction
+
+class ToolUseAction(StringAction):
+    """Action type for tool use - wraps a JSON string representing a tool call."""
+    pass
 
 @register_type
 @dataclass

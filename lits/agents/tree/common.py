@@ -72,11 +72,11 @@ def _sample_actions_with_existing(
     node,
     policy,
     n_actions,
-    world_model=None,
+    transition_model=None,
     use_critic=False,
     from_phase=""
 ):
-    if world_model is None:
+    if transition_model is None:
         assert use_critic is False
     assert from_phase in ["expand", "simulate", "continuation"]
     
@@ -96,7 +96,7 @@ def _sample_actions_with_existing(
 
     critic = None
     if use_critic:
-        critic = world_model.generate_critic(node.state, example, query_idx)
+        critic = transition_model.generate_critic(node.state, example, query_idx)
         if critic == "" or critic is None:
             logger.debug(f"Critic is empty")
             critic = "No Critic"
@@ -112,7 +112,7 @@ def _sample_actions_with_existing(
         )
     return new_actions
     
-def _world_modeling(example, query_idx, node, world_model, reward_model, from_phase="expand"):
+def _world_modeling(example, query_idx, node, transition_model, reward_model, from_phase="expand"):
     assert from_phase in ["expand", "simulate", "continuation"]
     
     logger.debug(f"\n=========== [Set State for Node {node.id} Begin] ===========")
@@ -121,7 +121,7 @@ def _world_modeling(example, query_idx, node, world_model, reward_model, from_ph
         logger.debug(f"The state is not None.")
     else:
         node_state_copy = copy.deepcopy(node.parent.state)
-        node.state, aux = world_model.step(node.parent.state, node.action, query_or_goals=example, query_idx=query_idx, from_phase=from_phase)
+        node.state, aux = transition_model.step(node.parent.state, node.action, query_or_goals=example, query_idx=query_idx, from_phase=from_phase)
         assert node_state_copy == node.parent.state, "node.state is changed in world_model.step"
         node.state_conf = aux.get("confidence", -1)
         logger.debug(f"State is set to: {node.state}")
@@ -137,9 +137,9 @@ def _world_modeling(example, query_idx, node, world_model, reward_model, from_ph
                 node.fast_reward = fast_reward
                 node.fast_reward_details = fast_reward_details
             logger.debug(f"Reward is set via {node.fast_reward_details} and {aux}")
-            node.reward = reward_model.reward(node.parent.state, node.action, **node.fast_reward_details, **aux) # usefulness of a subquestion + s_{t+1} confidence (from world_model.step)
+            node.reward = reward_model.reward(node.parent.state, node.action, **node.fast_reward_details, **aux) # usefulness of a subquestion + s_{t+1} confidence (from transition_model.step)
             assert isinstance(node.reward, float), f"reward should be a float, got {type(node.reward)} from {reward_model.__class__}"
-        node.is_terminal = world_model.is_terminal(node.state, example, fast_reward=node.fast_reward, query_idx=query_idx, from_phase=from_phase)
+        node.is_terminal = transition_model.is_terminal(node.state, example, fast_reward=node.fast_reward, query_idx=query_idx, from_phase=from_phase)
         
         if node.is_terminal:
             logger.debug(f"The state is terminal")
@@ -149,7 +149,7 @@ def _world_modeling(example, query_idx, node, world_model, reward_model, from_ph
 def extract_answers_from_terminal_nodes(
     terminal_nodes_collected,
     retrieve_answer,
-    question
+    query
 ):
     """
     Extract answers and compute votes/rewards from collected terminal nodes.
@@ -160,7 +160,7 @@ def extract_answers_from_terminal_nodes(
     Args:
         terminal_nodes_collected: List of all terminal nodes collected from search
         retrieve_answer: Function to extract answer from node state
-        question: Question being answered
+        query_or_goals: Question being answered
     
     Returns:
         Tuple of:
@@ -175,7 +175,7 @@ def extract_answers_from_terminal_nodes(
     logger.debug(f"Processing {len(check_nodes)} terminal nodes")
     
     # Extract answers and rewards
-    extracted_answers = [retrieve_answer(node.state, question) for node in check_nodes]
+    extracted_answers = [retrieve_answer(node.state, query) for node in check_nodes]
     extracted_rewards = [float(node.fast_reward) for node in check_nodes]
     logger.debug(f"Extracted answers: {extracted_answers}")
     logger.debug(f"Extracted rewards: {extracted_rewards}")

@@ -224,7 +224,7 @@ def _expand(
         node,
         policy,
         n_actions,
-        world_model=world_model,
+        transition_model=world_model,
         use_critic=use_critic,
         from_phase=from_phase
     )
@@ -319,7 +319,7 @@ def _simulate(
         selected_idx = mcts_search_config.simulate_choice(fast_rewards)
         node = node.children[selected_idx]
         node.is_simulated = True
-        _world_modeling(example, query_idx, node, world_model, reward_model, from_phase="simulate")
+        _world_modeling(example, query_idx, node, transition_model=world_model, reward_model=reward_model, from_phase="simulate")
         logger.debug(f"NEW NODE Transfer with the action: {node.action}. The resulting state: {node.state}")
         path.append(node)
 
@@ -446,7 +446,7 @@ def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_mod
        
             # ====== Expansion (Begin) ======
             if path[-1].state is None:
-                _world_modeling(example, query_idx, path[-1], world_model, reward_model, from_phase="expand")
+                _world_modeling(example, query_idx, path[-1], transition_model= world_model, reward_model=reward_model, from_phase="expand")
             # ====== Terminate Check (Begin) ======
             if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))

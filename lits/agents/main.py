@@ -2,6 +2,7 @@ import logging
 from typing import Callable
 from ..components.policy.tool_use import ToolUsePolicy
 from ..components.policy.env_grounded import EnvGroundedPolicy
+from ..components.transition.tool_use import ToolUseTransition
 from ..components.base import Transition
 from ..structures import ToolUseState, ToolUseStep
 from ..lm import HfChatModel, InferenceLogger, get_lm
@@ -66,7 +67,7 @@ cuda:0").
     ReactChatConfig(
         reasoning_method="react_chat",
         package_version=PACKAGE_VERSION,
-        model_name=model_name,
+        policy_model_name=model_name,
         exclude_think_when_verb=exclude_think_when_verb,
         enable_think=enable_think_policy,
         gpu_device=device,
@@ -77,18 +78,30 @@ cuda:0").
     if exclude_think_when_verb:
         logger.info("ToolUseStep will exclude think steps from history when verbalizing.")
         print("ToolUseStep will exclude think steps from history when verbalizing.")
-    # Construct policy and agent
+    
+    # Construct policy
     policy = ToolUsePolicy(
         base_model=base_model,
         tools=tools,
         tool_context=tool_context,
-        task_instruction=None,
+        task_prompt_spec=None,
         max_length=max_length,
         n_actions=1,
     )
     
+    # Construct transition (world model for tool execution)
+    transition = ToolUseTransition(
+        tools=tools,
+        observation_on_error="Tool execution failed."
+    )
+    
+    # Construct agent
     if agent_type == "react_chat":
-        agent = ReActChat(policy, max_iter=max_iter)
+        agent = ReActChat(
+            policy=policy,
+            transition=transition,
+            max_iter=max_iter
+        )
     else:
         raise ValueError(f"Wrong agent type: {agent_type}")
     return agent

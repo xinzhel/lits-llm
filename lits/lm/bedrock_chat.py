@@ -282,8 +282,25 @@ class BedrockChatModel(LanguageModel):
         try:
             response = self.client.converse(**converse_params)
         except (ClientError, NoCredentialsError) as e:
-            logging.error(f"Bedrock Converse API call failed: {e}\n\n Input params: {converse_params}")
-            raise RuntimeError(f"Bedrock Converse API call failed: {e}")
+            # Log concise error without full params (which can be very long)
+            error_msg = str(e)
+            
+            # Extract key info from error
+            if "Input is too long" in error_msg or "ValidationException" in error_msg:
+                # Extract token counts if available
+                import re
+                token_match = re.search(r'input length is (\d+) tokens.*maximum.*?(\d+) tokens', error_msg)
+                if token_match:
+                    input_len, max_len = token_match.groups()
+                    concise_msg = f"Input too long: {input_len} tokens (max: {max_len})"
+                else:
+                    concise_msg = "Input exceeds model's maximum context length"
+            else:
+                # Truncate other errors
+                concise_msg = error_msg[:200] + "..." if len(error_msg) > 200 else error_msg
+            
+            logging.error(f"Bedrock Converse API call failed: {concise_msg}")
+            raise RuntimeError(f"Bedrock Converse API call failed: {concise_msg}")
         
         # Parse response
         try:

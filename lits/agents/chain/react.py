@@ -2,8 +2,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass, asdict
-from ...tools import execute_tool_action
 from ...components.policy.tool_use import ToolUsePolicy
+from ...components.transition.tool_use import ToolUseTransition
 from ...structures import ToolUseState, ToolUseStep
 from ...lm import HfChatModel, InferenceLogger, get_lm
 from ...framework_config import DEFAULT_MODEL_NAME, DEFAULT_DEVICE, PACKAGE_VERSION
@@ -42,22 +42,46 @@ class ReActChat:
 
     The model receives a system prompt describing the reasoning format:
 
-    Question → Thought → Action → Observation → Thought → … → Final Answer"""
+    Question → Thought → Action → Observation → Thought → … → Final Answer
+    
+    This implementation follows the LiTS framework's separation of concerns:
+    - Policy: Generates actions (ToolUseStep with action field)
+    - Transition: Executes actions and produces observations
+    """
     
     def __init__(
         self,
         policy: ToolUsePolicy,
+        transition: ToolUseTransition,
         max_iter: int = 10,
     ):
+        """Initialize ReActChat with policy and transition components.
+        
+        Args:
+            policy: ToolUsePolicy that generates actions based on state
+            transition: ToolUseTransition that executes actions and produces observations
+            max_iter: Maximum number of reasoning iterations
+        """
         self.policy = policy
+        self.transition = transition
         self.max_iter = max_iter
 
     def run(self, query, query_idx=None, from_phase: str = "", checkpoint_path: Optional[str] = None):
-        """Run the ReAct reasoning-and-acting loop."""
+        """Run the ReAct reasoning-and-acting loop.
+        
+        Args:
+            query: The user's question or task
+            query_idx: Optional query index for logging
+            from_phase: Description of algorithm phase (for logging)
+            checkpoint_path: Optional path to save/load checkpoints
+        
+        Returns:
+            ToolUseState: Final state containing the trajectory of steps
+        """
         if checkpoint_path:
             state = resume_tool_use_state(checkpoint_path)
         else:
-            state = ToolUseState()
+            state = self.transition.init_state()
 
         logger.debug("Initial user query:\n%s\n", query)
         start_iter = len(state)
@@ -82,7 +106,23 @@ class ReActChat:
         return state
 
     def get_step(self, query: str, state: ToolUseState, query_idx=None, from_phase: str = "") -> ToolUseStep:
-        """Elicit the next <think>/<action>/<answer> block and run tools when requested."""
+        """Generate and execute the next step using Policy and Transition.
+        
+        This method follows the LiTS framework pattern:
+        1. Policy generates a ToolUseStep with action (but no observation)
+        2. Transition executes the action and produces observation
+        3. Return the complete step with observation
+        
+        Args:
+            query: The user's question or task
+            state: Current ToolUseState (trajectory of steps)
+            query_idx: Optional query index for logging
+            from_phase: Description of algorithm phase (for logging)
+        
+        Returns:
+            ToolUseStep: Complete step with action and observation (if applicable)
+        """
+        # Step 1: Policy generates action
         steps = self.policy.get_actions(
             state,
             query=query,
@@ -96,12 +136,29 @@ class ReActChat:
         step = steps[0]
         if step.error:
             return step
+        
         assistant_text = step.assistant_message or step.verb_step()
         logger.debug(">>>>>>>>> Assistant raw output:\n%s <<<<<<<<<<", assistant_text)
 
+        # Step 2: Transition executes action if present
         if step.action:
-            step.observation = execute_tool_action(str(step.action), self.policy.tools)
-
+            # Use transition to execute the action and get observation
+            new_state, aux = self.transition.step(
+                state=state,
+                action=step.action,
+                query_or_goals=query,
+                query_idx=query_idx,
+                from_phase=from_phase
+            )
+            # Extract the executed step (last one in new_state)
+            executed_step = new_state[-1]
+            # Preserve think and answer from original step
+            executed_step.think = step.think
+            executed_step.answer = step.answer
+            executed_step.assistant_message = step.assistant_message
+            return executed_step
+        
+        # Step 3: Handle cases where no action is provided
         if step.answer is None and step.action is None:
             logger.warning("Either action or answer must be provided in assistant output.")
             step.observation = (
@@ -109,4 +166,4 @@ class ReActChat:
                 "format and could not be parsed. Please STRICTLY follow the format required in the system prompt."
             )
 
-        return step
+
