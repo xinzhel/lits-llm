@@ -36,17 +36,15 @@ Usage:
 import logging
 import json
 from typing import Optional, Dict, Any, List
-from pathlib import Path
-from datetime import datetime
 from ...structures import TrajectoryState
 from ...lm import HfChatModel, OpenAIChatModel
 from ...lm.bedrock_chat import BedrockChatModel
-from ...eval.results import ResultDictToJsonl
+from .base import VerbalEvaluator
 
 logger = logging.getLogger(__name__)
 
 
-class SQLErrorProfiler:
+class SQLErrorProfiler(VerbalEvaluator):
     """LLM-based profiler for analyzing SQL errors across trajectories.
     
     This component analyzes a sequence of tool-use steps and generates:
@@ -71,36 +69,53 @@ class SQLErrorProfiler:
 Your job is to analyze a sequence of tool-use steps (a trajectory) and produce a structured,
 generalized summary of the SQL-related errors that occurred.
 
-You must generate two types of information:
-
+You must output:
 1. A general classification of the error types that appeared.
-2. A set of principle-based issues that both describe what went wrong and explain why.
+2. A set of principle-based issues that explain what went wrong and why.
 
-All output MUST follow these constraints:
+All output MUST satisfy the following constraints:
 
-1. **Self-contained and context-independent**
-   - The issue description must stand alone.
-   - It MUST NOT refer to “the query”, “the SQL”, “this statement”, “the given use case”, "initial attempt used", "first query"
-     or any other contextual or situational language.
+1. STRICT prohibition of contextual references
+   - Issue descriptions MUST be self-contained.
+   - They MUST NOT refer to attempts, steps, events, or ordering, such as:
+     “the initial query”, “the first attempt”, “earlier SQL”, 
+     “the successful version”, “the previous failure”, 
+     “in this trajectory”, “in this case”, “the wrong query”.
+   - No temporal or narrative language is allowed.
 
-2. **Issues should be actionable and descriptive**
-   - Each issue should describe WHAT went wrong or/and WHY it happened or/and how it can be solved. 
-   - Use successful steps to explain what the policy should do.
-   - Issues should be concrete enough to guide future actions on similar tasks.
+2. Concrete schema elements ARE allowed
+   - You ARE allowed to mention actual table names, column names,
+     geometry column names, CRS identifiers, and PostGIS functions
+     **if these were confirmed to be correct in the trajectory**.
+   - This includes values such as:
+     - `psr_point`, `psr_polygon`
+     - `geom`
+     - CRS identifiers (e.g., EPSG:4283, EPSG:4326)
+     - Specific PostGIS functions (e.g., `ST_DWithin`, `ST_Transform`)
+   - Schema knowledge must be presented as **factual correctness**, 
+     not as a comparison against prior failed attempts.
 
-You must analyze:
-- SQL execution failures AND successes
-- PostGIS-related errors AND correct usage
-- Schema mismatch issues AND correct schema usage
-- Incorrect assumptions about database structure AND what worked
-- Any pattern of failures AND successes across the trajectory
+3. Issues must describe WHAT and WHY
+   - Each issue must explain the nature of a general SQL/PostGIS failure mode
+     and also describe the correct principle inferred from the trajectory.
+   - The issue must be phrased as a generalizable principle, 
+     enriched with concrete schema information where relevant.
+   - Issues may state: 
+       "Using table `psr_point` and column `geom` ensures correct access to geometry data."
+     but may NOT state:
+       "The earlier query used the wrong table name."
+
+4. No narrative, no examples referring to past events
+   - Only state abstract SQL/PostGIS principles + concrete schema facts.
+   - Do not describe or compare queries.
+   - Do not mention how knowledge was discovered.
 
 Return a JSON object:
 {
     "error_type": "A short, general category of SQL mistakes identified.",
     "issues": [
-        "An issue describing what went wrong and why it happened.",
-        "Another issue with both description and explanation."
+        "Principle-based issue enriched with correct schema details.",
+        "Another principle-based issue enriched with correct schema details."
     ]
 }
 """
@@ -120,14 +135,14 @@ Return a JSON object:
             temperature: Sampling temperature for LLM generation
             max_new_tokens: Maximum tokens to generate
         """
-        assert isinstance(base_model, (HfChatModel, OpenAIChatModel, BedrockChatModel)), \
-            f"base_model must be a chat model, got {type(base_model)}"
+        # Initialize parent class
+        super().__init__(
+            base_model=base_model,
+            temperature=temperature,
+            max_new_tokens=max_new_tokens
+        )
         
-        self.base_model = base_model
         self.profiling_prompt = profiling_prompt or self.SQL_ERROR_PROFILING_PROMPT
-        self.temperature = temperature
-        self.max_new_tokens = max_new_tokens
-        self._result_saver = None
         
         # Set system prompt
         self.base_model.sys_prompt = self.profiling_prompt
@@ -252,7 +267,13 @@ Return a JSON object:
             
             # Save to file if policy info provided
             if result and policy_model_name and task_type:
-                self._save_eval(result, query_idx, policy_model_name, task_type)
+                # Prepare result for saving (only include relevant fields)
+                # Unified format: issues is always a list
+                save_result = {
+                    'error_type': result.get('error_type', ''),
+                    'issues': result.get('issues', [])  # Already a list
+                }
+                self._save_eval(save_result, query_idx, policy_model_name, task_type)
             
             return result
             
@@ -336,115 +357,5 @@ Provide a structured analysis in JSON format as specified in the system prompt.
             'issues': [response[:500]],
         }
     
-    def _get_result_saver(self, policy_model_name: str, task_type: str) -> ResultDictToJsonl:
-        """Get or create result saver for this policy/task combination.
-        
-        Args:
-            policy_model_name: Name of the policy model
-            task_type: Task type
-        
-        Returns:
-            ResultDictToJsonl instance
-        """
-        # Create filename from policy model and task type
-        model_name_clean = policy_model_name.replace("/", "_").replace(":", "_")
-        run_id = f"{model_name_clean}_{task_type}_profile"
-        
-        # Save to ~/.lits_llm/verbal_evaluator/
-        save_dir = Path.home() / ".lits_llm" / "verbal_evaluator"
-        save_dir.mkdir(parents=True, exist_ok=True)
-        
-        if self._result_saver is None or self._result_saver.filepath != str(save_dir / f"resultdicttojsonl_{run_id}.jsonl"):
-            self._result_saver = ResultDictToJsonl(
-                run_id=run_id,
-                root_dir=str(save_dir),
-                override=False
-            )
-        
-        return self._result_saver
+
     
-    def _save_eval(
-        self,
-        result: Dict[str, Any],
-        query_idx: Optional[int],
-        policy_model_name: str,
-        task_type: str
-    ) -> None:
-        """Save profiling result to jsonl file.
-        
-        Args:
-            result: Profiling result
-            query_idx: Query index
-            policy_model_name: Policy model name
-            task_type: Task type
-        """
-        # Get result saver for this policy/task
-        saver = self._get_result_saver(policy_model_name, task_type)
-        
-        # Create record
-        record = {
-            'query_idx': query_idx,
-            'error_type': result.get('error_type', ''),
-            'issues': result.get('issues', []),
-            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        # Append to file
-        saver.append_result(record)
-        logger.debug(f"Saved profile to {saver.filepath}")
-    
-    def load_eval_as_prompt(
-        self,
-        policy_model_name: str,
-        task_type: str,
-        max_profiles: int = 5
-    ) -> str:
-        """Load saved profiles and format as prompt component for policy.
-        
-        Args:
-            policy_model_name: Policy model name
-            task_type: Task type
-            max_profiles: Maximum number of recent profiles to include
-        
-        Returns:
-            Formatted prompt string with profiles, or empty string if no profiles
-        
-        Example:
-            ```python
-            feedback = profiler.load_eval_as_prompt("gpt-4", "spatial_qa")
-            policy.base_model.sys_prompt += "\\n\\n" + feedback
-            ```
-        """
-        try:
-            saver = self._get_result_saver(policy_model_name, task_type)
-            
-            # Load existing results
-            if not saver.results:
-                return ""
-            
-            # Get recent profiles (last max_profiles)
-            recent_profiles = saver.results[-max_profiles:]
-            
-            if not recent_profiles:
-                return ""
-            
-            # Format as prompt
-            prompt_parts = ["**Previous SQL Error Patterns to Avoid:**\n"]
-            
-            for idx, record in enumerate(recent_profiles, 1):
-                error_type = record.get('error_type', '')
-                issues = record.get('issues', [])
-                
-                if error_type:
-                    prompt_parts.append(f"\n{idx}. Error Type: {error_type}")
-                
-                if issues:
-                    prompt_parts.append("   Key Issues:")
-                    for issue in issues:
-                        prompt_parts.append(f"   - {issue}")
-            
-            return "\n".join(prompt_parts)
-            
-        except Exception as e:
-            logger.error(f"Error loading profiles: {e}")
-            return ""

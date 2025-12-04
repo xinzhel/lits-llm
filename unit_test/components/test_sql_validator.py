@@ -167,7 +167,7 @@ class TestSQLValidator:
             action=ToolUseAction(action_json)
         )
         
-        result = validator.validate_tool_use_step(
+        result = validator.validate(
             step,
             context="Schema: users(id, name, age)",
             user_intent="Get adult users"
@@ -207,7 +207,7 @@ class TestSQLValidator:
         
         step = ToolUseStep(think="Just thinking, no action yet")
         
-        result = validator.validate_tool_use_step(step)
+        result = validator.validate(step)
         
         assert result is None
         print("✓ test_validate_tool_use_step_no_action passed")
@@ -455,8 +455,9 @@ def test_real_world_sql_validation_with_issue_tracking():
             assistant_message="Using coordinates to query priority sites..."
         )
         
-        # Policy and task info
-        policy_model_name = "test_model"
+        # Policy and task info - use real model name for unified storage test
+        # Use full MODEL_NAME - base class will extract clean name automatically
+        policy_model_name = MODEL_NAME
         task_type = "spatial_qa_test"
         
         print(f"Query: {query}")
@@ -486,22 +487,42 @@ def test_real_world_sql_validation_with_issue_tracking():
             print(f"  Issue: {result['issue'][:150]}...")
             print("\n✓ Issue detected")
             
-            # Check if file was created
-            expected_file = Path.home() / ".lits_llm" / "verbal_evaluator" / f"resultdicttojsonl_test_model_spatial_qa_test.jsonl"
+            # Check if file was created (unified storage)
+            from lits.lm import get_clean_model_name
+            model_name_clean = get_clean_model_name(policy_model_name)
+            expected_file = Path.home() / ".lits_llm" / "verbal_evaluator" / f"resultdicttojsonl_{model_name_clean}_{task_type}.jsonl"
             if expected_file.exists():
                 print(f"✓ Issue file created: {expected_file}")
+                
+                # Verify evaluator_type field and unified format
+                with open(expected_file, 'r') as f:
+                    lines = f.readlines()
+                    if lines:
+                        last_record = json.loads(lines[-1])
+                        if 'evaluator_type' in last_record:
+                            print(f"✓ Record includes evaluator_type: {last_record['evaluator_type']}")
+                            assert last_record['evaluator_type'] == 'sqlvalidator'
+                        else:
+                            print("✗ Record missing evaluator_type field")
+                        
+                        # Verify unified format: issues should be a list
+                        if 'issues' in last_record:
+                            assert isinstance(last_record['issues'], list), "issues should be a list"
+                            print(f"✓ Unified format: issues is a list with {len(last_record['issues'])} item(s)")
+                        else:
+                            print("✗ Record missing 'issues' field")
             else:
                 print(f"✗ Issue file not found: {expected_file}")
         
-        # Test load_issues_as_prompt
+        # Test load_eval_as_prompt (unified interface)
         print("\n" + "-"*70)
-        print("Testing load_issues_as_prompt()")
+        print("Testing load_eval_as_prompt()")
         print("-"*70)
         
-        feedback_prompt = validator.load_issues_as_prompt(
+        feedback_prompt = validator.load_eval_as_prompt(
             policy_model_name=policy_model_name,
             task_type=task_type,
-            max_issues=5
+            max_items=5
         )
         
         if feedback_prompt:

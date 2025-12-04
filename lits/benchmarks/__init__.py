@@ -8,17 +8,17 @@ from .main import infer_task_type
 #             "Y29tIiwiaWF0IjoxNzYwMjcyMjIxfQ.DrPXlwpYeFZC8PP1wLabb4tV3yQ5MHcl2LbXhSVZHXE"
 #         )
 def load_resource(
-    benchmark: str="clue",  
-    client_host="localhost", 
-    client_port=5432, 
-    db_name="clue",
-    db_user_name="clueuser",
-    db_user_password="cluepassword",
+    benchmark_name: str="mapeval",  
+    db_host=None, 
+    db_port=None, 
+    db_name=None,
+    db_user_name=None,
+    db_user_password=None,
     secret_token=None, 
 ) -> dict:
     """Load benchmark-specific objects for tool use:
     - tools: List of tool instances to be used by the agent, each tool should implement a `_run` method and has name, description, args_schema attributes."""
-    if benchmark == "mapeval":
+    if benchmark_name == "mapeval" or benchmark_name == "mapeval-sql":
 
         from lits.benchmarks.mapeval import construct_prompt, retrieve_answer as parse_answer, make_answer_extractor
 
@@ -30,12 +30,12 @@ def load_resource(
             formatted_examples.append({"question": question_prompt, "answer": ""})
 
         return {
-            "tools": build_tools(client_type="mapeval", client_host=client_host, client_port=client_port, secret_token=secret_token),
+            "tools": build_tools(benchmark_name=benchmark_name, db_host=db_host, db_port=db_port, secret_token=secret_token),
             "tool_context": "",
             "examples": formatted_examples,
         }
 
-    if benchmark == "clue":
+    if benchmark_name == "clue":
         formatted_examples = [
             {
                 "question": "which area in melbourne has the highest number of parking space?",
@@ -50,9 +50,9 @@ def load_resource(
         )
 
         return {
-            "tools": build_tools(client_type="geosql", client_host=client_host, client_port=client_port, db_name=db_name, db_user_name=db_user_name, db_user_password=db_user_password),
+            "tools": build_tools(benchmark_name="geosql", db_host=db_host, db_port=db_port, db_name=db_name, db_user_name=db_user_name, db_user_password=db_user_password),
             "tool_context": tool_context,
             "examples": formatted_examples,
         }
 
-    raise ValueError(f"Unsupported tool-use benchmark: {benchmark}")
+    raise ValueError(f"Unsupported tool-use benchmark: {benchmark_name}")

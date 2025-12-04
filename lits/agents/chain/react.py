@@ -87,32 +87,22 @@ class ReActChat:
         start_iter = len(state)
         for i in range(start_iter, self.max_iter):
             logger.debug("\n ======== Iteration %d ========\n", i)
-            step = self.get_step(query, state, query_idx=query_idx, from_phase=from_phase)
-            state.append(step)
-
-            if getattr(step, "error", None) is not None:
-                break
+            state = self.update_state(query, state, query_idx=query_idx, from_phase=from_phase)
             
-            if getattr(step, "observation", None) is not None:
-                obs_content = step.observation if isinstance(step.observation, str) else str(step.observation)
-                obs_message = f"<observation>\n{obs_content.strip()}\n</observation>"
-                logger.debug(">>>>>>>>> Tool observation: %s <<<<<<<<<<", obs_message)
-
             if checkpoint_path:
                 state.save(checkpoint_path, query)
                 logger.debug("\nCheckpoint saved to %s \n", checkpoint_path)
-            if getattr(step, "answer", None) is not None:
+            if getattr(state[-1], "answer", None) is not None:
                 break
         return state
 
-    def get_step(self, query: str, state: ToolUseState, query_idx=None, from_phase: str = "") -> ToolUseStep:
-        """Generate and execute the next step using Policy and Transition.
+    def update_state(self, query: str, state: ToolUseState, query_idx=None, from_phase: str = "") -> ToolUseStep:
+        """
         
         This method follows the LiTS framework pattern:
         1. Policy generates a ToolUseStep with action (but no observation)
         2. Transition executes the action and produces observation
-        3. Return the complete step with observation
-        
+        3. Update and Return the state 
         Args:
             query: The user's question or task
             state: Current ToolUseState (trajectory of steps)
@@ -120,7 +110,7 @@ class ReActChat:
             from_phase: Description of algorithm phase (for logging)
         
         Returns:
-            ToolUseStep: Complete step with action and observation (if applicable)
+            ToolUseState
         """
         # Step 1: Policy generates action
         steps = self.policy.get_actions(
@@ -134,13 +124,17 @@ class ReActChat:
             raise RuntimeError("ToolUsePolicy returned no candidate generation.")
         
         step = steps[0]
-        if step.error:
-            return step
+
         
         assistant_text = step.assistant_message or step.verb_step()
         logger.debug(">>>>>>>>> Assistant raw output:\n%s <<<<<<<<<<", assistant_text)
 
-        # Step 2: Transition executes action if present
+         # Step 2.0: Error
+        if step.error:
+            state.append(step)
+            return state
+        
+        # Step 2.1: Transition executes action if present
         if step.action:
             # Use transition to execute the action and get observation
             new_state, aux = self.transition.step(
@@ -156,14 +150,20 @@ class ReActChat:
             executed_step.think = step.think
             executed_step.answer = step.answer
             executed_step.assistant_message = step.assistant_message
-            return executed_step
-        
-        # Step 3: Handle cases where no action is provided
-        if step.answer is None and step.action is None:
+            state.append(executed_step)
+        # Step 2.2
+        elif step.answer is not None:
+            state.append(step)
+            pass
+        # Step 2.3: Handle cases where no action is provided
+        elif step.answer is None and step.action is None:
             logger.warning("Either action or answer must be provided in assistant output.")
             step.observation = (
                 "Assistant output did not provide an action or answer, or it did not follow the required "
                 "format and could not be parsed. Please STRICTLY follow the format required in the system prompt."
-            )
-
-
+            ) 
+            state.append(step)       
+        else:
+            raise Exception
+        
+        return state

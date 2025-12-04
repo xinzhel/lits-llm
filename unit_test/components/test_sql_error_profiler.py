@@ -294,9 +294,10 @@ def test_real_world_sql_error_profiler_with_issue_tracking():
         print(f"Loading trajectory from: {checkpoint_path}")
         query, state = ToolUseState.load(str(checkpoint_path))
         
-        # Policy and task info
-        policy_model_name = "test_profiler_model"
-        task_type = "spatial_qa_profiler_test"
+        # Policy and task info - use same as validator for unified storage test
+        # Use full MODEL_NAME - base class will extract clean name automatically
+        policy_model_name = MODEL_NAME
+        task_type = "spatial_qa_test"  # Same as validator to demonstrate unified storage
         
         print(f"Query: {query}")
         print(f"Number of steps: {len(state)}")
@@ -324,22 +325,60 @@ def test_real_world_sql_error_profiler_with_issue_tracking():
             for idx, issue in enumerate(profile['issues'][:3], 1):  # Show first 3
                 print(f"    {idx}. {issue[:150]}...")
             
-            # Check if file was created
-            expected_file = Path.home() / ".lits_llm" / "verbal_evaluator" / f"resultdicttojsonl_test_profiler_model_spatial_qa_profiler_test_profile.jsonl"
+            # Check if file was created (unified storage - same file as validator)
+            from lits.lm import get_clean_model_name
+            model_name_clean = get_clean_model_name(policy_model_name)
+            expected_file = Path.home() / ".lits_llm" / "verbal_evaluator" / f"resultdicttojsonl_{model_name_clean}_{task_type}.jsonl"
             if expected_file.exists():
                 print(f"\n✓ Profile file created: {expected_file}")
+                
+                # Verify evaluator_type field is present and check for both evaluator types
+                with open(expected_file, 'r') as f:
+                    lines = f.readlines()
+                    if lines:
+                        # Check last record (profiler)
+                        last_record = json.loads(lines[-1])
+                        if 'evaluator_type' in last_record:
+                            print(f"✓ Record includes evaluator_type: {last_record['evaluator_type']}")
+                            assert last_record['evaluator_type'] == 'sqlerrorprofiler'
+                        else:
+                            print("✗ Record missing evaluator_type field")
+                        
+                        # Verify unified format: issues should be a list
+                        if 'issues' in last_record:
+                            assert isinstance(last_record['issues'], list), "issues should be a list"
+                            print(f"✓ Unified format: issues is a list with {len(last_record['issues'])} item(s)")
+                        else:
+                            print("✗ Record missing 'issues' field")
+                        
+                        # Check if file contains both evaluator types (unified storage)
+                        evaluator_types = set()
+                        all_have_issues_list = True
+                        for line in lines:
+                            record = json.loads(line)
+                            if 'evaluator_type' in record:
+                                evaluator_types.add(record['evaluator_type'])
+                            # Verify all records have issues as list
+                            if 'issues' in record and not isinstance(record['issues'], list):
+                                all_have_issues_list = False
+                        
+                        print(f"✓ File contains evaluator types: {evaluator_types}")
+                        if len(evaluator_types) > 1:
+                            print("✓ UNIFIED STORAGE VERIFIED: Multiple evaluators in same file!")
+                        if all_have_issues_list:
+                            print("✓ UNIFIED FORMAT VERIFIED: All records use 'issues' as list!")
             else:
                 print(f"\n⚠ Profile file not found: {expected_file}")
         
-        # Test load_profiles_as_prompt
+        # Test load_eval_as_prompt (unified interface)
         print("\n" + "-"*70)
-        print("Testing load_profiles_as_prompt()")
+        print("Testing load_eval_as_prompt()")
         print("-"*70)
         
         feedback_prompt = profiler.load_eval_as_prompt(
             policy_model_name=policy_model_name,
             task_type=task_type,
-            max_profiles=3
+            max_items=3
         )
         
         if feedback_prompt:

@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 def create_tool_use_agent(
     tools: list,
     agent_type: str = "react_chat",
+    task_type:str=None,
     tool_context: str="",
     root_dir: str = "./results",
     model_name=DEFAULT_MODEL_NAME, 
@@ -83,6 +84,7 @@ cuda:0").
     policy = ToolUsePolicy(
         base_model=base_model,
         tools=tools,
+        task_type=task_type,
         tool_context=tool_context,
         task_prompt_spec=None,
         max_length=max_length,

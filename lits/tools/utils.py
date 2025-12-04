@@ -52,8 +52,10 @@ def execute_tool_action(action_data: str, tools: list, raise_on_error: bool = Tr
     if raise_on_error:
         if isinstance(result, str) and "ConnectTimeoutError" in result:
             raise Exception(f"Network issue or server-side error: {result}")
+            exit()
         if isinstance(result, str) and " HTTPConnectionPool" in result:
             raise Exception(f"Network issue or server-side error: {result}")
+            exit()
 
     # --- 5. Return observation ---
     return result

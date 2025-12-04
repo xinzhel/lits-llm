@@ -15,6 +15,41 @@ def model_exists_on_hf(model_name: str) -> bool:
     except Exception as e:
         return False
 
+
+def get_clean_model_name(model_name: str) -> str:
+    """Extract a clean, abbreviated model name for file naming.
+    
+    This function extracts a short identifier from full model names by:
+    1. Removing provider prefixes (bedrock/, openai/, etc.)
+    2. Taking the last component after splitting by "."
+    3. Replacing ":" with "_" for filesystem compatibility
+    
+    Args:
+        model_name: Full model name (e.g., "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0")
+    
+    Returns:
+        Clean model name safe for filenames (e.g., "v1_0")
+    
+    Examples:
+        >>> get_clean_model_name("bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0")
+        "v1_0"
+        >>> get_clean_model_name("openai/gpt-4-turbo")
+        "gpt-4-turbo"
+        >>> get_clean_model_name("meta-llama/Llama-3-8B")
+        "Llama-3-8B"
+    """
+    # Remove provider prefix (bedrock/, openai/, etc.)
+    if "/" in model_name:
+        model_name = model_name.split("/")[-1]
+    
+    # Split by "." and take the last part if multiple parts exist
+    parts = model_name.split(".")
+    if len(parts) > 1:
+        model_name = parts[-1]
+    
+    # Replace ":" with "_" for filesystem compatibility
+    return model_name.replace(":", "_")
+
 def get_lm(model_name:str, **kwargs):
     # force updating max_length in kwargs inferred from model name if infer_max_length returns a value
     inferred_max_length = infer_max_length(model_name)

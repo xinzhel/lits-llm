@@ -13,6 +13,28 @@ The Verbal Evaluator framework provides LLM-based validation and analysis of gen
 
 ## Architecture
 
+### Base Class: VerbalEvaluator
+
+All verbal evaluators inherit from the abstract `VerbalEvaluator` base class, which provides:
+
+- **Unified file management**: All evaluators for the same policy/task save to the same file
+- **Automatic metadata**: Adds `evaluator_type` and `timestamp` to all saved results
+- **Result filtering**: Load results by evaluator type
+- **Common interface**: Abstract `evaluate()` and `load_eval_as_prompt()` methods
+
+```python
+from lits.components.verbal_evaluator.base import VerbalEvaluator
+
+class MyEvaluator(VerbalEvaluator):
+    def evaluate(self, input, **kwargs) -> Optional[str]:
+        """Evaluate input and return issue string."""
+        # Implementation
+        
+    def load_eval_as_prompt(self, policy_model_name, task_type, **kwargs) -> str:
+        """Load saved evaluations as prompt."""
+        # Implementation
+```
+
 ### Unified Interface
 
 All verbal evaluators implement a common `evaluate()` method:
@@ -35,9 +57,11 @@ if issue:
     policy.base_model.sys_prompt += f"\n\n**Note:** {issue}"
 ```
 
-### Issue Storage
+### Unified Issue Storage
 
-Issues are automatically saved to:
+**Key Feature:** All evaluators for the same policy model and task type save to the **same file**.
+
+File location:
 ```
 ~/.lits_llm/verbal_evaluator/resultdicttojsonl_{model}_{task}.jsonl
 ```
@@ -45,11 +69,19 @@ Issues are automatically saved to:
 Each record contains:
 ```json
 {
+  "evaluator_type": "sqlvalidator",
   "query_idx": 0,
   "issue": "Description of what went wrong and why",
-  "timestamp": "2024-12-03 10:30:45"
+  "timestamp": "2024-12-03 10:30:45",
+  ...additional evaluator-specific fields...
 }
 ```
+
+**Benefits:**
+- Single file per policy/task combination
+- Easy to track all issues in one place
+- `evaluator_type` field distinguishes which evaluator generated each result
+- Simplified file management and loading
 
 ## Current Implementations
 
@@ -290,18 +322,44 @@ if trajectory_issue:
 
 ## File Organization
 
+**Unified Storage:** All evaluators for the same policy/task save to one file.
+
 ```
 ~/.lits_llm/verbal_evaluator/
-├── resultdicttojsonl_gpt-4_spatial_qa.jsonl          # SQLValidator issues
-├── resultdicttojsonl_gpt-4_spatial_qa_profile.jsonl  # SQLErrorProfiler profiles
-├── resultdicttojsonl_claude_tool_use.jsonl
-└── resultdicttojsonl_claude_tool_use_profile.jsonl
+├── resultdicttojsonl_gpt-4_spatial_qa.jsonl          # Both SQLValidator AND SQLErrorProfiler
+├── resultdicttojsonl_claude_tool_use.jsonl           # Both evaluators
+└── resultdicttojsonl_llama-3_math_qa.jsonl           # Both evaluators
 ```
+
+**File naming:** `resultdicttojsonl_{model_name}_{task_type}.jsonl`
 
 Files are automatically created and appended to based on:
 - Policy model name (e.g., "gpt-4", "claude-3.5-sonnet")
 - Task type (e.g., "spatial_qa", "tool_use")
-- Evaluator type (validator vs. profiler)
+
+**Record format:**
+```json
+{
+  "evaluator_type": "sqlvalidator",
+  "query_idx": 0,
+  "issue": "Using geometry in EPSG:4326...",
+  "is_valid": false,
+  "score": 0.3,
+  "timestamp": "2024-12-03 10:30:45"
+}
+```
+
+```json
+{
+  "evaluator_type": "sqlerrorprofiler",
+  "query_idx": 1,
+  "error_type": "CRS mismatch errors",
+  "issues": ["Using geometry with meter-based distances..."],
+  "timestamp": "2024-12-03 10:35:12"
+}
+```
+
+The `evaluator_type` field distinguishes which evaluator generated each result.
 
 ## Best Practices
 
@@ -357,49 +415,197 @@ if issue_file.exists():
 
 ## Extending the Framework
 
-To create a new verbal evaluator:
+To create a new verbal evaluator, inherit from `VerbalEvaluator`:
 
-1. **Implement `evaluate()` method:**
+### 1. Inherit from Base Class
+
 ```python
-class MyEvaluator:
+from lits.components.verbal_evaluator.base import VerbalEvaluator
+from typing import Optional
+
+class MyCustomEvaluator(VerbalEvaluator):
+    """Custom evaluator for analyzing X."""
+    
+    def __init__(self, base_model, custom_param: str, **kwargs):
+        # Initialize parent
+        super().__init__(
+            base_model=base_model,
+            temperature=kwargs.get('temperature', 0.0),
+            max_new_tokens=kwargs.get('max_new_tokens', 500)
+        )
+        
+        self.custom_param = custom_param
+        # evaluator_type is automatically set to 'mycustomevaluator'
+```
+
+### 2. Implement Required Methods
+
+```python
     def evaluate(self, input, **kwargs) -> Optional[str]:
+        """Evaluate input and return issue string.
+        
+        Args:
+            input: The input to evaluate
+            query_idx: Optional query index
+            policy_model_name: Policy model name (for saving)
+            task_type: Task type (for saving)
+            **kwargs: Additional parameters
+        
+        Returns:
+            Single issue string, or None if no issues
+        """
         # Your evaluation logic
         result = self._analyze(input)
         
         # Save if policy info provided
-        if result and kwargs.get('policy_model_name'):
-            self._save_issue(result, ...)
+        if result and kwargs.get('policy_model_name') and kwargs.get('task_type'):
+            save_result = {
+                'issue': result['issue'],
+                'custom_field': result.get('custom_field')
+            }
+            self._save_eval(
+                save_result,
+                kwargs.get('query_idx'),
+                kwargs['policy_model_name'],
+                kwargs['task_type']
+            )
         
         # Return single issue string
         return result.get('issue') if result else None
+    
+    def load_eval_as_prompt(
+        self,
+        policy_model_name: str,
+        task_type: str,
+        max_items: int = 10
+    ) -> str:
+        """Load saved evaluations as prompt.
+        
+        Args:
+            policy_model_name: Policy model name
+            task_type: Task type
+            max_items: Maximum number of items to include
+        
+        Returns:
+            Formatted prompt string
+        """
+        # Load results filtered by this evaluator type
+        results = self.load_results(
+            policy_model_name,
+            task_type,
+            evaluator_type=self.evaluator_type
+        )
+        
+        if not results:
+            return ""
+        
+        # Get recent items
+        recent = results[-max_items:]
+        
+        # Format as prompt
+        prompt_parts = ["**Previous Issues:**\n"]
+        for idx, record in enumerate(recent, 1):
+            issue = record.get('issue', '')
+            if issue:
+                prompt_parts.append(f"{idx}. {issue}\n")
+        
+        return "\n".join(prompt_parts)
 ```
 
-2. **Use `ResultDictToJsonl` for persistence:**
-```python
-from lits.eval.results import ResultDictToJsonl
+### 3. Benefits of Inheriting from VerbalEvaluator
 
-saver = ResultDictToJsonl(
-    run_id=f"{policy_model}_{task_type}",
-    root_dir=str(Path.home() / ".lits_llm" / "verbal_evaluator"),
-    override=False
+The base class automatically provides:
+
+- **`_get_result_saver()`**: Unified file management
+- **`_save_eval()`**: Automatic metadata addition (evaluator_type, timestamp)
+- **`load_results()`**: Load and filter results by evaluator type
+- **`evaluator_type`**: Automatic type identification from class name
+
+### 4. Example: Complete Custom Evaluator
+
+```python
+from lits.components.verbal_evaluator.base import VerbalEvaluator
+from typing import Optional, Dict, Any
+
+class CodeStyleEvaluator(VerbalEvaluator):
+    """Evaluates code style and best practices."""
+    
+    STYLE_PROMPT = "You are a code style expert. Evaluate code for PEP8 compliance..."
+    
+    def __init__(self, base_model, **kwargs):
+        super().__init__(base_model=base_model, **kwargs)
+        self.base_model.sys_prompt = self.STYLE_PROMPT
+    
+    def evaluate(
+        self,
+        code: str,
+        query_idx: Optional[int] = None,
+        policy_model_name: Optional[str] = None,
+        task_type: Optional[str] = None
+    ) -> Optional[str]:
+        """Evaluate code style."""
+        # Call LLM
+        response = self.base_model(
+            f"Evaluate this code:\n```python\n{code}\n```",
+            temperature=self.temperature,
+            max_new_tokens=self.max_new_tokens
+        )
+        
+        # Parse response
+        result = self._parse_response(response.text)
+        
+        # Save if policy info provided
+        if result and policy_model_name and task_type:
+            save_result = {
+                'issue': result['issue'],
+                'severity': result.get('severity', 'medium')
+            }
+            self._save_eval(save_result, query_idx, policy_model_name, task_type)
+        
+        return result.get('issue')
+    
+    def load_eval_as_prompt(self, policy_model_name, task_type, max_issues=10):
+        results = self.load_results(policy_model_name, task_type, 
+                                    evaluator_type=self.evaluator_type)
+        
+        if not results:
+            return ""
+        
+        recent = results[-max_issues:]
+        prompt = "**Code Style Issues to Avoid:**\n"
+        for idx, r in enumerate(recent, 1):
+            prompt += f"{idx}. {r['issue']} (severity: {r.get('severity', 'N/A')})\n"
+        
+        return prompt
+    
+    def _parse_response(self, text: str) -> Dict[str, Any]:
+        # Your parsing logic
+        return {'issue': text[:200], 'severity': 'medium'}
+```
+
+### 5. Usage
+
+```python
+# Create evaluator
+evaluator = CodeStyleEvaluator(base_model=llm)
+
+# Evaluate
+issue = evaluator.evaluate(
+    code="def foo( x,y ):\n  return x+y",
+    query_idx=0,
+    policy_model_name="gpt-4",
+    task_type="code_gen"
 )
 
-saver.append_result({
-    'query_idx': idx,
-    'issue': issue_text,
-    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-})
+# Load feedback
+feedback = evaluator.load_eval_as_prompt("gpt-4", "code_gen")
+policy.base_model.sys_prompt += "\n\n" + feedback
 ```
 
-3. **Provide feedback loading:**
-```python
-def load_issues_as_prompt(self, policy_model_name, task_type, max_issues=10):
-    saver = self._get_result_saver(policy_model_name, task_type)
-    recent = saver.results[-max_issues:]
-    
-    # Format as prompt
-    return format_issues_for_prompt(recent)
-```
+The evaluator will automatically:
+- Save to `~/.lits_llm/verbal_evaluator/resultdicttojsonl_gpt-4_code_gen.jsonl`
+- Add `evaluator_type: "codestyleevaluator"` to each record
+- Share the file with other evaluators for the same policy/task
 
 ## See Also
 

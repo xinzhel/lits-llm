@@ -9,6 +9,7 @@ def build_tools(
     db_name=None,
     db_user_name=None,
     db_user_password=None,
+    client_port=None,
     secret_token=None, 
     db_path: str=None,
     db_schema: str=None,
@@ -22,6 +23,7 @@ def build_tools(
     
     db_host= db_host or os.getenv("db_host", "localhost")
     db_port= db_port or int(os.getenv("db_port", 5432))
+    client_port = client_port or int(os.getenv("client_port", 5000))
     db_name= db_name or os.getenv("db_name", "clue")
     db_user_name= db_user_name or os.getenv("db_user_name", "clueuser")
     db_user_password= db_user_password or os.getenv("db_user_password", "cluepass")
@@ -47,7 +49,7 @@ def build_tools(
             NearbyPlacesTool,
         )
         assert "http" not in db_host, "Please provide only host address without http:// or https://"
-        client = MapEvalClient(base_url=f"http://{db_host}:{db_port}/api", timeout=30, bearer_token=secret_token)
+        client = MapEvalClient(base_url=f"http://{db_host}:{client_port}/api", timeout=30, bearer_token=secret_token)
         return [
             PlaceSearchTool(client=client),
             PlaceDetailsTool(client=client),
@@ -55,7 +57,7 @@ def build_tools(
             TravelTimeTool(client=client),
             DirectionsTool(client=client),
         ]
-    elif benchmark_name == "sql":
+    elif benchmark_name == "sql" or benchmark_name == "mapeval-sql":
         from ..clients.sql_client import SQLDBClient
         from .sql_tools import QuerySQLDatabaseTool, InfoSQLDatabaseTool, ListSQLDatabaseTool
         connection = get_db_connection()
