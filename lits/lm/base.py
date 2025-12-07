@@ -13,7 +13,7 @@ from typing import Callable, Dict
 
 logger = logging.getLogger(__name__)
 
-VALID_ROLES_PREFIX = ["default", "dynamics", "policy", "evaluator", "bn_eval", "bn_entropy"]
+VALID_ROLES_PREFIX = ["default", "dynamics", "policy", "evaluator", "prm", "bn_eval", "bn_entropy"]
 DETERMINISTIC_TEMPERATURE = 1e-6
 DEFAULT_MAX_LENGTH = 2048
 LOADED_MODEL_CACHE = {}

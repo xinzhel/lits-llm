@@ -239,41 +239,18 @@ class ReActChat:
 
         assistant_text = step.assistant_message or step.verb_step()
         logger.debug(">>>>>>>>> Assistant raw output:\n%s <<<<<<<<<<", assistant_text)
-
-         # Step 2.0: Error
-        if step.error:
-            state.append(step)
-            return state
         
-        # Step 2.1: Transition executes action if present
-        if step.action:
-            # Use transition to execute the action and get observation
+        # Step 2.1: Transition executes step (handles action/answer/error)
+        if step.action or step.answer or step.error or (step.answer is None and step.action is None):
+            # Use transition to execute the step
             new_state, aux = self.transition.step(
                 state=state,
-                action=step.action,
+                step_or_action=step,
                 query_or_goals=query,
                 query_idx=query_idx,
                 from_phase=from_phase
             )
-            # Extract the executed step (last one in new_state)
-            executed_step = new_state[-1]
-            # Preserve think and answer from original step
-            executed_step.think = step.think
-            executed_step.answer = step.answer
-            executed_step.assistant_message = step.assistant_message
-            state.append(executed_step)
-        # Step 2.2
-        elif step.answer is not None:
-            state.append(step)
-            pass
-        # Step 2.3: Handle cases where no action is provided
-        elif step.answer is None and step.action is None:
-            logger.warning("Either action or answer must be provided in assistant output.")
-            step.observation = (
-                "Assistant output did not provide an action or answer, or it did not follow the required "
-                "format and could not be parsed. Please STRICTLY follow the format required in the system prompt."
-            ) 
-            state.append(step)       
+            state = new_state     
         else:
             raise Exception
         

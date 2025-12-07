@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 ##### CONTINUATION (BEGIN) #####
 def _continuation(
-    example, 
+    query_or_goals, 
     query_idx, 
     node: SearchNode,
     world_model: Transition,
@@ -36,7 +36,7 @@ def _continuation(
     while True:
         
         if node.state is None: # state is required for expansion
-            world_modeling_func(example, query_idx, node, world_model, reward_model, from_phase="continuation")
+            world_modeling_func(query_or_goals, query_idx, node, world_model, reward_model, from_phase="continuation")
             if node.is_terminal:
                 logger.debug(f"[continuation exit] node is terminal, stopping continuation")
                 break
@@ -48,7 +48,7 @@ def _continuation(
         # ===== Fast Reward (Begin) =====
         if threshold_alpha is not None:
             assert bn_evaluator is None or bn_evaluator.eval_method not in ["entropy", "sc"], "BN-entropy and -SC evaluator is not compatible with fast reward thresholding so far"
-            expand_func(example, query_idx, node, policy, n_actions=1, reward_model=reward_model, use_critic=use_critic, from_phase="continuation") # world model should be used only once if the intital node's state is not materialized
+            expand_func(query_or_goals, query_idx, node, policy, n_actions=1, reward_model=reward_model, use_critic=use_critic, from_phase="continuation") # world model should be used only once if the intital node's state is not materialized
             # if reward is “good”, chain forward; otherwise, stop
             if node.children[0].fast_reward < threshold_alpha:
                 logger.debug(f"[continuation exit] fast_reward={child.fast_reward:.3f} < {threshold_alpha}, stopping continuation")
@@ -60,16 +60,16 @@ def _continuation(
             if bn_evaluator.eval_method == "entropy" or bn_evaluator.eval_method == "sc":
                 actions_for_eval = []
                 assert n_actions_for_bne is not None
-                expand_func(example, query_idx, node, policy, n_actions_for_bne, reward_model=None, assign_rewards=False, from_phase="continuation")
+                expand_func(query_or_goals, query_idx, node, policy, n_actions_for_bne, reward_model=None, assign_rewards=False, from_phase="continuation")
                 
                 if threshold_gamma1 is not None:
                     for child_node in node.children:
-                        fast_reward, _ = reward_model.fast_reward(example, query_idx, node.state, child_node.action, from_phase="continuation")
+                        fast_reward, _ = reward_model.fast_reward(node.state, child_node.action, query_or_goals, query_idx, from_phase="continuation")
                         if fast_reward >= threshold_gamma1:
                             actions_for_eval.append(child_node.action)
                 else:
                     actions_for_eval.extend([child_node.action for child_node in node.children])
-                bn_score, canonical_action = bn_evaluator.evaluate(example, node.state, actions_for_eval, query_idx=query_idx)
+                bn_score, canonical_action = bn_evaluator.evaluate(query_or_goals, node.state, actions_for_eval, query_idx=query_idx)
                 if bn_score >= threshold_gamma:
                     assert canonical_action is not None and canonical_action != "", f"Canonical action is None or empty string: {canonical_action}"
                     node.children = [node.children[0]]

@@ -111,65 +111,72 @@ RewardModel: (state, action) → goal_progress
 
 ## Key Design Patterns
 
-### 1. Policy Returns Steps, Transition Receives Actions
+### 1. Policy Returns Steps, Transition Receives Steps (v0.2.5+)
 
 **Pattern:**
 ```python
 # Policy generates full steps
 steps = policy.get_actions(state, ...)  # Returns List[Step]
 
-# Tree search extracts actions
+# Tree search stores full steps on nodes
 for step in steps:
-    action = step.get_action()  # Extract action from step
+    action = step.get_action()  # Extract action for node identity
     node = SearchNode(action=action, ...)
+    node.step = step  # Store full step for transition
 
-# Transition receives actions
-new_state, aux = transition.step(state, action, ...)
+# Transition receives full steps
+new_state, aux = transition.step(state, node.step, ...)
 ```
 
-**Rationale:** Steps contain reasoning (think, confidence), but transitions only need actions to execute.
+**Rationale:** Transitions need full step context to handle special cases (answers, errors, malformed outputs) without requiring logic in agents.
 
-### 2. Transition Constructs Complete Steps
+### 2. Transition Handles Multiple Step Types
 
 **Pattern:**
 ```python
 # In ToolUseTransition.step()
-def step(self, state, action, ...):
-    # Execute action
-    observation = execute_tool_action(action, self.tools)
+def step(self, state, step_or_action, ...):
+    step = step_or_action
     
-    # Construct complete step
-    step = ToolUseStep(action=action, observation=observation)
+    # Case 1: Answer step (terminal) - append directly
+    if step.answer is not None:
+        new_state.append(step)
+        return new_state, {"confidence": 1.0}
     
-    # Update state
-    new_state = ToolUseState()
-    new_state.extend(state)
+    # Case 2: Error step - append directly
+    if step.error is not None:
+        new_state.append(step)
+        return new_state, {"confidence": 0.0}
+    
+    # Case 3: Malformed step - add error observation
+    if step.action is None and step.answer is None:
+        step.observation = "Assistant output did not provide action or answer..."
+        new_state.append(step)
+        return new_state, {"confidence": 0.0}
+    
+    # Case 4: Action step - execute and add observation
+    observation = execute_tool_action(step.action, self.tools)
+    step.observation = observation
     new_state.append(step)
-    
-    return new_state, aux
+    return new_state, {"confidence": 1.0}
 ```
 
-**Rationale:** Transition owns the execution logic and constructs the complete step with results.
+**Rationale:** Transition owns all step handling logic, keeping agents clean and focused on orchestration.
 
-### 3. Chain Agents Preserve Policy Reasoning
+### 3. Chain Agents Pass Full Steps to Transition
 
 **Pattern:**
 ```python
-# In ReActChat.get_step()
+# In ReActChat.update_state()
 policy_step = policy.get_actions(...)[0]
 
-if policy_step.action:
-    new_state, aux = transition.step(state, policy_step.action, ...)
-    executed_step = new_state[-1]
-    
-    # Preserve reasoning from policy
-    executed_step.think = policy_step.think
-    executed_step.answer = policy_step.answer
-    
-    return executed_step
+# Pass full step to transition (handles action/answer/error)
+new_state, aux = transition.step(state, policy_step, ...)
+
+return new_state
 ```
 
-**Rationale:** Policy's reasoning (think) should be preserved even though transition reconstructs the step.
+**Rationale:** Transition receives full step context (think, assistant_message) and handles all cases internally, eliminating special case logic in agents.
 
 ### 4. Tree Search Uses Actions as Node Identity
 
@@ -209,8 +216,12 @@ class Policy(ABC, Generic[StateT, ActionT]):
 
 ```python
 class Transition(ABC, Generic[StateT, ActionT]):
-    def step(self, state: StateT, action: ActionT, ...) -> Tuple[StateT, dict]:
-        """Execute action and return new state.
+    def step(self, state: StateT, step_or_action, ...) -> Tuple[StateT, dict]:
+        """Execute step/action and return new state.
+        
+        Args:
+            state: Current state
+            step_or_action: Step object from policy (may contain action, answer, or error)
         
         Returns (new_state, auxiliary_dict)
         """
@@ -220,9 +231,9 @@ class Transition(ABC, Generic[StateT, ActionT]):
 ```
 
 **Contract:**
-- Input: State and action (NOT Step)
+- Input: State and step_or_action (Step object from policy, or Action for backward compatibility)
 - Output: New state and auxiliary data
-- Must execute action and capture results
+- Must handle action steps (execute), answer steps (append), error steps (append), and malformed steps
 - Must NOT generate new actions
 
 ### RewardModel Interface
@@ -244,22 +255,37 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
 
 ## Common Pitfalls
 
-### ❌ Wrong: Transition Receives Step
+### ❌ Wrong: Handling Answer/Error Logic in Agents
 
 ```python
-# WRONG - violates type contract
-class ToolUseTransition(Transition[ToolUseState, ToolUseStep]):
-    def step(self, state, step: ToolUseStep, ...):
-        # This breaks tree search compatibility
+# WRONG - special case logic scattered in agent code
+class ReActChat:
+    def update_state(self, query, state, ...):
+        step = policy.get_actions(...)[0]
+        
+        # ❌ Agent handles answer/error cases
+        if step.answer:
+            state.append(step)
+            return state
+        if step.error:
+            state.append(step)
+            return state
+        
+        # Only then call transition
+        new_state, aux = transition.step(state, step.action, ...)
 ```
 
-### ✅ Correct: Transition Receives Action
+### ✅ Correct: Transition Handles All Cases
 
 ```python
-# CORRECT - follows type contract
-class ToolUseTransition(Transition[ToolUseState, ToolUseAction]):
-    def step(self, state, action: ToolUseAction, ...):
-        # Tree search can pass extracted actions
+# CORRECT - transition handles all step types
+class ReActChat:
+    def update_state(self, query, state, ...):
+        step = policy.get_actions(...)[0]
+        
+        # ✅ Transition handles action/answer/error/malformed
+        new_state, aux = transition.step(state, step, ...)
+        return new_state
 ```
 
 ### ❌ Wrong: Policy Executes Actions
@@ -281,6 +307,24 @@ class ToolUsePolicy(Policy):
     def get_actions(self, state, ...):
         action = self.generate_action(state)
         return [ToolUseStep(action=action, observation=None)]  # ✅
+```
+
+### ❌ Wrong: Extracting Only Actions for Transition
+
+```python
+# WRONG - loses step context (pre-v0.2.5 pattern)
+def _world_modeling(query, node, transition_model, ...):
+    action = node.action  # Only action, no step context
+    node.state, aux = transition_model.step(node.parent.state, action, ...)
+```
+
+### ✅ Correct: Passing Full Steps to Transition
+
+```python
+# CORRECT - preserves step context (v0.2.5+ pattern)
+def _world_modeling(query, node, transition_model, ...):
+    step_or_action = getattr(node, 'step', node.action)  # Full step if available
+    node.state, aux = transition_model.step(node.parent.state, step_or_action, ...)
 ```
 
 ## Extension Points

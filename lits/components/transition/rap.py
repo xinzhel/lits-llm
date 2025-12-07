@@ -73,7 +73,9 @@ class RAPTransition(LlmTransition):
         else:
             raise ValueError(f"Unknown model type: {type(self.base_model)}")
 
-    def step(self, state: StateT, action: Action,  query_or_goals: str, query_idx: int=None, from_phase="") -> tuple[StateT, dict]:
+    def step(self, state: StateT, step_or_action,  query_or_goals: str, query_idx: int=None, from_phase="") -> tuple[StateT, dict]:
+        # For RAP, we only use actions (SubQAStep.sub_question), not full steps
+        action = step_or_action
         assert from_phase in ["expand", "continuation", "simulate"]
         model_input = self._generate_prompt(query_or_goals, state, action)
         # logger.debug("\n>>>>>>>>> + 1 Dynamics Call; Output (BEGIN) <<<<<<<<<")

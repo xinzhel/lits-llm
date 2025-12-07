@@ -175,13 +175,15 @@ class BlocksWorldTransition(LlmTransition):
         return EnvState(step_idx=0, last_env_state="", env_state=
                        state_str, buffered_action="")
 
-    def step(self, state: EnvState, action: EnvAction, query_or_goals: List[str]) -> tuple[EnvState, dict]:
+    def step(self, state: EnvState, step_or_action, query_or_goals: List[str]) -> tuple[EnvState, dict]:
         """Take a step in the world model.
         
         :param state: the current state
-        :param action: the action to take
+        :param step_or_action: the action to take (EnvAction)
         :return: the next state and additional information cached for reward calculation
         """
+        # For BlocksWorld, we only use actions (EnvAction), not full steps
+        action = step_or_action
         state = copy.deepcopy(state)
         env_state = state.env_state
         step_idx = state.step_idx

@@ -57,11 +57,18 @@ def build_tools(
             TravelTimeTool(client=client),
             DirectionsTool(client=client),
         ]
-    elif benchmark_name == "sql" or benchmark_name == "mapeval-sql":
+    elif benchmark_name == "mapeval-sql":
         from ..clients.sql_client import SQLDBClient
         from .sql_tools import QuerySQLDatabaseTool, InfoSQLDatabaseTool, ListSQLDatabaseTool
         connection = get_db_connection()
-        db_client = SQLDBClient(connection, schema=db_schema)
+        ALLOWED_TABLES = [
+            "nearby",
+            "nearby_places",
+            "places",
+            "distance",
+            "directions",
+        ]
+        db_client = SQLDBClient(connection, schema=db_schema, ALLOWED_TABLES=ALLOWED_TABLES)
         return [
             QuerySQLDatabaseTool(client=db_client),
             InfoSQLDatabaseTool(client=db_client),

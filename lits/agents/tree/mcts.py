@@ -8,6 +8,10 @@ from collections import defaultdict
 from dataclasses import dataclass, field, asdict
 from typing import Callable, Any, Optional
 import numpy as np
+try:
+    import torch
+except ImportError:
+    torch = None
 from ...structures.base import State, Action, Trace
 from .node import MCTSNode, SearchNode
 from .base import BaseSearchConfig
@@ -205,7 +209,7 @@ def _select(w_exp: float, node: MCTSNode, max_steps: int, force_terminating_on_d
 
 ##### EXPAND (Begin) #####
 def _expand(
-    example, 
+    query_or_goals, 
     query_idx, 
     node, 
     policy, 
@@ -219,7 +223,7 @@ def _expand(
     logger.debug(f"\n=========== [Expand for Example {query_idx} Begin] ===========")
 
     new_actions = _sample_actions_with_existing(
-        example,
+        query_or_goals,
         query_idx,
         node,
         policy,
@@ -232,18 +236,15 @@ def _expand(
     for step in new_actions:
         action = step.get_action()  # Extract action from Step object
         child = MCTSNode(state=None, action=action, parent=node)
+        # Store the full step for transition model
+        child.step = step
         # Assign terminal-for-repeat
         child.is_terminal_for_repeat = (action == "ALWAY REPEAT. TERMINATE")
 
         # assign rewards
         if assign_rewards:
-            assert child.fast_reward == -1, "fast_reward should be -1 for newly created child"
-            logger.debug(f"Assigning fast reward for newly created child: Node {child.id}")
-            fast_reward, fast_reward_details = reward_model.fast_reward(
-                example, query_idx, node.state, action, from_phase=from_phase
-            ) # action evaluation, e.g., usefulness of a subquestion
-            child.fast_reward = fast_reward
-            child.fast_reward_details = fast_reward_details
+            from .common import _assign_fast_reward
+            _assign_fast_reward(child, reward_model, query_or_goals, query_idx, from_phase)
         else:
             logger.debug(f"assign_rewards is False, skipping fast reward assignment for child: Node {child.id}")
 
@@ -263,12 +264,8 @@ def _expand(
     for child in node.children:
         if child.fast_reward == -1:
             if assign_rewards:
-                fast_reward, fast_reward_details = reward_model.fast_reward(
-                    example, query_idx, node.state, child.action, from_phase=from_phase
-                )
-                child.fast_reward = fast_reward
-                child.fast_reward_details = fast_reward_details
-                logger.debug(f"Child's (Node {child.id}) fast_reward now assigned as {fast_reward}")
+                from .common import _assign_fast_reward
+                _assign_fast_reward(child, reward_model, query_or_goals, query_idx, from_phase)
             else:
                 logger.debug(f"Child's (Node {child.id}) fast_reward not been assigned and not required to be assigned")
         else:
@@ -278,7 +275,7 @@ def _expand(
 
 ##### SIMULATE (Begin) (REUSE EXPAND...) #####
 def _simulate(
-    example, 
+    query_or_goals, 
     query_idx, 
     path, 
     mcts_search_config, 
@@ -298,7 +295,7 @@ def _simulate(
         logger.debug(f"Rollout Step {i+1}")
         
         _expand(
-            example, 
+            query_or_goals, 
             query_idx, 
             node, 
             policy, 
@@ -319,7 +316,7 @@ def _simulate(
         selected_idx = mcts_search_config.simulate_choice(fast_rewards)
         node = node.children[selected_idx]
         node.is_simulated = True
-        _world_modeling(example, query_idx, node, transition_model=world_model, reward_model=reward_model, from_phase="simulate")
+        _world_modeling(query_or_goals, query_idx, node, transition_model=world_model, reward_model=reward_model, from_phase="simulate")
         logger.debug(f"NEW NODE Transfer with the action: {node.action}. The resulting state: {node.state}")
         path.append(node)
 
@@ -365,8 +362,8 @@ def _back_propagate(path: list[MCTSNode], cum_reward_func):
 ##### BACK-PROPAGATE (END)
 
 ##### MCTS (BEGIN) #####
-def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_model, bn_evaluator=None) -> MCTSResult:
-    logger.debug(f"Question: {example}")
+def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, reward_model, bn_evaluator=None) -> MCTSResult:
+    logger.debug(f"Question: {query_or_goals}")
     logger.debug(f"\n\n\n=========== [MCTS for Example {query_idx} Begin] ===========")
     
     MCTSNode.set_default_calc_q(mcts_search_config.calc_q)
@@ -387,7 +384,7 @@ def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_mod
     _output_iter = None
     SearchNode.reset_id() # MCTSNode.reset_id() only resets MCTSNode.id_iter, not SearchNode.id_iter. But my constructor always does next(SearchNode.id_iter)
     
-    root = MCTSNode(state=world_model.init_state(), action=example, parent=None)
+    root = MCTSNode(state=world_model.init_state(), action=query_or_goals, parent=None)
     assert root.id == 0, f"Root node ID should be 0 not {root.id}"
     
     trace_in_each_iter = []
@@ -415,7 +412,7 @@ def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_mod
             if mcts_search_config.add_continuation:
                 # no branching; no exploration selection
                 continuous_trace = _continuation(
-                    example, 
+                    query_or_goals, 
                     query_idx, 
                     path[-1], 
                     world_model, 
@@ -446,7 +443,7 @@ def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_mod
        
             # ====== Expansion (Begin) ======
             if path[-1].state is None:
-                _world_modeling(example, query_idx, path[-1], transition_model= world_model, reward_model=reward_model, from_phase="expand")
+                _world_modeling(query_or_goals, query_idx, path[-1], transition_model= world_model, reward_model=reward_model, from_phase="expand")
             # ====== Terminate Check (Begin) ======
             if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
@@ -459,7 +456,7 @@ def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_mod
             # ====== Terminate Check (End) ======
     
             _expand(
-                example, 
+                query_or_goals, 
                 query_idx, 
                 path[-1], 
                 policy, 
@@ -474,7 +471,7 @@ def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_mod
 
             # ====== Simulate (Begin) ======
             if path[-1].state is None:
-                _world_modeling(example, query_idx, path[-1], world_model, reward_model, from_phase="expand")
+                _world_modeling(query_or_goals, query_idx, path[-1], world_model, reward_model, from_phase="expand")
             # ====== Terminate Check (Begin) ======
             if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
@@ -486,7 +483,7 @@ def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_mod
                     continue
             # ====== Terminate Check (End) ======
             is_terminal_for_repeat, unselected_terminal_paths = _simulate(
-                example, 
+                query_or_goals, 
                 query_idx, 
                 path, 
                 mcts_search_config,
@@ -506,8 +503,8 @@ def mcts(example, query_idx, mcts_search_config, world_model, policy, reward_mod
             unselected_terminal_paths_during_simulate.extend(unselected_terminal_paths)
             ##### Save trace in this iteration (END) #####
             
-    except (ValueError, torch.cuda.OutOfMemoryError) as e:
-        if isinstance(e, torch.cuda.OutOfMemoryError):
+    except (ValueError, *([torch.cuda.OutOfMemoryError] if torch is not None else [])) as e:
+        if torch is not None and isinstance(e, torch.cuda.OutOfMemoryError):
             # OOM handling
             torch.cuda.empty_cache() 
         

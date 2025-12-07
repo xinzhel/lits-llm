@@ -67,7 +67,7 @@ def visualize_path(path: list[SearchNode], only_last_step=True):
     return text
 
 def _sample_actions_with_existing(
-    example,
+    query_or_goals,
     query_idx,
     node,
     policy,
@@ -96,7 +96,7 @@ def _sample_actions_with_existing(
 
     critic = None
     if use_critic:
-        critic = transition_model.generate_critic(node.state, example, query_idx)
+        critic = transition_model.generate_critic(node.state, query_or_goals, query_idx)
         if critic == "" or critic is None:
             logger.debug(f"Critic is empty")
             critic = "No Critic"
@@ -104,7 +104,7 @@ def _sample_actions_with_existing(
     if n_needed > 0:
         new_actions = policy.get_actions(
             node.state,
-            query=example,
+            query=query_or_goals,
             critic=critic,  # can extend later if use_critic=True
             n_actions=n_needed,
             query_idx=query_idx,
@@ -112,7 +112,36 @@ def _sample_actions_with_existing(
         )
     return new_actions
     
-def _world_modeling(example, query_idx, node, transition_model, reward_model, from_phase="expand"):
+def _assign_fast_reward(node, reward_model, query_or_goals, query_idx, from_phase):
+    """Helper function to assign fast_reward to a node.
+    
+    Centralizes the logic for calling reward_model.fast_reward() so interface
+    changes only need to be made in one place.
+    
+    Args:
+        node: Node to assign fast_reward to
+        reward_model: RewardModel instance
+        query_or_goals: Query or goals
+        query_idx: Query index for logging
+        from_phase: Algorithm phase (expand, simulate, continuation)
+    """
+    assert node.fast_reward == -1, "fast_reward should be -1 before assignment"
+    
+    # Pass step if available, otherwise fall back to action
+    step_or_action = getattr(node, 'step', node.action)
+    
+    logger.debug(f"Assigning fast reward for Node {node.id}")
+    fast_reward, fast_reward_details = reward_model.fast_reward(
+        node.parent.state, step_or_action, query=query_or_goals, query_idx=query_idx, from_phase=from_phase
+    )
+    assert isinstance(fast_reward, float), f"fast_reward should be a float, got {type(fast_reward)} from {reward_model.__class__}"
+    assert isinstance(fast_reward_details, dict), f"fast_reward_details should be a dict, got {type(fast_reward_details)} from {reward_model.__class__}"
+    
+    node.fast_reward = fast_reward
+    node.fast_reward_details = fast_reward_details
+    logger.debug(f"Node {node.id} fast_reward assigned: {fast_reward}")
+
+def _world_modeling(query_or_goals, query_idx, node, transition_model, reward_model, from_phase="expand"):
     assert from_phase in ["expand", "simulate", "continuation"]
     
     logger.debug(f"\n=========== [Set State for Node {node.id} Begin] ===========")
@@ -121,7 +150,15 @@ def _world_modeling(example, query_idx, node, transition_model, reward_model, fr
         logger.debug(f"The state is not None.")
     else:
         node_state_copy = copy.deepcopy(node.parent.state)
-        node.state, aux = transition_model.step(node.parent.state, node.action, query_or_goals=example, query_idx=query_idx, from_phase=from_phase)
+        # Pass step_or_action to transition model (could be Step or Action)
+        step_or_action = getattr(node, 'step', node.action)
+        node.state, aux = transition_model.step(
+            node.parent.state, 
+            step_or_action, 
+            query_or_goals=query_or_goals, 
+            query_idx=query_idx, 
+            from_phase=from_phase
+         )
         assert node_state_copy == node.parent.state, "node.state is changed in world_model.step"
         node.state_conf = aux.get("confidence", -1)
         logger.debug(f"State is set to: {node.state}")
@@ -130,16 +167,11 @@ def _world_modeling(example, query_idx, node, transition_model, reward_model, fr
         # if `reward` attribute exists in node
         if hasattr(node, "reward"): # for MCTSNode
             if node.fast_reward == -1:
-                logger.debug(f"Assigning fast reward for the child: Node {node.id}")
-                fast_reward, fast_reward_details = reward_model.fast_reward(
-                    node.parent.state, node.action, example=example, query_idx=query_idx, from_phase=from_phase
-                ) # action evaluation, e.g., usefulness of a subquestion
-                node.fast_reward = fast_reward
-                node.fast_reward_details = fast_reward_details
+                _assign_fast_reward(node, reward_model, query_or_goals, query_idx, from_phase)
             logger.debug(f"Reward is set via {node.fast_reward_details} and {aux}")
-            node.reward = reward_model.reward(node.parent.state, node.action, **node.fast_reward_details, **aux) # usefulness of a subquestion + s_{t+1} confidence (from transition_model.step)
+            node.reward = reward_model.reward(node.parent.state, node.action, fast_reward=node.fast_reward, **node.fast_reward_details, **aux) # usefulness of a subquestion + s_{t+1} confidence (from transition_model.step)
             assert isinstance(node.reward, float), f"reward should be a float, got {type(node.reward)} from {reward_model.__class__}"
-        node.is_terminal = transition_model.is_terminal(node.state, example, fast_reward=node.fast_reward, query_idx=query_idx, from_phase=from_phase)
+        node.is_terminal = transition_model.is_terminal(node.state, query_or_goals, fast_reward=node.fast_reward, query_idx=query_idx, from_phase=from_phase)
         
         if node.is_terminal:
             logger.debug(f"The state is terminal")

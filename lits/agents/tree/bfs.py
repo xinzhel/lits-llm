@@ -58,20 +58,23 @@ def _expand(
     logger.debug("\n=========== [Expand Begin] ===========")
     steps = policy.get_actions(node.state, query=example, critic=None, n_actions=n_actions, query_idx=query_idx, from_phase=from_phase)
 
-    fast_rewards = []
     is_terminal_for_repeats = []
     for step in steps:
         action = step.get_action()  # Extract action from Step object
         is_terminal_for_repeats.append(True if action == "ALWAY REPEAT. TERMINATE" else False)
-        if assign_rewards:
-            fast_reward, _ = reward_model.fast_reward(node.state, action, example, query_idx, from_phase=from_phase) # action evaluation, e.g., usefulness of a subquestion
-            fast_rewards.append(fast_reward)
 
-    for step, is_terminal_for_repeat, fast_reward in zip(steps, is_terminal_for_repeats, fast_rewards):
+    for step, is_terminal_for_repeat in zip(steps, is_terminal_for_repeats):
         action = step.get_action()  # Extract action from Step object
         child = SearchNode(state=None, action=action, parent=node)
+        # Store the full step for transition model
+        child.step = step
         child.is_terminal_for_repeat = is_terminal_for_repeat
-        child.fast_reward = fast_reward
+        
+        # Assign fast_reward using common helper
+        if assign_rewards:
+            from .common import _assign_fast_reward
+            _assign_fast_reward(child, reward_model, example, query_idx, from_phase)
+        
         node.children.append(child)    
     logger.debug("=========== [Expand End] ===========\n")
 ##### EXPAND (END) #####
@@ -109,16 +112,16 @@ def _expand_with_existing(
     for step in new_actions:
         action = step.get_action()  # Extract action from Step object
         child = SearchNode(state=None, action=action, parent=node)
+        # Store the full step for transition model
+        child.step = step
 
         # Assign terminal-for-repeat
         child.is_terminal_for_repeat = (action == "ALWAY REPEAT. TERMINATE")
 
-        # Assign fast_reward
+        # Assign fast_reward using common helper
         if assign_rewards and (child.fast_reward == -1):
-            fast_reward, _ = reward_model.fast_reward(
-                node.state, child.action, example, query_idx, from_phase=from_phase
-            )
-            child.fast_reward = fast_reward
+            from .common import _assign_fast_reward
+            _assign_fast_reward(child, reward_model, example, query_idx, from_phase)
 
         node.children.append(child)
 
@@ -126,8 +129,8 @@ def _expand_with_existing(
     for child in node.children:
 
         if assign_rewards and (child.fast_reward == -1):
-            fast_reward, _ = reward_model.fast_reward(
-                node.state, child.action, example, query_idx, from_phase=from_phase
+            from .common import _assign_fast_reward
+            _assign_fast_reward(child, reward_model, example, query_idx, from_phase
             )
             child.fast_reward = fast_reward
 

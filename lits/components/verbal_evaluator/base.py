@@ -11,7 +11,6 @@ from pathlib import Path
 from datetime import datetime
 from ...lm import HfChatModel, OpenAIChatModel
 from ...lm.bedrock_chat import BedrockChatModel
-from ...eval.results import ResultDictToJsonl
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +98,7 @@ class VerbalEvaluator(ABC):
         """
         return self.__class__.__name__.lower()
     
-    def _get_result_saver(self, policy_model_name: str, task_type: str) -> ResultDictToJsonl:
+    def _get_result_saver(self, policy_model_name: str, task_type: str):
         """Get or create result saver for this policy/task combination.
         
         All evaluators for the same policy_model_name and task_type save to the
@@ -113,6 +112,9 @@ class VerbalEvaluator(ABC):
         Returns:
             ResultDictToJsonl instance
         """
+        # Lazy import to avoid circular dependency
+        from ...eval.results import ResultDictToJsonl
+        
         # Extract clean model name and create unified filename
         from ...lm import get_clean_model_name
         model_name_clean = get_clean_model_name(policy_model_name)

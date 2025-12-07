@@ -58,7 +58,9 @@ Do not explain anything. Do not add extra text.
     def init_state(self) -> list:
         return []
 
-    def step(self, state: StateT, action, query_or_goals: str=None, query_idx: int=None, from_phase="") -> Union[StateT, Tuple[StateT, dict]]:
+    def step(self, state: StateT, step_or_action, query_or_goals: str=None, query_idx: int=None, from_phase="") -> Union[StateT, Tuple[StateT, dict]]:
+        # For Concat, we only use actions (strings), not full steps
+        action = step_or_action
         new_state = state.copy()
         new_state.append(ThoughtStep(action=action))
         log_state(logger, new_state, header="ConcatTransition.step")

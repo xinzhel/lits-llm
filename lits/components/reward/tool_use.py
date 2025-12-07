@@ -100,6 +100,7 @@ class ToolUsePRM(RewardModel):
             
             self._policy = ToolUsePolicy(
                 base_model=self.base_model,
+                tools=self.tools,
                 task_type=self.task_type,
                 n_actions=1,
                 temperature=0.7,
@@ -208,15 +209,15 @@ The score must be a valid float parsable by Python's float() function."""
     def _complete_trajectory(
         self,
         state: ToolUseState,
-        action: ToolUseAction,
+        step_or_action,
         query: str,
         query_idx: Optional[int] = None
     ) -> ToolUseState:
-        """Complete the trajectory by executing the proposed action and continuing.
+        """Complete the trajectory by executing the proposed step/action and continuing.
 
         Args:
             state: Current ToolUseState trajectory
-            action: Proposed ToolUseAction to start with
+            step_or_action: Proposed ToolUseStep or ToolUseAction to start with
             query: Original query/question
             query_idx: Query index for logging
 
@@ -229,22 +230,29 @@ The score must be a valid float parsable by Python's float() function."""
         rollout_state = ToolUseState()
         rollout_state.extend(copy.deepcopy(state))
         
-        # Execute the proposed action first
-        try:
-            from ...tools.utils import execute_tool_action
-            from ...structures import ToolUseStep
-            
-            observation = execute_tool_action(str(action), self.tools)
-            first_step = ToolUseStep(
-                action=action,
-                observation=observation if isinstance(observation, str) else str(observation)
+        # Handle the proposed step
+        from ...structures import ToolUseStep
+        
+        assert isinstance(step_or_action, ToolUseStep), \
+            f"ToolUsePRM requires ToolUseStep, got {type(step_or_action)}"
+        
+        step = step_or_action
+        
+        # Only execute if the step doesn't already have an observation
+        if step.observation is None and step.answer is None and step.error is None:
+            # Use transition to handle the step (action/answer/error)
+            rollout_state, _ = transition.step(
+                state=rollout_state,
+                step_or_action=step,
+                query_or_goals=query,
+                query_idx=query_idx,
+                from_phase="prm_rollout"
             )
-            rollout_state.append(first_step)
-            logger.debug(f"Rollout step 0: action={action}, observation={observation[:100] if observation else None}")
-            
-        except Exception as e:
-            logger.warning(f"Error executing proposed action in rollout: {e}")
-            return rollout_state
+            logger.debug(f"Rollout step 0: executed via transition")
+        else:
+            # Step already has observation/answer/error, just append it
+            rollout_state.append(step)
+            logger.debug(f"Rollout step 0: step already executed, appended directly")
         
         # Continue the trajectory for max_rollout_steps
         for step_idx in range(self.max_rollout_steps):
@@ -260,7 +268,7 @@ The score must be a valid float parsable by Python's float() function."""
                     query=query,
                     n_actions=1,
                     query_idx=query_idx,
-                    from_phase="reward_rollout"
+                    from_phase="prm_rollout"
                 )
                 
                 if not steps or not steps[0]:
@@ -269,26 +277,16 @@ The score must be a valid float parsable by Python's float() function."""
                 
                 step = steps[0]
                 
-                # If step has an answer, append and stop
-                if step.get_answer():
-                    rollout_state.append(step)
-                    logger.debug(f"Rollout step {step_idx + 1}: reached answer")
-                    break
-                
-                # Execute the action if present
-                if step.action:
-                    new_state, _ = transition.step(
-                        state=rollout_state,
-                        action=step.action,
-                        query_or_goals=query,
-                        query_idx=query_idx,
-                        from_phase="reward_rollout"
-                    )
-                    rollout_state = new_state
-                    logger.debug(f"Rollout step {step_idx + 1}: action={step.action}")
-                else:
-                    logger.debug(f"Rollout: no action in step {step_idx + 1}")
-                    break
+                # Execute the step via transition (handles action/answer/error)
+                new_state, _ = transition.step(
+                    state=rollout_state,
+                    step_or_action=step,
+                    query_or_goals=query,
+                    query_idx=query_idx,
+                    from_phase="prm_rollout"
+                )
+                rollout_state = new_state
+                logger.debug(f"Rollout step {step_idx + 1}: executed via transition")
                     
             except Exception as e:
                 logger.warning(f"Error in rollout step {step_idx}: {e}")
@@ -299,28 +297,33 @@ The score must be a valid float parsable by Python's float() function."""
     def _fast_reward(
         self,
         state: ToolUseState,
-        action: ToolUseAction,
+        step_or_action,
         query: str,
         query_idx: Optional[int] = None,
         from_phase: str = ""
     ) -> float:
-        """Evaluate the quality of a proposed action by completing the trajectory.
+        """Evaluate the quality of a proposed step by completing the trajectory.
 
         Following LATS: complete the trajectory with real tool execution,
         then prompt the LLM to score the completed trajectory.
 
         Args:
             state: Current ToolUseState trajectory
-            action: Proposed ToolUseAction to evaluate
+            step_or_action: Proposed ToolUseStep to evaluate
             query: Original query/question
             query_idx: Query index for logging
             from_phase: Algorithm phase description
 
         Returns:
-            Score between 0 and 1 indicating action quality
+            Score between 0 and 1 indicating step quality
         """
+        from ...structures import ToolUseStep
+        
+        assert isinstance(step_or_action, ToolUseStep), \
+            f"ToolUsePRM requires ToolUseStep, got {type(step_or_action)}"
+        
         # Step 1: Complete the trajectory with real tool execution
-        completed_state = self._complete_trajectory(state, action, query, query_idx)
+        completed_state = self._complete_trajectory(state, step_or_action, query, query_idx)
         
         # Step 2: Build prompt asking LLM to score the completed trajectory
         user_message = self._build_scoring_prompt(query, completed_state)
@@ -330,12 +333,13 @@ The score must be a valid float parsable by Python's float() function."""
             self.base_model.sys_prompt = self.task_prompt_spec
         
         try:
-            response = self.base_model.generate(
+            response = self.base_model(
                 user_message,
                 temperature=self.temperature,
                 max_new_tokens=self.max_new_tokens or 512,
-                role=f"reward_score_q{query_idx}_{from_phase}"
+                role=f"prm_{query_idx}_{from_phase}"
             )
+            response = response.text
             logger.debug(f"Reward scoring response: {response[:200]}")
             
             # Extract score
@@ -374,7 +378,7 @@ The score must be a valid float parsable by Python's float() function."""
         fast_reward: Optional[float] = None,
         confidence: Optional[float] = None,
         **kwargs
-    ) -> tuple[float, dict]:
+    ) -> float:
         """Calculate reward after action execution.
 
         Args:
@@ -385,7 +389,7 @@ The score must be a valid float parsable by Python's float() function."""
             **kwargs: Additional arguments
 
         Returns:
-            Tuple of (reward, auxiliary_dict)
+            reward
         """
         assert fast_reward is not None, (
             "fast_reward is required to calculate reward. "
@@ -396,5 +400,5 @@ The score must be a valid float parsable by Python's float() function."""
             "It should be provided by the transition model's step() method."
         )
         
-        final_reward = self.calculate_reward(fast_reward, confidence)
-        return final_reward, {'r_fast': fast_reward, 'r_conf': confidence}
+        reward = self.calculate_reward(fast_reward, confidence)
+        return reward

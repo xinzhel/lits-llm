@@ -61,9 +61,9 @@ class SearchNode(Generic[StateT, ActionT]):
         return path
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert self to a JSON-safe dict, serializing state/action recursively."""
+        """Convert self to a JSON-safe dict, serializing state/action/step recursively."""
 
-        return {
+        result = {
             "id": self.id,
             "state": _serialize_obj(self.state),
             "action": _serialize_obj(self.action),
@@ -73,6 +73,12 @@ class SearchNode(Generic[StateT, ActionT]):
             "state_conf": self.state_conf,
             "fast_reward": self.fast_reward,
         }
+        
+        # Serialize step if present (v0.2.5+)
+        if hasattr(self, 'step') and self.step is not None:
+            result["step"] = _serialize_obj(self.step)
+        
+        return result
 
     @classmethod
     def from_dict(cls, dct: Dict[str, Any]) -> 'SearchNode':
@@ -87,6 +93,11 @@ class SearchNode(Generic[StateT, ActionT]):
         node.bn_score = dct.get("bn_score", -1)
         node.state_conf = dct.get("state_conf", -1)
         node.fast_reward = dct.get("fast_reward", -1)
+        
+        # Deserialize step if present (v0.2.5+)
+        if "step" in dct:
+            node.step = _deserialize_obj(dct["step"])
+        
         return node
 
 class MCTSNode(SearchNode[StateT, ActionT]):

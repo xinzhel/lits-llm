@@ -3,18 +3,10 @@ from langchain_community.utilities import SQLDatabase
 from .base import BaseClient
 from sqlalchemy import create_engine
 
-ALLOWED_TABLES = [
-    "nearby",
-    "nearby_places",
-    "places",
-    "distance",
-    "directions",
-]
-
 class SQLDBClient(BaseClient):
     """Unified wrapper for SQL or GeoSQL databases."""
 
-    def __init__(self, uri: str, schema: str = None):
+    def __init__(self, uri: str, schema: str = None, ALLOWED_TABLES: list = None):
         super().__init__(uri=uri)
         
         engine = create_engine(

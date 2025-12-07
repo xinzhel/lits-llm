@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Union, Tuple, Optional, Callable
 from ..structures import StateT, ActionT, StepT, Step
 from ..lm.base import DETERMINISTIC_TEMPERATURE
-from ..lm import OpenAIChatModel, BedrockChatModel, HfChatModel, HfModel
+from ..lm import OpenAIChatModel, BedrockChatModel, HfChatModel, HfModel, LanguageModel
 import logging
 logger = logging.getLogger(__name__)
 
@@ -14,11 +14,12 @@ class Transition(ABC, Generic[StateT, ActionT]):
     def init_state(self) -> StateT: ...
 
     @abstractmethod
-    def step(self, state: StateT, action: ActionT, *arg, **kwargs) -> Union[StateT, Tuple[StateT, dict]]:
+    def step(self, state: StateT, step_or_action, *arg, **kwargs) -> Union[StateT, Tuple[StateT, dict]]:
         """ Returns the next state and optionally an auxiliary data dict
 
         :param state: The current state
-        :param action: The action to take
+        :param step_or_action: Step or Action to execute. Policies return Steps which may
+            contain actions, answers, or errors. Transitions should handle all cases.
         :return: The next state and optionally an auxiliary data dict
         """
         ...
@@ -619,7 +620,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
     """
     def __init__(
         self,
-        base_model,
+        base_model: LanguageModel,
         task_prompt_spec: Optional[Union[str, dict, 'PromptTemplate']] = None,
         task_type: Optional[str] = None,
         usr_prompt_spec: Optional[Union[str, dict, 'PromptTemplate']] = None,
