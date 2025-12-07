@@ -1,7 +1,7 @@
 from ..base import RewardModel
 
 
-class SCPRM(RewardModel):
+class ScPRM(RewardModel):
     """No-op PRM that keeps the tree-search interface satisfied for tool-use benchmarks."""
 
     def __init__(self, **kwargs):

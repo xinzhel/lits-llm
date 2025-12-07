@@ -222,7 +222,12 @@ class Policy(ABC, Generic[StateT, ActionT]):
         logger.debug(f"Policy.__init__: task_prompt_spec (before registry) type={type(task_prompt_spec)}, value={task_prompt_spec}")
         
         if task_prompt_spec is None:
-            task_prompt_spec = PromptRegistry.get('policy', agent_name, task_type)
+            if PromptRegistry.get('policy', agent_name, task_type) is not None:
+                task_prompt_spec =  PromptRegistry.get('policy', agent_name, task_type)
+            else: 
+                logger.warning(f"Policy.__init__: task_prompt_spec not found for the task type ({task_type}) in registry, using default")
+                task_prompt_spec = PromptRegistry.get('policy', agent_name, None)
+            
             logger.debug(f"Policy.__init__: task_prompt_spec loaded from registry, type={type(task_prompt_spec)}, value={task_prompt_spec}")
         
         if usr_prompt_spec is None:
@@ -243,6 +248,9 @@ class Policy(ABC, Generic[StateT, ActionT]):
         
         # Dynamic notes injection callback
         self._dynamic_notes_fn: Optional[Callable[[], List[str]]] = None
+        
+        # Post-generation callback for action validation/processing
+        self._post_generation_fn: Optional[Callable[[List[StepT], dict], None]] = None
     
     def _get_agent_name(self) -> str:
         """
@@ -288,6 +296,38 @@ class Policy(ABC, Generic[StateT, ActionT]):
         self._dynamic_notes_fn = fn
         logger.debug(f"Dynamic notes function set for {self.__class__.__name__}")
     
+    def set_post_generation_fn(self, fn: Callable[[List[StepT], dict], None]) -> None:
+        """
+        Set a callback function to process/validate actions after generation.
+        
+        This callback is invoked after actions are generated but before they are
+        returned. It can be used for validation, logging, or side effects like
+        saving validation results.
+        
+        Args:
+            fn: A callable that takes (steps, context) where:
+                - steps: List[StepT] - Generated steps to process
+                - context: dict - Context information (query, query_idx, state, etc.)
+        
+        Example:
+            ```python
+            def validate_sql(steps: List[ToolUseStep], context: dict):
+                for step in steps:
+                    result = validator.validate(
+                        step,
+                        query_idx=context.get('query_idx'),
+                        policy_model_name=context.get('policy_model_name'),
+                        task_type=context.get('task_type')
+                    )
+                    if result and not result['is_valid']:
+                        logger.warning(f"Invalid SQL: {result['issue']}")
+            
+            policy.set_post_generation_fn(validate_sql)
+            ```
+        """
+        self._post_generation_fn = fn
+        logger.debug(f"Post-generation function set for {self.__class__.__name__}")
+    
     def _get_dynamic_notes(self) -> str:
         """
         Retrieve and format dynamic notes from the callback function.
@@ -304,8 +344,7 @@ class Policy(ABC, Generic[StateT, ActionT]):
             if not notes:
                 return ""
             
-            formatted_notes = "\n".join(f"* {note}" for note in notes)
-            return f"\n\nAdditional Notes:\n{formatted_notes}"
+            return f"\n\nYou MUST AVOID the following mistakes:\n\n{notes}"
         except Exception as e:
             logger.error(f"Error retrieving dynamic notes: {e}", exc_info=True)
             return ""
@@ -418,19 +457,23 @@ class Policy(ABC, Generic[StateT, ActionT]):
                 **kwargs
             )
         except Exception as e:
+            if "run aws sso login" in str(e):
+                raise Exception("Run `aws sso login`")
+            
+            raise e
             # Log the error with full traceback
-            logger.error(
-                f"Error in {self.__class__.__name__}._get_actions(): {e}",
-                exc_info=True,
-                extra={
-                    'policy_class': self.__class__.__name__,
-                    'n_actions': n_actions,
-                    'query_idx': query_idx,
-                    'from_phase': from_phase
-                }
-            )
-            # Create error steps to allow graceful continuation
-            outputs = self._create_error_steps(n_actions, str(e))
+            # logger.error(
+            #     f"Error in {self.__class__.__name__}._get_actions(): {e}",
+            #     exc_info=True,
+            #     extra={
+            #         'policy_class': self.__class__.__name__,
+            #         'n_actions': n_actions,
+            #         'query_idx': query_idx,
+            #         'from_phase': from_phase
+            #     }
+            # )
+            # # Create error steps to allow graceful continuation
+            # outputs = self._create_error_steps(n_actions, str(e))
 
         # Validate outputs
         if len(outputs) != n_actions:
@@ -439,6 +482,28 @@ class Policy(ABC, Generic[StateT, ActionT]):
         
         # Log the results
         self._log_policy_call_end(outputs, n_actions)
+        
+        # Execute post-generation callback if set
+        if self._post_generation_fn is not None:
+            try:
+                context = {
+                    'query': query,
+                    'query_idx': query_idx,
+                    'state': state,
+                    'n_actions': n_actions,
+                    'temperature': temperature,
+                    'critic': critic,
+                    'from_phase': from_phase,
+                    'policy_model_name': kwargs.get('policy_model_name'),
+                    'task_type': kwargs.get('task_type'),
+                }
+                self._post_generation_fn(outputs, context)
+            except Exception as e:
+                logger.error(
+                    f"Error in post-generation callback: {e}",
+                    exc_info=True,
+                    extra={'policy_class': self.__class__.__name__}
+                )
 
         return outputs
     

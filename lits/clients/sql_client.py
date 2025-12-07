@@ -3,6 +3,14 @@ from langchain_community.utilities import SQLDatabase
 from .base import BaseClient
 from sqlalchemy import create_engine
 
+ALLOWED_TABLES = [
+    "nearby",
+    "nearby_places",
+    "places",
+    "distance",
+    "directions",
+]
+
 class SQLDBClient(BaseClient):
     """Unified wrapper for SQL or GeoSQL databases."""
 
@@ -13,7 +21,7 @@ class SQLDBClient(BaseClient):
             uri,
             connect_args={"options": f"-c search_path={schema}"} if schema else {}
         )
-        self.db = SQLDatabase(engine)
+        self.db = SQLDatabase(engine, include_tables=ALLOWED_TABLES)
 
     def request(self, query: str, **kwargs) -> Dict[str, Any]:
         """Run SQL query and return results in dict form."""

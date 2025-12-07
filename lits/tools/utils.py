@@ -38,6 +38,10 @@ def execute_tool_action(action_data: str, tools: list, raise_on_error: bool = Tr
 
     # --- 4. Execute tool ---
     try:
+        # Handle empty string or non-dict action_input
+        if isinstance(action_input, str) and action_input.strip() == "":
+            action_input = {}
+            
         if hasattr(tool, "_run"):
             result = tool._run(**action_input)
         elif hasattr(tool, "__call__"):

@@ -8,7 +8,7 @@ from .main import infer_task_type
 #             "Y29tIiwiaWF0IjoxNzYwMjcyMjIxfQ.DrPXlwpYeFZC8PP1wLabb4tV3yQ5MHcl2LbXhSVZHXE"
 #         )
 def load_resource(
-    benchmark_name: str="mapeval",  
+    benchmark_name: str="mapeval-sql",  
     db_host=None, 
     db_port=None, 
     db_name=None,

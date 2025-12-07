@@ -27,6 +27,9 @@ def create_tool_use_agent(
     max_iter: int = 50,
     verbose_model=False, 
     override_logger: bool = False,
+    post_generation_fn=None,
+    step_evaluators=None,
+    trajectory_evaluators=None,
     **kwargs
 ):
     """
@@ -42,13 +45,23 @@ def create_tool_use_agent(
         root_dir (str): Directory to save results and configurations.
         model_name (str): Name of the language model to use.
         max_length (int): Maximum token length for model responses.
-        device (str): Device to run the model on (e.g., "cpu", "
-cuda:0").
+        device (str): Device to run the model on (e.g., "cpu", "cuda:0").
         enable_think_policy (bool): Whether to enable the think policy.
         exclude_think_from_previous_steps (bool): Exclude think steps from history to reduce context length when a new LLM invocation is taken.
         max_iter (int): Maximum number of reasoning iterations.
         verbose_model (bool): Whether to enable verbose logging for the model.
         override_logger (bool): Whether to override existing loggers.
+        post_generation_fn (callable): Optional callback function to process/validate
+            actions after generation. Signature: fn(steps: List[StepT], context: dict) -> None
+        step_evaluators (list): Optional list of step-level evaluators (e.g., SQLValidator)
+            that validate each generated step. Creates feedback loop where:
+            - Past issues are loaded and injected into prompts (input enhancement)
+            - New steps are validated and saved (output validation)
+        trajectory_evaluators (list): Optional list of trajectory-level evaluators 
+            (e.g., SQLErrorProfiler) that analyze complete trajectories after agent.run().
+            Creates feedback loop where:
+            - Past patterns are loaded and injected into prompts (input enhancement)
+            - Complete trajectories are analyzed and patterns saved (output validation)
     """
 
     # Load LLM backbone
@@ -91,6 +104,12 @@ cuda:0").
         n_actions=1,
     )
     
+    # Set post-generation callback if provided (manual mode)
+    # Note: If step_evaluators are provided, ReActChat will set up callbacks automatically
+    if post_generation_fn is not None and step_evaluators is None:
+        policy.set_post_generation_fn(post_generation_fn)
+        logger.info("Post-generation callback function set for policy")
+    
     # Construct transition (world model for tool execution)
     transition = ToolUseTransition(
         tools=tools,
@@ -102,10 +121,15 @@ cuda:0").
         agent = ReActChat(
             policy=policy,
             transition=transition,
-            max_iter=max_iter
+            max_iter=max_iter,
+            policy_model_name=model_name,
+            task_type=task_type,
+            step_evaluators=step_evaluators,
+            trajectory_evaluators=trajectory_evaluators,
         )
     else:
         raise ValueError(f"Wrong agent type: {agent_type}")
+    
     return agent
 
 

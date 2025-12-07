@@ -122,12 +122,16 @@ class BedrockChatModel(LanguageModel):
                 role, content = p["role"], p["content"]
                 assert role in ["system", "user", "assistant"], f"Invalid role: {role}"
                 assert isinstance(content, str), "Content must be a string."
-                if embed_system_prompt and role == "system":
+                if role == "system":
                     system_prompt = content
                 else:
                     messages.append({"role": role, "content": [{"text": content}]})
         else:
             raise ValueError("Prompt must be a string or list of messages.")
+        
+        # prepend system_prompt
+        if embed_system_prompt and system_prompt:
+            messages.insert(0, {"role": "system", "content": system_prompt})
         return messages, system_prompt
 
 
@@ -175,8 +179,8 @@ class BedrockChatModel(LanguageModel):
             messages, system_prompt = self._format_messages(prompt, embed_system_prompt=False)
             text, input_tokens, output_tokens = self._converse_api(messages, max_new_tokens, temperature, top_p, stop, system_prompt)
         else:
-            messages, _ = self._format_messages(prompt, embed_system_prompt=True)
-            text, input_tokens, output_tokens = self._invoke_request(messages, max_new_tokens, temperature, top_p, stop)
+            messages, system_prompt = self._format_messages(prompt, embed_system_prompt=False)
+            text, input_tokens, output_tokens = self._invoke_request(messages, max_new_tokens, temperature, top_p, stop, system_prompt)
 
         if self.inference_logger and role is not None:
             # Bedrock responses don’t always return usage counts, so just log approximate tokens
@@ -194,17 +198,43 @@ class BedrockChatModel(LanguageModel):
 
         return Output(text)
 
-    def _invoke_request(self, messages, max_new_tokens, temperature, top_p, stop) -> Dict[str, Any]:
+    def _invoke_request(self, messages, max_new_tokens, temperature, top_p, stop, system_prompt) -> Dict[str, Any]:
         logging.warning(f"Model {self.model_name} may not support Converse API; falling back to invoke_model. Note that response parsing may fail.")
             
-        # Generic invoke_model interface
+        # Convert messages from Bedrock Converse format to OpenAI format
+        # Converse format: [{"role": "user", "content": [{"text": "..."}]}]
+        # OpenAI format: [{"role": "user", "content": "..."}]
+        openai_messages = []
+        for i, msg in enumerate(messages):
+            role = msg["role"]
+            # Extract text from content list
+            if isinstance(msg["content"], list):
+                content = msg["content"][0]["text"]
+                if i == 0:
+                    assert role == "user"
+                    content =  f"{system_prompt}\n\n + {content}"
+            else:
+                content = msg["content"]
+            openai_messages.append({"role": role, "content": content})
+        
+        # Cap max_tokens to reasonable value (many models have issues with very large values)
+        # For Qwen and similar models, max_tokens should be output tokens only, not total context
+        # Most models support up to 16K output tokens; context length is separate
+        if max_new_tokens > 16384:
+            logging.warning(f"Capping max_tokens from {max_new_tokens} to 16384 for invoke_model API")
+            max_new_tokens = 16384
+        
+        # Generic invoke_model interface (OpenAI format)
         input_body = {
-            "messages": messages,
+            "messages": openai_messages,
             "max_tokens": max_new_tokens,
             "temperature": temperature,
             "top_p": top_p,
-            "stop": stop,
         }
+        
+        # Only add stop sequences if they exist
+        if stop:
+            input_body["stop"] = stop
         
         response = self.client.invoke_model(
             modelId=self.model_name,

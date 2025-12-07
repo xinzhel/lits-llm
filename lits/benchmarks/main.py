@@ -1,5 +1,5 @@
 # Tool-augmented benchmarks that expect ToolUsePolicy-driven search.
-TOOL_USE_DATASETS = {"mapeval", "clue"}
+TOOL_USE_DATASETS = {"mapeval", "clue", "mapeval-sql"}
 
 
 def infer_task_type(dataset_name: str) -> str:

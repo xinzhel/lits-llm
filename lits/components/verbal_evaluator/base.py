@@ -71,6 +71,26 @@ class VerbalEvaluator(ABC):
             f"Initialized {self.__class__.__name__} with model: {base_model.__class__.__name__}"
         )
     
+    def evaluate(
+        self,
+        *args, **kwargs
+    ) -> Optional[str]:
+        """ Evaluate and return a single issue string for policy feedback.
+        
+        This is the main interface method that subclasses must implement.
+        It should return a text string describing issues/feedback, or None if no issues.
+        
+        Returns:
+            Single string describing the issue, or None if no issues found
+        """
+        self.base_model.sys_prompt = self.sys_prompt
+        result = self._evaluate(*args, **kwargs)
+
+        if result and result.get('issues'):
+            return result['issues']
+        
+        return None
+        
     def _get_evaluator_type(self) -> str:
         """Get evaluator type identifier from class name.
         
@@ -178,18 +198,6 @@ class VerbalEvaluator(ABC):
             logger.error(f"Error loading results: {e}")
             return []
     
-    @abstractmethod
-    def evaluate(self, *args, **kwargs) -> Optional[str]:
-        """Evaluate and return a single issue string for policy feedback.
-        
-        This is the main interface method that subclasses must implement.
-        It should return a text string describing issues/feedback, or None if no issues.
-        
-        Returns:
-            Single string describing the issue, or None if no issues found
-        """
-        raise NotImplementedError(f"{self.__class__.__name__} must implement evaluate()")
-    
     def load_eval_as_prompt(
         self,
         policy_model_name: str,
@@ -200,13 +208,13 @@ class VerbalEvaluator(ABC):
         """Load saved evaluations and format as prompt component for policy.
         
         This unified method loads results from the shared file and formats them
-        as a prompt. By default, it only loads results from the current evaluator,
-        but can optionally include results from all evaluators.
+        as a prompt. Issues are treated as individual items and ranked by score
+        (lower scores = worse issues = higher priority).
         
         Args:
             policy_model_name: Policy model name
             task_type: Task type
-            max_items: Maximum number of recent items to include per evaluator
+            max_items: Maximum number of individual issues to include (not records)
             include_all_evaluators: If True, include results from all evaluators.
                                    If False, only include results from this evaluator.
         
@@ -252,39 +260,53 @@ class VerbalEvaluator(ABC):
                     continue
                 
                 results = results_by_type[eval_type]
-                recent_results = results[-max_items:]
                 
-                if not recent_results:
+                # Flatten issues from all results with metadata
+                issue_items = []
+                for result in results:
+                    issues = result.get('issues', [])
+                    score = result.get('score')  # May be None
+                    error_type = result.get('error_type')  # May be None
+                    
+                    for issue in issues:
+                        if issue:
+                            issue_items.append({
+                                'issue': issue,
+                                'score': score if score is not None else float('inf'),  # No score = lowest priority
+                                'error_type': error_type
+                            })
+                
+                if not issue_items:
                     continue
+                
+                # Sort by score (lower score = worse = higher priority)
+                issue_items.sort(key=lambda x: x['score'])
+                
+                # Take top max_items
+                top_issues = issue_items[:max_items]
                 
                 # Add section header based on evaluator type
                 if eval_type == 'sqlvalidator':
-                    prompt_parts.append("**Previous SQL Validation Errors:**\n")
+                    prompt_parts.append("**Avoid the following categories of SQL mistakes that break geospatial semantics or CRS logic or spatial reasoning principles:**\n")
                 elif eval_type == 'sqlerrorprofiler':
-                    prompt_parts.append("**Previous SQL Error Patterns:**\n")
+                    prompt_parts.append("**Avoid the following SQL errors arising from incorrect use of schema elements:**\n")
                 else:
-                    prompt_parts.append(f"**Previous {eval_type} Issues:**\n")
+                    prompt_parts.append(f"**Avoid the following issues:**\n")
                 
                 # Format issues
-                for idx, record in enumerate(recent_results, 1):
-                    # Get issues (unified format: always a list)
-                    issues = record.get('issues', [])
+                for idx, item in enumerate(top_issues, 1):
+                    issue = item['issue']
+                    error_type = item['error_type']
                     
-                    # Add error_type if present (for profiler)
-                    error_type = record.get('error_type')
                     if error_type:
-                        prompt_parts.append(f"\n{idx}. Error Type: {error_type}")
-                        prompt_parts.append("   Issues:")
-                        for issue in issues:
-                            if issue:
-                                prompt_parts.append(f"   - {issue}")
+                        # For profiler: include error type
+                        prompt_parts.append(f"[* {error_type}] {issue}")
                     else:
-                        # For validator (no error_type)
-                        for issue in issues:
-                            if issue:
-                                prompt_parts.append(f"{idx}. {issue}")
-                
+                        # For validator: just the issue
+                        prompt_parts.append(f"* {issue}")
+
                 prompt_parts.append("")  # Add blank line between sections
+            
             
             return "\n".join(prompt_parts).strip()
             

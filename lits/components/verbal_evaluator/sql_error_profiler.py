@@ -22,7 +22,7 @@ Usage:
     
     # Analyze a trajectory
     state = ToolUseState(...)  # Load from checkpoint
-    profile = profiler.profile_trajectory(
+    profile = profiler._evaluate(
         state,
         policy_model_name="gpt-4",
         task_type="spatial_qa"
@@ -142,61 +142,11 @@ Return a JSON object:
             max_new_tokens=max_new_tokens
         )
         
-        self.profiling_prompt = profiling_prompt or self.SQL_ERROR_PROFILING_PROMPT
-        
-        # Set system prompt
-        self.base_model.sys_prompt = self.profiling_prompt
+        self.sys_prompt = profiling_prompt or self.SQL_ERROR_PROFILING_PROMPT
         
         logger.info(f"Initialized SQLErrorProfiler with model: {base_model.__class__.__name__}")
     
-    def evaluate(
-        self,
-        state: TrajectoryState,
-        query_idx: Optional[int] = None,
-        policy_model_name: Optional[str] = None,
-        task_type: Optional[str] = None
-    ) -> Optional[str]:
-        """Evaluate trajectory and return a single issue string for policy feedback.
-        
-        This is the unified interface method that returns a text item for noting
-        the policy about potential issues and how to avoid them.
-        
-        Args:
-            state: TrajectoryState containing the sequence of steps
-            query_idx: Optional query index for logging
-            policy_model_name: Policy model name (for file naming)
-            task_type: Task type (for file naming)
-        
-        Returns:
-            Single string describing the issue and how to avoid it, or None if no issues
-        
-        Example:
-            ```python
-            issue = profiler.evaluate(state, query_idx=0, 
-                                     policy_model_name="gpt-4", 
-                                     task_type="spatial_qa")
-            if issue:
-                policy.base_model.sys_prompt += f"\\n\\n**Note:** {issue}"
-            ```
-        """
-        profile = self.profile_trajectory(state, query_idx, policy_model_name, task_type)
-        
-        if not profile or not profile.get('issues'):
-            return None
-        
-        # Combine error_type and first issue into a single actionable string
-        error_type = profile.get('error_type', '')
-        issues = profile.get('issues', [])
-        
-        if error_type and issues:
-            # Return the most important issue with context
-            return f"{error_type}: {issues[0]}"
-        elif issues:
-            return issues[0]
-        
-        return None
-    
-    def profile_trajectory(
+    def _evaluate(
         self,
         state: TrajectoryState,
         query_idx: Optional[int] = None,
@@ -223,7 +173,7 @@ Return a JSON object:
         
         Example:
             ```python
-            profile = profiler.profile_trajectory(
+            profile = profiler._evaluate(
                 state,
                 query_idx=0,
                 policy_model_name="gpt-4",
