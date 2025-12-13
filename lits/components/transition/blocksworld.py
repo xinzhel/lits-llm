@@ -36,21 +36,6 @@ def extract_goals(example, return_raw=False):
     goals = re.findall("the [a-z]{0,10} block is on top of the [a-z]{0,10} block", goal_statement)
     return goals
 
-def goal_check(goals, env_state):
-    """Check if the goals are met and return the percentage of goals met
-
-    :param goals: goals
-    :param env_state: current environment state
-    """
-    assert isinstance(env_state, str), "env_state must be a string"
-    assert isinstance(goals, list), "goals must be a list"
-    meetings = [g in env_state for g in goals]
-    # print("Goals:", goals)
-    # print("Goal met:", meetings)
-    if sum(meetings) == len(meetings):
-        return True, 1.0
-    return False, sum(meetings) / len(meetings)
-
 def apply_change(change, state):
     """Apply the predicted change to the state
     
@@ -172,10 +157,9 @@ class BlocksWorldTransition(LlmTransition):
 
         :return: the initial state
         """
-        return EnvState(step_idx=0, last_env_state="", env_state=
-                       state_str, buffered_action="")
+        return EnvState(step_idx=0, last_env_state="", env_state=state_str, init_state=state_str)
 
-    def step(self, state: EnvState, step_or_action, query_or_goals: List[str]) -> tuple[EnvState, dict]:
+    def step(self, state: EnvState, step_or_action, query_or_goals:str) -> tuple[EnvState, dict]:
         """Take a step in the world model.
         
         :param state: the current state
@@ -183,20 +167,15 @@ class BlocksWorldTransition(LlmTransition):
         :return: the next state and additional information cached for reward calculation
         """
         # For BlocksWorld, we only use actions (EnvAction), not full steps
+        assert isinstance(query_or_goals, str), "query_or_goals must be str"
         action = step_or_action
         state = copy.deepcopy(state)
         env_state = state.env_state
         step_idx = state.step_idx
         env_state = self.update_blocks(env_state, action)
-        if state.buffered_action == "":
-            # if no action buffered, buffer the action
-            new_buffered_action = action
-        else:
-            # if action buffered, clear the buffer
-            new_buffered_action = ""
 
         state = EnvState(step_idx=step_idx+1, last_env_state=state.env_state,
-                        env_state=env_state, buffered_action=new_buffered_action)
+                        env_state=env_state, init_state=state.init_state)
         return state, {"goal_reached": self.goal_check(query_or_goals, env_state)}
 
     def _get_prompt_tempate(self, action:str) -> str:
@@ -232,8 +211,8 @@ class BlocksWorldTransition(LlmTransition):
         logger.warning("[NEW STATE] %s", new_state)
         return new_state    
 
-    def is_terminal(self, goals, state: EnvState) -> bool:
-        if self.goal_check(goals, state.env_state)[0]:
+    def is_terminal(self, query_or_goals: str, state: EnvState) -> bool:
+        if self.goal_check(query_or_goals, state.env_state)[0]:
             return True
         elif state.step_idx == self.max_steps:
             return True

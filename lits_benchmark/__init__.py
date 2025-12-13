@@ -3,6 +3,31 @@ from lits.tools import build_tools
 from lits.structures.tool_use import ToolUseStep
 from datasets import load_dataset
 from .main import infer_task_type
+from .mapeval import _gold_option
+def load_dataset_examples(benchmark_name: str) -> list:
+    """Load only the dataset examples without building tools (no database connection needed).
+    
+    This is useful for evaluation where we only need questions and answers.
+    """
+    if benchmark_name == "mapeval" or benchmark_name == "mapeval-sql":
+        from lits.benchmarks.mapeval import construct_prompt
+        raw_examples = list(load_dataset("xinzhel/mapeval_query", split="test"))
+        formatted_examples = []
+        for item in raw_examples:
+            question_prompt = construct_prompt(item)
+            formatted_examples.append({"question": question_prompt, "answer":_gold_option(item) })
+        return formatted_examples
+    
+    elif benchmark_name == "clue":
+        return [
+            {
+                "question": "which area in melbourne has the highest number of parking space?",
+                "answer": "",
+            }
+        ]
+    
+    else:
+        raise ValueError(f"Unknown benchmark: {benchmark_name}")
 # DEFAULT_SECRET_TOKEN = (
 #             "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InRlc3QiLCJpc3MiOiJtYXBxdWVzdC1hcHAub25yZW5kZXIu"
 #             "Y29tIiwiaWF0IjoxNzYwMjcyMjIxfQ.DrPXlwpYeFZC8PP1wLabb4tV3yQ5MHcl2LbXhSVZHXE"

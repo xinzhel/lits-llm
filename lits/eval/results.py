@@ -49,6 +49,7 @@ class BaseResults(ABC):
         ext: str = "jsonl"
     ):
         # filepath: root_dir/<classname>_<run_id>.<ext>
+        self.root_dir = root_dir
         if run_id:
             self.filepath = os.path.join(
                 root_dir or ".",

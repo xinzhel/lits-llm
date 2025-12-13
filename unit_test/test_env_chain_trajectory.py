@@ -26,19 +26,19 @@ def test_trajectory_tracking():
         step_idx=0,
         last_env_state="",
         env_state="on(A, B), on(B, C), on(C, table)",
-        buffered_action=None
+        init_state="on(A, B), on(B, C), on(C, table)"
     )
     print(f"\nStep 0: Initial state")
     print(f"  env_state: {state.env_state}")
     print(f"  history length: {len(state.history)}")
     
     # Step 1: Unstack A from B
-    step1 = EnvStep(action=EnvAction("unstack A from B"), reward=0.0)
+    step1 = EnvStep(action=EnvAction("unstack A from B"))
     state = EnvState(
         step_idx=1,
         last_env_state=state.env_state,
         env_state="on(A, table), on(B, C), on(C, table)",
-        buffered_action=step1.action,
+        init_state="",
         history=state.history.copy()
     )
     state.add_step(step1)
@@ -47,12 +47,12 @@ def test_trajectory_tracking():
     print(f"  history length: {len(state.history)}")
     
     # Step 2: Unstack B from C
-    step2 = EnvStep(action=EnvAction("unstack B from C"), reward=0.0)
+    step2 = EnvStep(action=EnvAction("unstack B from C"))
     state = EnvState(
         step_idx=2,
         last_env_state=state.env_state,
         env_state="on(A, table), on(B, table), on(C, table)",
-        buffered_action=step2.action,
+        init_state="",
         history=state.history.copy()
     )
     state.add_step(step2)
@@ -61,12 +61,12 @@ def test_trajectory_tracking():
     print(f"  history length: {len(state.history)}")
     
     # Step 3: Stack A on B
-    step3 = EnvStep(action=EnvAction("stack A on B"), reward=10.0)
+    step3 = EnvStep(action=EnvAction("stack A on B"))
     state = EnvState(
         step_idx=3,
         last_env_state=state.env_state,
         env_state="on(A, B), on(B, table), on(C, table)",
-        buffered_action=step3.action,
+        init_state="",
         history=state.history.copy()
     )
     state.add_step(step3)

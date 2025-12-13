@@ -16,8 +16,19 @@ from ..structures import (
 logger = logging.getLogger(__name__)
 
 def create_role(llm_role, query_idx=None, from_phase=""):
-    VALID_LLM_ROLES = ["evaluator_logits_ORM", "dynamics", "dynamics_verify", "dynamics_critic", "evaluator_logits", "evaluator_correctness", "evaluator_usefulness", "policy", "evaluator_logits", "bn_entropy_agg", "bn_entropy_remove", "bn_eval", "bn_entropy", None, ""]
-    VALID_PHASES = ['expand', 'continuation', 'simulate', 'sort', '', None]
+    VALID_LLM_ROLES = [
+        "evaluator_logits_ORM", "evaluator_logits", \
+        "evaluator_logits", "evaluator_tooluse", "evaluator_correctness", "evaluator_usefulness", \
+        "dynamics", "dynamics_verify", "dynamics_critic", \
+        "policy", \
+        "bn_entropy_agg", "bn_entropy_remove", "bn_eval", "bn_entropy", \
+        None, ""
+    ]
+    VALID_PHASES = [
+        'expand', 'continuation', 'simulate', 'sort', \
+        'expand_prm', 'continuation_prm', 'simulate_prm', 'sort_prm', \
+        '', None
+    ]
     assert llm_role in VALID_LLM_ROLES, f"Invalid llm_role: {llm_role}"
     assert from_phase in VALID_PHASES, f"Invalid from_phase: {from_phase}"
     role = llm_role 

@@ -8,36 +8,21 @@ from ...structures import ToolUseState, ToolUseStep
 from ...lm import HfChatModel, InferenceLogger, get_lm
 from ...framework_config import DEFAULT_MODEL_NAME, DEFAULT_DEVICE, PACKAGE_VERSION
 from ..base import BaseConfig
+from .base import ChainAgent, ChainConfig
 
     
 logger = logging.getLogger(__name__)
 
 @dataclass
-class ReactChatConfig(BaseConfig):
+class ReactChatConfig(ChainConfig):
     """
     Configuration for ReAct-style reasoning and acting agent.
-    
-    Inherits common attributes from BaseConfig:
-        - model_name: Language model name
-        - gpu_device: GPU device identifier
-        - max_length: Maximum token length for generation
-        - max_steps: Maximum number of reasoning iterations (default: 10)
     """
     enable_think: bool = True
     exclude_think_when_verb: bool = False
     timeout: int = 30
     
-def resume_tool_use_state(checkpoint_path):
-    checkpoint_file = Path(checkpoint_path)
-    if checkpoint_file.exists():
-        query, state = ToolUseState.load(str(checkpoint_file))
-        logger.debug("\n\n\n\nResuming conversation !!!!!!!!!!")
-    else:
-        state = ToolUseState()
-        logger.debug("\n\n\n\nStarting ReAct evaluation !!!!!!!!!")
-    return state
-
-class ReActChat:
+class ReActChat(ChainAgent[ToolUseState]):
     """Implements a ReAct-style reasoning-and-acting loop for tool-augmented LLMs.
 
     The model receives a system prompt describing the reasoning format:
@@ -72,6 +57,7 @@ class ReActChat:
             trajectory_evaluators: Optional list of trajectory-level evaluators 
                 (e.g., SQLErrorProfiler) that analyze the complete trajectory
         """
+        super().__init__(max_steps=max_iter)
         self.policy = policy
         self.transition = transition
         self.max_iter = max_iter
@@ -151,7 +137,7 @@ class ReActChat:
             self.policy.set_post_generation_fn(validate_steps)
             logger.info(f"Step-level validation set with {len(self.step_evaluators)} evaluator(s)")
 
-    def run(self, query, query_idx=None, from_phase: str = "", checkpoint_path: Optional[str] = None):
+    def run(self, query, query_idx=None, from_phase: str = "", checkpoint_dir=None, checkpoint_path: Optional[str] = None, override: bool = False):
         """Run the ReAct reasoning-and-acting loop.
         
         Args:
@@ -159,13 +145,19 @@ class ReActChat:
             query_idx: Optional query index for logging
             from_phase: Description of algorithm phase (for logging)
             checkpoint_path: Optional path to save/load checkpoints
+            override: If True, ignore existing checkpoints and start fresh.
         
         Returns:
             ToolUseState: Final state containing the trajectory of steps
         """
-        if checkpoint_path:
-            state = resume_tool_use_state(checkpoint_path)
-        else:
+        logger.info("Starting ReAct evaluation for example index %d", query_idx)
+        checkpoint_path = self.get_checkpoint_path(checkpoint_dir, query_idx, checkpoint_path)
+            
+        state = None
+        if checkpoint_path and not override:
+            state = self.resume_state(checkpoint_path, ToolUseState)
+            
+        if state is None:
             state = self.transition.init_state()
 
         logger.debug("Initial user query:\n%s\n", query)

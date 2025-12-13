@@ -33,11 +33,4 @@ class ThoughtStep(Step):
 
     def get_answer(self) -> str:
         return self.action
-
-class StepConcatState(TrajectoryState[ThoughtStep]):
-    """State represented as a concatenation of steps."""
-
-    def get_steps(self) -> list[ThoughtStep]:
-        return self
-    
     

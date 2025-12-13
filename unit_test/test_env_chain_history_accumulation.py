@@ -17,7 +17,7 @@ class MockWorldModel:
             step_idx=0,
             last_env_state="",
             env_state=init_state_str,
-            buffered_action=None,
+            init_state=init_state_str,
             history=[]  # Start with empty history
         )
     
@@ -36,7 +36,7 @@ class MockWorldModel:
             step_idx=state.step_idx + 1,
             last_env_state=state.env_state,
             env_state=new_env_state,
-            buffered_action=action,
+            init_state=state.init_state,
             history=[]  # ← FRESH history, not copied from previous state
         )
         
@@ -69,7 +69,7 @@ def test_history_accumulation_with_new_states():
         print(f"\n--- Step {i+1} ---")
         
         # Create step (simulating policy output)
-        step = EnvStep(action=EnvAction(action_str), reward=float(i))
+        step = EnvStep(action=EnvAction(action_str))
         
         # Execute action via world model
         next_state, aux_data = world_model.step(state, step.action, goals=[])

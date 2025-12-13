@@ -66,8 +66,8 @@ class EnvGroundedPolicy(Policy):
     def __init__(
         self,
         base_model,  # Required parameter from parent
-        usr_prompt_spec:dict,  # Required parameter from parent
         generate_all_actions,  # Function to generate all valid actions
+        usr_prompt_spec:str = None,  # Required parameter from parent
         goal_reward_default: float = 0.,  # Subclass-specific parameter
         goal_reached_reward: float = 100,  # Subclass-specific parameter
         **kwargs  # Optional parent parameters (n_actions, temperature, top_k, top_p, etc.)
@@ -77,8 +77,7 @@ class EnvGroundedPolicy(Policy):
         
         Args:
             base_model: Language model for action selection. Pass None to return all valid actions.
-            usr_prompt_spec: Dictionary with "policy" key containing prompt template with
-                placeholders: <init_state>, <goals>, <action>.
+            usr_prompt_spec: prompt template with placeholders: <init_state>, <goals>, <action>.
             generate_all_actions: Function(env_state: str) -> List[str] that returns valid
                 action strings for the given environment state.
             goal_reward_default: Reward for non-terminal states (default: 0.0).
@@ -91,15 +90,18 @@ class EnvGroundedPolicy(Policy):
             usr_prompt_spec=usr_prompt_spec,
             **kwargs
         )
-        self.usr_prompt_spec = usr_prompt_spec
         self.generate_all_actions = generate_all_actions
         self.goal_reward_default = goal_reward_default
         self.goal_reached_reward = goal_reached_reward
 
     def _create_error_steps(self, n_actions: int, error_msg: str) -> List[EnvStep]:
         """Create EnvStep error steps for EnvGroundedPolicy."""
-        return [EnvStep(action=EnvAction(""), reward=0.0, error=error_msg) for _ in range(n_actions)]
+        return [EnvStep(action=EnvAction(""), error=error_msg) for _ in range(n_actions)]
 
+    def _build_system_prompt(self):
+        """ Unused for EnvGroundedPolicy since completion (not chat) LLM is used. Just for compatibility with parent signature."""
+        return ""
+    
     def _get_actions(
         self,
         state: EnvState,
@@ -147,7 +149,7 @@ class EnvGroundedPolicy(Policy):
         if self.base_model:
             for _ in range(n_actions):
                 options = '\t'+'\n\t'.join(valid_actions)
-                prompt = self.usr_prompt_spec["policy"].replace("<init_state>", state.env_state)\
+                prompt = self.usr_prompt_spec.replace("<init_state>", state.env_state)\
                             .replace("<goals>", query).replace("<action>", options)
                 
                 valid_gen = False

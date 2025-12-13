@@ -11,7 +11,7 @@ class EnvStep(Step):
     """Environment interaction step - just the action taken."""
     
     action: Optional[EnvAction] = None
-    reward: float = 0.0  # Optional: reward from this transition
+    next_state: Optional[str] = None # Optional: resulting state from this action
     
     def get_action(self) -> EnvAction:
         return self.action
@@ -20,8 +20,8 @@ class EnvStep(Step):
         data = super().to_dict()  # This includes __type__ from base Step class
         if self.action is not None:
             data["action"] = str(self.action)
-        if self.reward != 0.0:
-            data["reward"] = self.reward
+        if self.next_state is not None:
+            data["next_state"] = self.next_state
         return data
     
     @classmethod
@@ -30,10 +30,13 @@ class EnvStep(Step):
         action_str = payload.get("action")
         return cls(
             action=EnvAction(action_str) if action_str else None,
-            reward=payload.get("reward", 0.0),
+            next_state=payload.get("next_state"),
             error=payload.get("error"),
         )
 
+from ..type_registry import register_state
+
+@register_state
 @dataclass  
 class EnvState(State):
     """
@@ -52,7 +55,7 @@ class EnvState(State):
     step_idx: int
     last_env_state: str
     env_state: str
-    buffered_action: EnvAction
+    init_state: str
     history: Optional[List[EnvStep]] = None
     
     def __post_init__(self):
@@ -75,10 +78,11 @@ class EnvState(State):
     def to_dict(self) -> dict:
         """Serialize the environment state snapshot with full history."""
         return {
+            "__type__": self.__class__.__name__,
             "step_idx": self.step_idx,
             "last_env_state": self.last_env_state,
             "env_state": self.env_state,
-            "buffered_action": str(self.buffered_action) if self.buffered_action else None,
+            "init_state": self.init_state,
             "history": [step.to_dict() for step in self.history] if self.history else [],
         }
     
@@ -86,8 +90,6 @@ class EnvState(State):
     def from_dict(cls, payload: dict) -> "EnvState":
         """Rebuild an EnvState from serialized data."""
         from ..type_registry import TYPE_REGISTRY
-        
-        action_str = payload.get("buffered_action")
         
         # Deserialize history
         history = []
@@ -109,7 +111,7 @@ class EnvState(State):
             step_idx=payload["step_idx"],
             last_env_state=payload["last_env_state"],
             env_state=payload["env_state"],
-            buffered_action=EnvAction(action_str) if action_str else None,
+            init_state=payload.get("init_state", ""),
             history=history,
         )
     

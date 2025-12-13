@@ -72,12 +72,10 @@ def test_env_step_serialization():
     # Create a trajectory state with EnvSteps
     state = TrajectoryState()
     state.append(EnvStep(
-        action=EnvAction("unstack A from B"),
-        reward=0.0
+        action=EnvAction("unstack A from B")
     ))
     state.append(EnvStep(
-        action=EnvAction("stack A on C"),
-        reward=10.0
+        action=EnvAction("stack A on C")
     ))
     
     # Serialize

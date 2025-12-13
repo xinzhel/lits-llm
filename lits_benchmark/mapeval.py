@@ -1,4 +1,26 @@
 import re
+
+def _to_option(value):
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return str(value)
+    match = re.search(r"(\d+)", str(value))
+    return match.group(1) if match else None
+
+
+def _gold_option(example):
+    ans = example.get("answer", {})
+    
+    opt = _to_option(ans.get("correct"))
+    if opt:
+        return str(int(opt) + 1) # gold is 0-indexed while pred is 1-indexed
+   
+    if example.get("classification") in {"unanswerable", "Unanswerable"}:
+        return "0"
+    
+    return None
+
 def construct_prompt(item):
     """ 
     return: 

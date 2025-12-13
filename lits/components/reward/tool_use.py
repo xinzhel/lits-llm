@@ -17,6 +17,7 @@ from ...structures import ToolUseState, ToolUseAction
 from ...lm.base import HfChatModel
 from ...lm.openai_chat import OpenAIChatModel
 from ...lm.bedrock_chat import BedrockChatModel
+from ..utils import extract_existing_steps, create_role
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,7 @@ class ToolUsePRM(RewardModel):
         task_prompt_spec: Optional[str] = None,
         task_type: Optional[str] = None,
         max_rollout_steps: int = 5,
+        save_rollouts_dir: Optional[str] = None,
         **kwargs
     ):
         super().__init__(
@@ -83,6 +85,14 @@ class ToolUsePRM(RewardModel):
         )
         self.tools = tools
         self.max_rollout_steps = max_rollout_steps
+        self.save_rollouts_dir = save_rollouts_dir
+        
+        # Track rollout counts per query
+        self.idx_rollout = 0
+        self.prev_query_idx = None
+        
+        # Cache for fast_reward results: (query, action_sequence) -> score
+        self._reward_cache = {}
         
         # Set default prompt if not provided
         if self.task_prompt_spec is None:
@@ -110,12 +120,33 @@ class ToolUsePRM(RewardModel):
         
         return self._policy, self._transition
 
+    def _create_cache_key(self, query: str, state: ToolUseState, step) -> tuple:
+        """Create a hashable cache key from query, state, and step.
+        
+        Args:
+            query: Query string
+            state: Current ToolUseState
+            step: ToolUseStep to evaluate
+        
+        Returns:
+            Tuple of (query, action_sequence) where action_sequence is a tuple of action strings
+        """
+        # Extract actions from state
+        state_actions = tuple(
+            str(s.get_action()) if s.get_action() is not None else s.error
+            for s in state
+        )
+        
+        # Extract action from step
+        step_action = str(step.get_action()) if step.get_action() is not None else step.get_answer() or step.error
+        
+        # Combine into cache key
+        action_sequence = state_actions + (step_action,)
+        return (query, action_sequence)
+    
     def _get_default_prompt(self) -> str:
         """Get default evaluation prompt following LATS approach."""
-        return """You are continuing a tool-use reasoning trajectory to evaluate its quality.
-
-After you complete the trajectory and reach a final answer, provide a score evaluating 
-how good the trajectory was at solving the query.
+        return """Provide a score evaluating how good or promising the given trajectory was at solving the query.
 
 At the end of your response, after providing the final answer, add:
 <score>
@@ -211,7 +242,8 @@ The score must be a valid float parsable by Python's float() function."""
         state: ToolUseState,
         step_or_action,
         query: str,
-        query_idx: Optional[int] = None
+        query_idx: Optional[int] = None,
+        from_phase: str = ""
     ) -> ToolUseState:
         """Complete the trajectory by executing the proposed step/action and continuing.
 
@@ -246,7 +278,7 @@ The score must be a valid float parsable by Python's float() function."""
                 step_or_action=step,
                 query_or_goals=query,
                 query_idx=query_idx,
-                from_phase="prm_rollout"
+                from_phase=from_phase
             )
             logger.debug(f"Rollout step 0: executed via transition")
         else:
@@ -262,35 +294,30 @@ The score must be a valid float parsable by Python's float() function."""
                 break
             
             # Generate next action using policy
-            try:
-                steps = policy.get_actions(
-                    rollout_state,
-                    query=query,
-                    n_actions=1,
-                    query_idx=query_idx,
-                    from_phase="prm_rollout"
-                )
-                
-                if not steps or not steps[0]:
-                    logger.debug(f"Rollout: no action generated at step {step_idx}")
-                    break
-                
-                step = steps[0]
-                
-                # Execute the step via transition (handles action/answer/error)
-                new_state, _ = transition.step(
-                    state=rollout_state,
-                    step_or_action=step,
-                    query_or_goals=query,
-                    query_idx=query_idx,
-                    from_phase="prm_rollout"
-                )
-                rollout_state = new_state
-                logger.debug(f"Rollout step {step_idx + 1}: executed via transition")
-                    
-            except Exception as e:
-                logger.warning(f"Error in rollout step {step_idx}: {e}")
+            steps = policy.get_actions(
+                rollout_state,
+                query=query,
+                n_actions=1,
+                query_idx=query_idx,
+                from_phase=from_phase+"_prm"
+            )
+            
+            if not steps or not steps[0]:
+                logger.debug(f"Rollout: no action generated at step {step_idx}")
                 break
+            
+            step = steps[0]
+            
+            # Execute the step via transition (handles action/answer/error)
+            new_state, _ = transition.step(
+                state=rollout_state,
+                step_or_action=step,
+                query_or_goals=query,
+                query_idx=query_idx,
+                from_phase=from_phase+"_prm"
+            )
+            rollout_state = new_state
+            logger.debug(f"Rollout step {step_idx + 1}: executed via transition")
         
         return rollout_state
 
@@ -322,8 +349,16 @@ The score must be a valid float parsable by Python's float() function."""
         assert isinstance(step_or_action, ToolUseStep), \
             f"ToolUsePRM requires ToolUseStep, got {type(step_or_action)}"
         
+        # Check cache first
+        cache_key = self._create_cache_key(query, state, step_or_action)
+        if cache_key in self._reward_cache:
+            cached_score = self._reward_cache[cache_key]
+            logger.debug(f"Cache hit for query_idx={query_idx}, returning cached score: {cached_score}")
+            return cached_score
+        
         # Step 1: Complete the trajectory with real tool execution
-        completed_state = self._complete_trajectory(state, step_or_action, query, query_idx)
+        completed_state = self._complete_trajectory(state, step_or_action, query, query_idx, from_phase)
+        
         
         # Step 2: Build prompt asking LLM to score the completed trajectory
         user_message = self._build_scoring_prompt(query, completed_state)
@@ -336,23 +371,52 @@ The score must be a valid float parsable by Python's float() function."""
             response = self.base_model(
                 user_message,
                 temperature=self.temperature,
-                max_new_tokens=self.max_new_tokens or 512,
-                role=f"prm_{query_idx}_{from_phase}"
+                # max_new_tokens=512,
+                max_length=self.max_length,
+                role=create_role("evaluator_tooluse", query_idx, from_phase)
             )
+            
             response = response.text
             logger.debug(f"Reward scoring response: {response[:200]}")
             
             # Extract score
             score = self._extract_score(response)
             logger.debug(f"Extracted reward score: {score}")
-            return score
+            
+            # Cache the score
+            self._reward_cache[cache_key] = score
             
         except Exception as e:
             logger.error(
                 f"Error in reward scoring for query {query_idx}: {e}",
                 exc_info=True
             )
-            return 0.5  # Return neutral score on error
+            # Cache the error score too
+            score = 0.5
+            self._reward_cache[cache_key] = score
+            
+        
+        # Save rollout trajectory if save directory is provided
+        if self.save_rollouts_dir and query_idx is not None:
+            from pathlib import Path
+            
+            # Reset rollout counter if query changed
+            if self.prev_query_idx != query_idx:
+                self.idx_rollout = 0
+                self.prev_query_idx = query_idx
+            
+            save_dir = Path(self.save_rollouts_dir)
+            save_dir.mkdir(parents=True, exist_ok=True)
+            save_path = save_dir / f"rollout_{query_idx}_{self.idx_rollout}.jsonl"
+            
+            try:
+                completed_state.save(str(save_path), query, score=score, num_completed_steps=len(completed_state)-len(state))
+                logger.debug(f"Saved rollout trajectory to {save_path}")
+                self.idx_rollout += 1
+            except Exception as e:
+                logger.warning(f"Failed to save rollout trajectory: {e}")
+                
+        return score
 
     def calculate_reward(self, fast_reward: float, r_conf: Optional[float] = None) -> float:
         """Calculate final reward from fast_reward and confidence.

@@ -209,6 +209,30 @@ def load_blocksworld(config_file, domain_file, data_file=None, data_list=None, r
         
     if load_by_num_steps is not None:
         data = [d for d in data if len(d['plan'].strip().strip("[PLAN END]").strip().split("\n")) == load_by_num_steps]
+    
+    def clean_data(example):
+        """_summary_
+
+        Args:
+            example (dict): 
+            ```
+            {
+                'init': 'the red block is clear, the blue block is clear, the hand is empty, the red block is on top of the yellow block, the blue block is on top of the orange block, the orange block is on the table and the yellow block is on the table',
+                'goal': 'the blue block is on top of the yellow block and the yellow block is on top of the red block',
+                'plan': '\nunstack the red block from on top of the yellow block\nput down the red block\npick up the yellow block\nstack the yellow block on top of the red block\nunstack the blue block from on top of the orange block\nstack the blue block on top of the yellow block\n[PLAN END]\n',
+                'question': '\n[STATEMENT]\nAs initial conditions I have that, the red block is clear, the blue block is clear, the hand is empty, the red block is on top of the yellow block, the blue block is on top of the orange block, the orange block is on the table and the yellow block is on the table.\nMy goal is to have that the blue block is on top of the yellow block and the yellow block is on top of the red block.\n\nMy plan is as follows:\n\n[PLAN]\n',
+                'instance_file': 'gpt-plan-benchmark/gpt_plan_test/instances/generated_basic/instance-11.pddl'
+            }
+            ```
+
+        Returns:
+            dict
+        """
+        return {
+            "init_state_str": example['init'],
+            "query_or_goals": extract_goals(example, return_raw=True)
+        }
+    data = [clean_data(d) for d in data]
     return data
 
 def get_ordered_objects(object_names, line):
@@ -421,18 +445,20 @@ def apply_change(change, state):
     return ", ".join(sorted_states) + "."
 
 
-def goal_check(goals, blocks_state):
+def goal_check(query_or_goals, env_state):
     """Check if the goals are met and return the percentage of goals met
 
     :param goals: goals
     :param blocks_state: current blocks state
     """
-    meetings = [g in blocks_state for g in goals]
+    goals = _goals_to_list(query_or_goals)
+    meetings = [g in env_state for g in goals]
     # print("Goals:", goals)
     # print("Goal met:", meetings)
     if sum(meetings) == len(meetings):
         return True, 1.0
     return False, sum(meetings) / len(meetings)
+            
 
 def extract_goals(example, return_raw=False):
     """Extract the goals from the example
@@ -443,7 +469,17 @@ def extract_goals(example, return_raw=False):
         .split("My goal is to ")[1].split("My plan is as follows")[0].strip()
     if return_raw:
         return goal_statement
+    return _goals_to_list(goal_statement)
+
+def _goals_to_list(goal_statement):
+    """Convert goal statement to list of goals
+    
+    :param goal_statement: Goal description (e.g., "stack A on B").
+    """
     goals = re.findall("the [a-z]{0,10} block is on top of the [a-z]{0,10} block", goal_statement)
+    assert isinstance(goals, list) and len(goals) > 0, "Goals must be a non-empty list."
+    for goal in goals:
+        assert goal in goal_statement, f"Goal '{goal}' not found in query_or_goals string"
     return goals
 
 def extract_init_state(example):
@@ -455,123 +491,3 @@ def extract_init_state(example):
     init_statement = example["question"].split("[STATEMENT]\nAs initial conditions I have that, ")[1]\
         .split("My goal")[0].strip()
     return init_statement
-
-
-
-
-prompt_templates = {
-    "policy": """I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do
-Pick up a block\nUnstack a block from on top of another block\nPut down a block\nStack a block on top of another block\n\nI have the following restrictions on my actions:\nI can only pick up or unstack one block at a time.\nI can only pick up or unstack a block if my hand is empty.\nI can only pick up a block if the block is on the table and the block is clear. A block is clear if the block has no other blocks on top of it and if the block is not picked up.\nI can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.\nI can only unstack a block from on top of another block if the block I am unstacking is clear.\nOnce I pick up or unstack a block, I am holding the block.\nI can only put down a block that I am holding.\nI can only stack a block on top of another block if I am holding the block being stacked.\nI can only stack a block on top of another block if the block onto which I am stacking the block is clear.\nOnce I put down or stack a block, my hand becomes empty.
-
-[STATEMENT]\nAs initial conditions I have that, <init_state>\nMy goal is to <goals>
-
-Choose an action from the following options (ONLY output the action):
-
-<action>""",
-    
-    "icl": """I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do
-Pick up a block\nUnstack a block from on top of another block\nPut down a block\nStack a block on top of another block\n\nI have the following restrictions on my actions:\nI can only pick up or unstack one block at a time.\nI can only pick up or unstack a block if my hand is empty.\nI can only pick up a block if the block is on the table and the block is clear. A block is clear if the block has no other blocks on top of it and if the block is not picked up.\nI can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.\nI can only unstack a block from on top of another block if the block I am unstacking is clear.\nOnce I pick up or unstack a block, I am holding the block.\nI can only put down a block that I am holding.\nI can only stack a block on top of another block if I am holding the block being stacked.\nI can only stack a block on top of another block if the block onto which I am stacking the block is clear.\nOnce I put down or stack a block, my hand becomes empty.
-
-[STATEMENT]\nAs initial conditions I have that, the red block is clear, the yellow block is clear, the hand is empty, the red block is on top of the blue block, the yellow block is on top of the orange block, the blue block is on the table and the orange block is on the table.
-My goal is to have that the orange block is on top of the red block.
-
-My plan is as follows:
-
-[PLAN]\nunstack the yellow block from on top of the orange block\nput down the yellow block\npick up the orange block\nstack the orange block on top of the red block
-[PLAN END]
-
-[STATEMENT]\nAs initial conditions I have that, the orange block is clear, the yellow block is clear, the hand is empty, the blue block is on top of the red block, the orange block is on top of the blue block, the red block is on the table and the yellow block is on the table.
-My goal is to have that the blue block is on top of the red block and the yellow block is on top of the orange block.
-
-My plan is as follows:
-
-[PLAN]\npick up the yellow block\nstack the yellow block on top of the orange block
-[PLAN END]
-
-[STATEMENT]\nAs initial conditions I have that, the red block is clear, the blue block is clear, the orange block is clear, the hand is empty, the blue block is on top of the yellow block, the red block is on the table, the orange block is on the table and the yellow block is on the table.\nMy goal is to have that the blue block is on top of the orange block and the yellow block is on top of the red block.
-
-My plan is as follows:
-
-[PLAN]\nunstack the blue block from on top of the yellow block\nstack the blue block on top of the orange block\npick up the yellow block\nstack the yellow block on top of the red block
-[PLAN END]
-
-[STATEMENT]\nAs initial conditions I have that, the red block is clear, the blue block is clear, the yellow block is clear, the hand is empty, the yellow block is on top of the orange block, the red block is on the table, the blue block is on the table and the orange block is on the table.\nMy goal is to have that the orange block is on top of the blue block and the yellow block is on top of the red block.
-
-My plan is as follows:
-
-[PLAN]\nunstack the yellow block from on top of the orange block\nstack the yellow block on top of the red block\npick up the orange block\nstack the orange block on top of the blue block\n[PLAN END]
-
-[STATEMENT]\nAs initial conditions I have that, <init_state>\nMy goal is to <goals>
-
-My plan is as follows:
-
-[PLAN]\n<action>""",
-    
-    "evaluator": """I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do
-
-Pick up a block
-Unstack a block from on top of another block
-Put down a block\nStack a block on top of another block
-
-I have the following restrictions on my actions:
-I can only pick up or unstack one block at a time.
-I can only pick up or unstack a block if my hand is empty.
-I can only pick up a block if the block is on the table and the block is clear. A block is clear if the block has no other blocks on top of it and if the block is not picked up.
-I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
-I can only unstack a block from on top of another block if the block I am unstacking is clear.
-Once I pick up or unstack a block, I am holding the block.
-I can only put down a block that I am holding.
-I can only stack a block on top of another block if I am holding the block being stacked.
-I can only stack a block on top of another block if the block onto which I am stacking the block is clear.
-Once I put down or stack a block, my hand becomes empty.
-
-Please evaluate whether the given action is a good one under certain conditions.
-
-[STATEMENT]
-As initial conditions I have that, the red block is clear, the yellow block is clear, the hand is empty, the red block is on top of the blue block, the yellow block is on top of the orange block, the blue block is on the table and the orange block is on the table.
-My goal is to have that the orange block is on top of the red block.
-[ACTION]
-unstack the red block from on top of the blue block
-[EVALUATION]
-bad
-
-[STATEMENT]
-As initial conditions I have that, the orange block is in the hand, the yellow block is clear, the hand is holding the orange block, the blue block is on top of the red block, the yellow block is on top of the blue block, and the red block is on the table.
-My goal is to have have that the yellow block is on top of the orange block.
-[ACTION]
-put down the orange block
-[EVALUATION]
-good
-
-[STATEMENT]
-As initial conditions I have that, the orange block is clear, the yellow block is clear, the hand is empty, the blue block is on top of the red block, the orange block is on top of the blue block, the red block is on the table and the yellow block is on the table.
-My goal is to have that the blue block is on top of the red block and the yellow block is on top of the orange block.
-[ACTION]
-pick up the yellow block
-[EVALUATION]
-good
-
-[STATEMENT]
-As initial conditions I have that, the orange block is clear, the yellow block is clear, the hand is empty, the blue block is on top of the red block, the orange block is on top of the blue block, the red block is on the table and the yellow block is on the table.
-My goal is to have that the blue block is on top of the red block and the yellow block is on top of the orange block.
-[ACTION]
-pick up the yellow block
-[EVALUATION]
-good
-
-[STATEMENT]
-As initial conditions I have that, the blue block is clear, the orange block is in the hand, the red block is clear, the hand is holding the orange block, the red block is on top of the yellow block, the blue block is on the table, and the yellow block is on the table.
-My goal is to have have that the red block is on top of the yellow block and the orange block is on top of the blue block.
-[ACTION]
-stack the orange block on top of the red block
-[EVALUATION]
-bad
-
-[STATEMENT]
-As initial conditions I have that, <init_state>
-My goal is to <goals>
-[ACTION]
-<action>
-[EVALUATION]
-"""
-}

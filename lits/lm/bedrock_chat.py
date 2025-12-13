@@ -154,7 +154,7 @@ class BedrockChatModel(LanguageModel):
         if return_embedding:
             raise NotImplementedError("Embedding retrieval not implemented for Bedrock chat models.")
         max_new_tokens = max_new_tokens or self.max_new_tokens or self.max_length
-        print(f"Using invoke_model with max_new_tokens={max_new_tokens}")
+        # print(f"Using invoke_model with max_new_tokens={max_new_tokens}")
         
         if isinstance(stop, str):
             stop = [stop]
@@ -174,8 +174,8 @@ class BedrockChatModel(LanguageModel):
         stop = [s for s in stop if s.strip()]
         
 
-        # Anthropic or Amazon Nova → use converse API
-        if any(k in self.model_name.lower() for k in ["anthropic", "claude", "nova"]):
+        # Anthropic, Amazon Nova, Titan, Meta, Mistral, Cohere, AI21 → use converse API
+        if any(k in self.model_name.lower() for k in ["anthropic", "claude", "nova", "titan", "meta", "mistral", "cohere", "ai21"]):
             messages, system_prompt = self._format_messages(prompt, embed_system_prompt=False)
             text, input_tokens, output_tokens = self._converse_api(messages, max_new_tokens, temperature, top_p, stop, system_prompt)
         else:
@@ -251,7 +251,74 @@ class BedrockChatModel(LanguageModel):
         return text, input_tokens, output_tokens
         
         
+    def get_loglikelihood(self, prefix: str, contents: list[str], **kwargs) -> "np.ndarray":
+        import numpy as np
         
+        # Note: Only legacy Cohere Command Text (v14) models supported return_likelihoods.
+        # Newer Command R models and Titan/Claude do not support this via Bedrock API.
+        if "cohere" not in self.model_name.lower():
+            raise NotImplementedError(
+                f"get_loglikelihood is not supported for {self.model_name}. "
+                "On AWS Bedrock, only legacy Cohere Command models supported returning log probabilities."
+            )
+
+        results = []
+        for content in contents:
+            # Construct the full text
+            full_text = prefix + content
+            
+            # Cohere API payload (Legacy Command Text format)
+            body = json.dumps({
+                "prompt": full_text,
+                "max_tokens": 0,  # We don't want generation, just prompt evaluation
+                "return_likelihoods": "ALL",
+                "temperature": 0.0
+            })
+            
+            try:
+                response = self.client.invoke_model(
+                    modelId=self.model_name,
+                    body=body
+                )
+                response_body = json.loads(response.get("body").read())
+                
+                # Extract token likelihoods
+                # Cohere returns a list of {'token': '...', 'likelihood': -0.123}
+                token_likelihoods = response_body['generations'][0]['token_likelihoods']
+                
+                # We need to find where the 'content' starts in the token list.
+                # This is tricky without a local tokenizer that matches Cohere's exactly.
+                # A simplified approach is to sum the last N tokens, but that's imprecise.
+                # Ideally, you'd need the Cohere tokenizer locally to know the split index.
+                
+                # For now, we can sum all likelihoods (P(full_text)) or try to approximate.
+                # If we assume we want P(content | prefix), we need:
+                # log P(full_text) - log P(prefix)
+                
+                # To do this accurately, we need a separate call for the prefix:
+                log_prob_full = sum(t.get('likelihood', 0) for t in token_likelihoods)
+                
+                # Call for prefix only
+                body_prefix = json.dumps({
+                    "prompt": prefix,
+                    "max_tokens": 0,
+                    "return_likelihoods": "ALL",
+                    "temperature": 0.0
+                })
+                resp_prefix = self.client.invoke_model(modelId=self.model_name, body=body_prefix)
+                tokens_prefix = json.loads(resp_prefix.get("body").read())['generations'][0]['token_likelihoods']
+                log_prob_prefix = sum(t.get('likelihood', 0) for t in tokens_prefix)
+                
+                # P(content | prefix) = P(full_text) / P(prefix) -> log - log
+                conditional_log_prob = log_prob_full - log_prob_prefix
+                results.append(conditional_log_prob)
+                
+            except Exception as e:
+                logger.error(f"Error computing loglikelihood: {e}")
+                results.append(-np.inf)
+
+        return np.array(results)
+    
     def _converse_api(self, messages, max_new_tokens, temperature, top_p, stop, system_prompt) -> Dict[str, Any]:
         """Helper to call the Converse API.
         ### 📝 Example Response (Raw Converse API Output)
@@ -310,13 +377,14 @@ class BedrockChatModel(LanguageModel):
         if system_prompt:
             converse_params["system"] = [{"text": system_prompt}]
         try:
+            print(f"Converse API call with params: {converse_params}")
             response = self.client.converse(**converse_params)
         except (ClientError, NoCredentialsError) as e:
             # Log concise error without full params (which can be very long)
             error_msg = str(e)
             
             # Extract key info from error
-            if "Input is too long" in error_msg or "ValidationException" in error_msg:
+            if "Input is too long" in error_msg:
                 # Extract token counts if available
                 import re
                 token_match = re.search(r'input length is (\d+) tokens.*maximum.*?(\d+) tokens', error_msg)

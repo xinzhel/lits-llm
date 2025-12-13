@@ -33,6 +33,7 @@ def _extract_first(extractor: Callable[[str], list], message: str):
     return results[0].strip()
 
 
+@register_type
 class ToolUseAction(StringAction):
     """Action type for tool use - wraps a JSON string representing a tool call."""
     pass
@@ -194,19 +195,11 @@ class ToolUseStep(Step):
         )
 
 
+from ..type_registry import register_state
+
+@register_state
 class ToolUseState(TrajectoryState[ToolUseStep]):
     """State container for tool-use traces; each entry is a ToolUseStep."""
-
-    def render_history(self) -> str:
-        return "\n".join([step.verb_step() for step in self])
-
-    def to_messages(self, initial_query: str) -> list[dict]:
-        """Reconstruct the chat message sequence from the stored steps."""
-        messages = [{"role": "user", "content": initial_query}]
-        for step in self:
-            step_messages = step.to_messages()
-            messages.extend(step_messages)
-        return messages
 
     def get_final_answer(self):
         """Return the answer from the latest step if available."""

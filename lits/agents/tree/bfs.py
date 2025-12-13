@@ -130,9 +130,7 @@ def _expand_with_existing(
 
         if assign_rewards and (child.fast_reward == -1):
             from .common import _assign_fast_reward
-            _assign_fast_reward(child, reward_model, example, query_idx, from_phase
-            )
-            child.fast_reward = fast_reward
+            _assign_fast_reward(child, reward_model, example, query_idx, from_phase)
 
     logger.debug(f"=========== [Expand for Example {query_idx} End] ===========\n")
 ##### EXPAND With Existing Children (END) #####

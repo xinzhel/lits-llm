@@ -660,7 +660,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         self.reward_alpha = reward_alpha
         self.reward_confidence_default = reward_confidence_default
         
-    def fast_reward(self, state, action, query, query_idx, from_phase="") -> tuple[float, dict]:
+    def fast_reward(self, state, action, query_or_goals, query_idx, from_phase="") -> tuple[float, dict]:
         """
         Generate a reward for an action without executing it.
         
@@ -673,7 +673,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         - Pruning unpromising actions early in tree search
         
         Args:
-            query: The problem/question being solved
+            query_or_goals: The problem/question being solved
             query_idx: Index of the example (for logging)
             state: Current state before action execution
             action: Proposed action to evaluate
@@ -689,7 +689,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         """
         logger.debug("\n>>>>>>>>> + 1 Fast Reward Evaluator Call; Outputs (BEGIN) <<<<<<<<<")
 
-        fast_reward = self._fast_reward(state, action, query, query_idx, from_phase=from_phase)
+        fast_reward = self._fast_reward(state, action, query_or_goals, query_idx, from_phase=from_phase)
 
         fast_reward = self.calculate_reward(fast_reward)
 

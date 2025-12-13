@@ -2,7 +2,6 @@ import os
 import logging
 from typing import Iterable, Tuple
 
-
 class _NamespaceFilter(logging.Filter):
     """Keeps the log file scoped to the project namespaces."""
 

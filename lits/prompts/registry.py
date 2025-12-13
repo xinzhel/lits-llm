@@ -203,8 +203,10 @@ def load_default_prompts():
         from .policy import rap as rap_policy
         from .policy import concat as concat_policy
         from .policy import tool_use as tool_use_policy
+        from .policy import blocksworld as blocksworld_policy
         from .reward import rap as rap_reward
         from .reward import generative as generative_reward
+        from .reward import blocksworld as blocksworld_reward
         from .transition import rap as rap_transition
         from .transition import blocksworld as blocksworld_transition
         
@@ -215,6 +217,8 @@ def load_default_prompts():
             PromptRegistry.register('policy', 'rap', 'math_qa', rap_policy.task_prompt_spec_math_qa)
         if hasattr(rap_policy, 'usr_prompt_spec_math_qa'):
             PromptRegistry.register_usr('policy', 'rap', 'math_qa', rap_policy.usr_prompt_spec_math_qa)
+        if hasattr(blocksworld_policy, 'usr_prompt_spec'):
+            PromptRegistry.register_usr('policy', 'env_grounded', "blocksworld", blocksworld_policy.usr_prompt_spec)
         
         # if hasattr(concat_policy, 'task_prompt_spec'):
         #     PromptRegistry.register('policy', 'rest', None, concat_policy.task_prompt_spec)
@@ -231,7 +235,11 @@ def load_default_prompts():
             PromptRegistry.register('reward', 'rap', 'math_qa', rap_reward.task_prompt_spec_math_qa)
         if hasattr(generative_reward, 'task_prompt_spec_math_qa'):
             PromptRegistry.register('reward', 'generative', 'math_qa', generative_reward.task_prompt_spec_math_qa)
-        
+        if hasattr(blocksworld_reward, 'task_prompt_spec_blocksworld'):
+            PromptRegistry.register('reward', 'env_grounded', "blocksworld", blocksworld_reward.task_prompt_spec_blocksworld)
+        if hasattr(blocksworld_reward, 'usr_prompt_spec_blocksworld'):
+            PromptRegistry.register_usr('reward', 'env_grounded', "blocksworld", blocksworld_reward.usr_prompt_spec_blocksworld)
+                
         # Register transition prompts
         if hasattr(rap_transition, 'task_prompt_spec'):
             PromptRegistry.register('transition', 'rap', None, rap_transition.task_prompt_spec)

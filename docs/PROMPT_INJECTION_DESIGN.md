@@ -47,6 +47,9 @@ All LLM-based components (Policy, RewardModel, LlmTransition) support independen
 - rap/math_qa: `lits.prompts.transition.rap.task_prompt_spec_math_qa`
 - blocksworld/default: `lits.prompts.transition.blocksworld.task_prompt_spec`
 
+#### Reward
+- env_grounded/blocksworld: `lits.prompts.reward.blocksworld.task_prompt_spec_blocksworld`
+
 ### User Message Templates (usr_prompt_spec)
 
 #### Policy
@@ -55,6 +58,9 @@ All LLM-based components (Policy, RewardModel, LlmTransition) support independen
 #### Transition
 - rap/math_qa: `lits.prompts.transition.rap.usr_prompt_spec_math_qa`
 - blocksworld/default: `lits.prompts.transition.blocksworld.usr_prompt_spec`
+
+#### Reward
+- env_grounded/blocksworld: `lits.prompts.reward.blocksworld.usr_prompt_spec_blocksworld`
 
 ## Usage Guide
 
@@ -408,18 +414,18 @@ usr_prompt_spec = "Q: {question}"  # Use dict instead!
 
 ```python
 # Register default prompts (task_type=None)
-PromptRegistry.register('policy', 'my_agent', None, default_system)
-PromptRegistry.register_usr('policy', 'my_agent', None, default_user)
+PromptRegistry.register('reward', 'env_grounded', None, default_system)
+PromptRegistry.register_usr('reward', 'env_grounded', None, default_user)
 
-# Register task-specific prompts
-PromptRegistry.register('policy', 'my_agent', 'math_qa', math_system)
-PromptRegistry.register_usr('policy', 'my_agent', 'math_qa', math_user)
+# Register task-specific prompts (e.g., blocksworld)
+PromptRegistry.register('reward', 'env_grounded', 'blocksworld', blocksworld_system)
+PromptRegistry.register_usr('reward', 'env_grounded', 'blocksworld', blocksworld_user)
 
 # Task-specific prompts take precedence over defaults
-policy = MyAgentPolicy(base_model=model, task_type='math_qa')
-# Uses math_system and math_user
+reward_model = EnvGroundedPRM(base_model=base_model, task_type='blocksworld')
+# Uses blocksworld_system and blocksworld_user
 
-policy = MyAgentPolicy(base_model=model, task_type=None)
+reward_model = EnvGroundedPRM(base_model=base_model, task_type=None)
 # Uses default_system and default_user
 ```
 
@@ -427,8 +433,8 @@ policy = MyAgentPolicy(base_model=model, task_type=None)
 
 ```python
 # Test with custom prompts before registering
-test_policy = RAPPolicy(
-    base_model=model,
+test_reward = EnvGroundedPRM(
+    base_model=base_model,
     task_prompt_spec=my_custom_system,
     usr_prompt_spec=my_custom_user
 )
@@ -436,8 +442,8 @@ test_policy = RAPPolicy(
 # Run tests...
 
 # If tests pass, register for production use
-PromptRegistry.register('policy', 'rap', 'my_task', my_custom_system)
-PromptRegistry.register_usr('policy', 'rap', 'my_task', my_custom_user)
+PromptRegistry.register('reward', 'env_grounded', 'my_task', my_custom_system)
+PromptRegistry.register_usr('reward', 'env_grounded', 'my_task', my_custom_user)
 ```
 
 ## Benefits

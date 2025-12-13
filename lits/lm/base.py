@@ -17,6 +17,26 @@ VALID_ROLES_PREFIX = ["default", "dynamics", "policy", "evaluator", "prm", "bn_e
 DETERMINISTIC_TEMPERATURE = 1e-6
 DEFAULT_MAX_LENGTH = 2048
 LOADED_MODEL_CACHE = {}
+
+def log_final_metrics(logger, inference_logger ):
+    """Log final inference metrics (token usage, etc.)."""
+    for role_prefix in VALID_ROLES_PREFIX:
+        metrics = inference_logger.get_metrics_by_prefix(role_prefix)
+        logger.info(f"{role_prefix}: \t {str(metrics)}")
+
+def report_metrics_from_dir(log_dir: str, logger):
+    """Load inference logs from directory and report metrics."""
+    if not os.path.isdir(log_dir):
+        logger.warning(f"Log directory {log_dir} not found. Cannot report token usage.")
+        return
+
+    try:
+        inference_logger = InferenceLogger(run_id='', root_dir=log_dir, override=False)
+        logger.info(f"Found inference log at {inference_logger.filepath}")
+        log_final_metrics(logger, inference_logger)
+    except Exception as e:
+        logger.warning(f"Failed to load metrics from {log_dir}: {e}")
+        
 class InferenceLogger:
     def __init__(self, run_id: str=None, root_dir:str=None, override=False):
         if not os.path.isdir(root_dir):
@@ -728,3 +748,32 @@ class HfChatModel(HfModel):
         """ Same as HfModel, with additional argument: `sys_prompt` """
         model, tokenizer = cls._cache_from_hf(model_name, device)
         return cls(model_name, model,  tokenizer, sys_prompt, inference_logger, **kwargs)
+
+
+def report_metrics_from_dir(log_dir: str, logger: logging.Logger = None):
+    """
+    Reports token usage metrics from a log directory.
+    """
+    log_path = os.path.join(log_dir, "inference_log.jsonl")
+    if not os.path.exists(log_path):
+        if logger:
+            logger.warning(f"No inference log found at {log_path}")
+        return
+
+    inference_logger = InferenceLogger(log_path)
+    metrics = inference_logger.get_metrics_by_role()
+    
+    msg = (
+        f"Token Usage:\n"
+        f"  Input Tokens:  {metrics['input_tokens']:,}\n"
+        f"  Output Tokens: {metrics['output_tokens']:,}\n"
+        f"  Total Cost:    ${metrics['input_tokens'] * 3.0 / 1_000_000 + metrics['output_tokens'] * 15.0 / 1_000_000:.4f} (approx based on Claude 3.5 Sonnet)"
+    )
+    
+    if logger:
+        logger.info(msg)
+    else:
+        print(msg)
+    
+    return metrics
+
