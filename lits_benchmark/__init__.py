@@ -10,7 +10,7 @@ def load_dataset_examples(benchmark_name: str) -> list:
     This is useful for evaluation where we only need questions and answers.
     """
     if benchmark_name == "mapeval" or benchmark_name == "mapeval-sql":
-        from lits.benchmarks.mapeval import construct_prompt
+        from lits_benchmark.mapeval import construct_prompt
         raw_examples = list(load_dataset("xinzhel/mapeval_query", split="test"))
         formatted_examples = []
         for item in raw_examples:

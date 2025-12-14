@@ -24,21 +24,10 @@ def log_final_metrics(logger, inference_logger ):
         metrics = inference_logger.get_metrics_by_prefix(role_prefix)
         logger.info(f"{role_prefix}: \t {str(metrics)}")
 
-def report_metrics_from_dir(log_dir: str, logger):
-    """Load inference logs from directory and report metrics."""
-    if not os.path.isdir(log_dir):
-        logger.warning(f"Log directory {log_dir} not found. Cannot report token usage.")
-        return
 
-    try:
-        inference_logger = InferenceLogger(run_id='', root_dir=log_dir, override=False)
-        logger.info(f"Found inference log at {inference_logger.filepath}")
-        log_final_metrics(logger, inference_logger)
-    except Exception as e:
-        logger.warning(f"Failed to load metrics from {log_dir}: {e}")
-        
 class InferenceLogger:
     def __init__(self, run_id: str=None, root_dir:str=None, override=False):
+        assert root_dir is not None, "root_dir must be specified"
         if not os.path.isdir(root_dir):
             # create root_dir if not exists
             os.makedirs(root_dir, exist_ok=True)
@@ -754,13 +743,13 @@ def report_metrics_from_dir(log_dir: str, logger: logging.Logger = None):
     """
     Reports token usage metrics from a log directory.
     """
-    log_path = os.path.join(log_dir, "inference_log.jsonl")
+    log_path = os.path.join(log_dir, "inferencelogger.log")
     if not os.path.exists(log_path):
         if logger:
             logger.warning(f"No inference log found at {log_path}")
         return
 
-    inference_logger = InferenceLogger(log_path)
+    inference_logger = InferenceLogger(run_id="", root_dir=log_dir)
     metrics = inference_logger.get_metrics_by_role()
     
     msg = (

@@ -45,6 +45,7 @@ class TrajectoryState(State, list):
     def render_history(self) -> str:
         return "\n".join([step.verb_step() for step in self])
     
+    
     def to_messages(self, initial_query: str) -> list[dict]:
         """Reconstruct the chat message sequence from the stored steps."""
         messages = [{"role": "user", "content": initial_query}]

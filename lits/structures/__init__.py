@@ -11,9 +11,9 @@ from .base import (
     TrajectoryState
 )
 from .env_grounded import EnvState, EnvAction
-from .qa import SubQAStep, ThoughtStep, StepConcatState
+from .qa import SubQAStep, ThoughtStep
 from .tool_use import ToolUseState, ToolUseStep, ToolUseAction
-from .trace import serialize_state, deserialize_state, log_state
+from .trace import deserialize_state, log_state
 
 __all__ = [
     "ActionT",
@@ -23,7 +23,6 @@ __all__ = [
     "EnvState",
     "EnvAction",
     "TrajectoryState",
-    "StepConcatState",
     "StepT",
     "Step",
     "Trace",
@@ -32,7 +31,6 @@ __all__ = [
     "ToolUseState",
     "ToolUseStep",
     "ToolUseAction",
-    "serialize_state",
     "deserialize_state",
     "log_state",
 ]

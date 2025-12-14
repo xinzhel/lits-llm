@@ -157,7 +157,7 @@ class BlocksWorldTransition(LlmTransition):
 
         :return: the initial state
         """
-        return EnvState(step_idx=0, last_env_state="", env_state=state_str, init_state=state_str)
+        return EnvState(init_state=state_str)
 
     def step(self, state: EnvState, step_or_action, query_or_goals:str) -> tuple[EnvState, dict]:
         """Take a step in the world model.
@@ -169,14 +169,18 @@ class BlocksWorldTransition(LlmTransition):
         # For BlocksWorld, we only use actions (EnvAction), not full steps
         assert isinstance(query_or_goals, str), "query_or_goals must be str"
         action = step_or_action
-        state = copy.deepcopy(state)
-        env_state = state.env_state
-        step_idx = state.step_idx
+        
+        # Create a copy of the state (which is a list)
+        new_state = copy.deepcopy(state)
+        
+        env_state = new_state.env_state
         env_state = self.update_blocks(env_state, action)
 
-        state = EnvState(step_idx=step_idx+1, last_env_state=state.env_state,
-                        env_state=env_state, init_state=state.init_state)
-        return state, {"goal_reached": self.goal_check(query_or_goals, env_state)}
+        # Create new step
+        new_step = EnvStep(action=action, next_state=env_state)
+        new_state.append(new_step)
+        
+        return new_state, {"goal_reached": self.goal_check(query_or_goals, env_state)}
 
     def _get_prompt_tempate(self, action:str) -> str:
         if "pick" in action:

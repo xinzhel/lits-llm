@@ -132,12 +132,12 @@ def create_tool_use_agent(
     
     return agent
 
-
+from lits.lm import LanguageModel
 def create_env_chain_agent(
-    prompt_templates: dict,
     generate_all_actions: Callable,
     world_model: Transition,
-    goal_check: Callable,
+    task_type: str = None,
+    usr_prompt_spec: str = None,
     agent_type: str = "env_chain",
     root_dir: str = "./results",
     model_name: str = DEFAULT_MODEL_NAME,
@@ -149,6 +149,7 @@ def create_env_chain_agent(
     goal_reached_reward: float = 100.0,
     verbose_model: bool = False,
     override_logger: bool = False,
+    base_model: LanguageModel = None,
     **kwargs
 ):
     """
@@ -159,12 +160,11 @@ def create_env_chain_agent(
     goal is reached or max steps are exceeded.
     
     Args:
-        prompt_templates: Dictionary with "policy" key containing prompt template
-            with placeholders: <init_state>, <goals>, <action>.
         generate_all_actions: Function(env_state: str) -> List[str] that returns
             valid action strings for the given environment state.
         world_model: Transition instance for executing actions and updating state.
-        goal_check: Function(state, query) -> bool that checks if goal is reached.
+        task_type: Task type identifier (e.g., 'blocksworld') for loading prompts.
+        usr_prompt_spec: Optional user prompt specification.
         agent_type: Type of agent to create. Default is "env_chain".
         root_dir: Directory to save results and configurations.
         model_name: Name of the language model to use.
@@ -176,58 +176,32 @@ def create_env_chain_agent(
         goal_reached_reward: Reward when goal is reached (default: 100.0).
         verbose_model: Whether to enable verbose logging for the model.
         override_logger: Whether to override existing loggers.
+        base_model: Optional pre-initialized language model instance.
         **kwargs: Additional arguments passed to the language model.
     
     Returns:
         EnvChain agent instance ready to run planning tasks.
-    
-    Example:
-        >>> def generate_all_actions(env_state):
-        ...     # Parse state and return valid actions
-        ...     return ["unstack A from B", "stack A on C", ...]
-        >>> 
-        >>> def goal_check(state, query):
-        ...     # Check if goal is satisfied
-        ...     return is_goal_satisfied(state.env_state, query)
-        >>> 
-        >>> prompts = {
-        ...     "policy": "State: <init_state>\\nGoals: <goals>\\nActions:\\n<action>\\nSelect:"
-        ... }
-        >>> 
-        >>> agent = create_env_chain_agent(
-        ...     prompt_templates=prompts,
-        ...     generate_all_actions=generate_all_actions,
-        ...     world_model=blocks_world_model,
-        ...     goal_check=goal_check,
-        ...     model_name="meta-llama/Llama-3.1-8B-Instruct",
-        ...     max_steps=15,
-        ...     temperature=0.8
-        ... )
-        >>> 
-        >>> final_state = agent.run(
-        ...     query="stack A on B",
-        ...     problem_instance=problem_data
-        ... )
     """
     
-    # Load LLM backbone
-    base_model = get_lm(
-        model_name,
-        device=device,
-        enable_thinking=False,  # Environment tasks typically don't need thinking
-        sys_prompt=None,
-        max_length=max_length,
-        verbose=verbose_model,
-        **kwargs
-    )
-    inference_logger = InferenceLogger(run_id="", root_dir=root_dir, override=override_logger)
-    base_model.inference_logger = inference_logger
+    # Load LLM backbone if not provided
+    if base_model is None:
+        base_model = get_lm(
+            model_name,
+            device=device,
+            enable_thinking=False,  # Environment tasks typically don't need thinking
+            sys_prompt=None,
+            max_length=max_length,
+            verbose=verbose_model,
+            **kwargs
+        )
+        inference_logger = InferenceLogger(run_id="", root_dir=root_dir, override=override_logger)
+        base_model.inference_logger = inference_logger
 
     # Save configuration
     EnvChainConfig(
         reasoning_method="env_chain",
         package_version=PACKAGE_VERSION,
-        model_name=model_name,
+        policy_model_name=base_model.model_name,
         gpu_device=device,
         max_length=max_length,
         temperature=temperature,
@@ -237,8 +211,8 @@ def create_env_chain_agent(
     # Construct policy
     policy = EnvGroundedPolicy(
         base_model=base_model,
-        task_instruction=None,
-        prompt_templates=prompt_templates,
+        task_type=task_type,
+        usr_prompt_spec=usr_prompt_spec,
         generate_all_actions=generate_all_actions,
         goal_reward_default=goal_reward_default,
         goal_reached_reward=goal_reached_reward,

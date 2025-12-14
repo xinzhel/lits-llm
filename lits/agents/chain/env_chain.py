@@ -16,6 +16,7 @@ class EnvChainConfig(ChainConfig):
     Configuration for environment-grounded chain agent.
     """
     max_steps: int = 30  # Override default
+    temperature: float = 0.0
 
 class EnvChain(ChainAgent[EnvState]):
     """
@@ -78,10 +79,6 @@ class EnvChain(ChainAgent[EnvState]):
             # If we resumed, we might want to check if we are already done or where we are
             pass
         
-        # Ensure history is initialized
-        if state.history is None:
-            state.history = []
-        
         start_step = len(state)
         for step_idx in range(start_step, self.max_steps):
             logger.debug("\n ======== Step %d ========\n", step_idx)
@@ -125,26 +122,9 @@ class EnvChain(ChainAgent[EnvState]):
                 assert isinstance(aux_data, dict), "World model step must return aux_data as dict"
                 assert 'goal_reached' in aux_data, "aux_data must contain 'goal_reached' key"
                 
-                # CRITICAL: Preserve and accumulate history across state transitions
-                # The world model creates a new EnvState object, so we must explicitly
-                # carry over the history from the previous state and add the new step
-                
-                # Ensure next_state has history initialized
-                if next_state.history is None:
-                    next_state.history = []
-                
-                # Copy all previous history to the new state
-                # (world model might not preserve it)
-                next_state.history = state.history.copy()
-                
-                # Add the current step to the accumulated history
-                # Update step with next state information
-                step.next_state = next_state.env_state
-                next_state.add_step(step)
-                
                 state = next_state
                 logger.debug("New state:\n%s\n", state.env_state)
-                logger.debug("Trajectory length: %d steps\n", len(state.history))
+                logger.debug("Trajectory length: %d steps\n", len(state.render_history()))
                 
             except Exception as e:
                 logger.error("Error in world model step: %s", e, exc_info=True)

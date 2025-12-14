@@ -34,11 +34,6 @@ def _serialize_obj(obj):
     return obj
 
 
-def serialize_state(state) -> list:
-    """Convert a state (list of steps) into a JSON-serializable payload."""
-    return [_serialize_obj(step) for step in state]
-
-
 def _deserialize_obj(payload):
     if isinstance(payload, dict) and "__type__" in payload:
         typ = payload.get("__type__")
@@ -65,8 +60,9 @@ def _deserialize_obj(payload):
         return [_deserialize_obj(item) for item in payload]
     return payload
 
+
 def deserialize_state(payload: Iterable):
-    """Rebuild a state from a serialized representation produced by ``serialize_state``."""
+    """Rebuild a state from a serialized representation."""
     return [_deserialize_obj(step) for step in payload]
 
 
@@ -74,11 +70,15 @@ def log_state(logger: logging.Logger, state, header: str, level: int = logging.D
     """Emit a structured log record capturing a heterogeneous state."""
     if not logger.isEnabledFor(level):
         return
-    serialized = serialize_state(state)
-    logger.log(level, "%s %s", header, json.dumps(serialized, ensure_ascii=False))
+    
+    if hasattr(state, "render_history"):
+        content = state.render_history()
+    else:
+        content = str(state)
+        
+    logger.log(level, "%s\n%s", header, content)
 
 __all__ = [
-    "serialize_state",
     "deserialize_state",
     "log_state"
 ]

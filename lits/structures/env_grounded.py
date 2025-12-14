@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Any, Optional, List
-from .base import Step, State, StringAction
+from .base import Step, State, StringAction, TrajectoryState
 from ..type_registry import register_type
 
 EnvAction = StringAction
@@ -34,86 +34,53 @@ class EnvStep(Step):
             error=payload.get("error"),
         )
 
+    def verb_step(self) -> str:
+        return f"Action: {self.action}\nState: {self.next_state}"
+
+    def to_messages(self) -> list[dict]:
+        return []
+
 from ..type_registry import register_state
 
 @register_state
 @dataclass  
-class EnvState(State):
+class EnvState(TrajectoryState[EnvStep]):
     """
     State that represents an environment snapshot at a point in time.
     
     This state tracks both the current environment snapshot and the full history
     of steps taken to reach this state.
-    
-    Attributes:
-        step_idx: Current step index (0-based)
-        last_env_state: Previous environment state string
-        env_state: Current environment state string
-        buffered_action: Action that will be/was taken from this state
-        history: List of EnvStep objects representing the trajectory
     """
-    step_idx: int
-    last_env_state: str
-    env_state: str
-    init_state: str
-    history: Optional[List[EnvStep]] = None
+    init_state: str = ""
     
-    def __post_init__(self):
-        """Initialize history if not provided."""
-        if self.history is None:
-            self.history = []
-    
-    def __len__(self):
-        """Return the step index (which step we're at)."""
-        return self.step_idx
-    
-    def __str__(self):
-        """Return the environment state."""
-        return self.env_state
-    
-    def add_step(self, step: EnvStep) -> None:
-        """Add a step to the history."""
-        self.history.append(step)
+    @property
+    def env_state(self) -> str:
+        if len(self) > 0 and self[-1].next_state:
+            return self[-1].next_state
+        return self.init_state
+
+    @property
+    def last_env_state(self) -> str:
+        if len(self) > 1 and self[-2].next_state:
+            return self[-2].next_state
+        return self.init_state
+
+    @property
+    def step_idx(self) -> int:
+        return len(self)
     
     def to_dict(self) -> dict:
         """Serialize the environment state snapshot with full history."""
-        return {
-            "__type__": self.__class__.__name__,
-            "step_idx": self.step_idx,
-            "last_env_state": self.last_env_state,
-            "env_state": self.env_state,
-            "init_state": self.init_state,
-            "history": [step.to_dict() for step in self.history] if self.history else [],
-        }
+        data = super().to_dict()
+        data["init_state"] = self.init_state
+        return data
     
     @classmethod
     def from_dict(cls, payload: dict) -> "EnvState":
         """Rebuild an EnvState from serialized data."""
-        from ..type_registry import TYPE_REGISTRY
-        
-        # Deserialize history
-        history = []
-        for step_data in payload.get("history", []):
-            if "__type__" in step_data:
-                step_type_name = step_data["__type__"]
-                step_class = TYPE_REGISTRY.get(step_type_name, EnvStep)
-                step_data_without_type = {k: v for k, v in step_data.items() if k != "__type__"}
-                if hasattr(step_class, "from_dict"):
-                    step = step_class.from_dict(step_data_without_type)
-                else:
-                    step = step_class(**step_data_without_type)
-            else:
-                # Fallback for old format without __type__
-                step = EnvStep.from_dict(step_data)
-            history.append(step)
-        
-        return cls(
-            step_idx=payload["step_idx"],
-            last_env_state=payload["last_env_state"],
-            env_state=payload["env_state"],
-            init_state=payload.get("init_state", ""),
-            history=history,
-        )
+        state = super().from_dict(payload)
+        state.init_state = payload.get("init_state", "")
+        return state
     
     def save(self, path: str, query: str) -> None:
         """Persist the environment state with full history and originating query."""

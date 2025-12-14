@@ -5,8 +5,7 @@ from pydantic import BaseModel
 from ..prompts.policy.rap import prompt_dict as math_qa_prompt_dict
 from ..lm.base import HfChatModel, HfModel,DETERMINISTIC_TEMPERATURE, LanguageModel
 from ..structures import (
-    StateT, 
-    StepConcatState,
+    StateT,
     SubQAStep,
     ThoughtStep,
     ToolUseState,
