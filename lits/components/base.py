@@ -4,14 +4,67 @@ from ..structures import StateT, ActionT, StepT, Step
 from ..lm.base import DETERMINISTIC_TEMPERATURE
 from ..lm import OpenAIChatModel, BedrockChatModel, HfChatModel, HfModel, LanguageModel
 import logging
+import re
 logger = logging.getLogger(__name__)
 
 class Transition(ABC, Generic[StateT, ActionT]):
+    """Base class for transition models (world models) in tree search.
+    
+    Transition models define how states evolve in response to actions.
+    They are responsible for:
+    1. Initializing the starting state via init_state()
+    2. Computing the next state given current state and action via step()
+    3. Determining if a state is terminal via is_terminal()
+    
+    init_state_kwargs Convention:
+    -----------------------------
+    The init_state() method receives kwargs from the dataset example.
+    Different task types pass different fields:
+    
+    | Task Type     | Expected kwargs           | Description                          |
+    |---------------|---------------------------|--------------------------------------|
+    | env_grounded  | init_state_str: str       | Initial environment state description|
+    | math_qa       | (none)                    | Returns empty list                   |
+    | tool_use      | (none)                    | Returns empty ToolUseState           |
+    
+    When implementing a custom Transition:
+    - Extract only the kwargs you need using kwargs.get('key_name')
+    - Ignore unknown kwargs for forward compatibility
+    - Raise ValueError with helpful message if required kwargs are missing
+    
+    Example:
+        class MyTransition(Transition):
+            def init_state(self, **kwargs) -> MyState:
+                # Extract what you need, ignore the rest
+                init_str = kwargs.get('init_state_str')
+                if init_str is None:
+                    raise ValueError("MyTransition requires 'init_state_str' in init_state_kwargs")
+                return MyState(init_str)
+    """
     def __init__(self) -> None:
         pass
 
     @abstractmethod
-    def init_state(self) -> StateT: ...
+    def init_state(self, **kwargs) -> StateT:
+        """Initialize and return the initial state.
+        
+        This method is called by tree search algorithms (MCTS, BFS) at the start
+        of each search. The kwargs come from the dataset example dict.
+        
+        Args:
+            **kwargs: Example-specific data from the dataset. Contents depend on task type:
+                      - env_grounded: expects 'init_state_str' (str) - initial state description
+                      - math_qa: no kwargs needed, returns empty trajectory
+                      - tool_use: no kwargs needed, returns empty ToolUseState
+                      Subclasses should extract what they need and ignore the rest.
+        
+        Returns:
+            The initial state for tree search
+            
+        Raises:
+            ValueError: If required kwargs are missing (implementation-specific)
+        """
+        ...
 
     @abstractmethod
     def step(self, state: StateT, step_or_action, *arg, **kwargs) -> Union[StateT, Tuple[StateT, dict]]:
@@ -35,42 +88,52 @@ class LlmTransition(Transition, Generic[StateT, ActionT]):
     This class provides prompt management for transitions that use LLMs
     to generate or validate state transitions.
     
+    Class Attributes:
+        TASK_TYPE: Interface category for this transition (e.g., 'language_grounded', 'tool_use', 'env_grounded').
+            Subclasses should override this to declare their interface category.
+    
     Args:
         base_model: The LLM model to use for generation
         task_prompt_spec: System prompt specification (instructions, format, etc.)
             Can be a string, dict, or PromptTemplate. Used to construct the system message.
-        task_type: Task type identifier (e.g., 'math_qa', 'tool_use') for loading
-            task-specific prompts from the registry
+        task_name: Task name identifier (e.g., 'math_qa', 'blocksworld', 'mapeval-sql') for loading
+            task-specific prompts from the registry. This is the prompt lookup key.
         usr_prompt_spec: User message specification. Used to construct the user message
             content. Alternative to task_prompt_spec for different prompt injection needs.
         **kwargs: Additional arguments passed to parent class
     
     Note:
+        - TASK_TYPE: Interface category (set as class constant in subclasses)
+        - task_name: Prompt lookup key (passed as parameter)
         - task_prompt_spec: For system-level instructions (system prompt)
         - usr_prompt_spec: For user-level content (user message)
         - Priority: task_prompt_spec > usr_prompt_spec > registry
     """
+    
+    # Interface category for this transition type (subclasses should override)
+    TASK_TYPE: str = None
+    
     def __init__(
         self,
         base_model,
         task_prompt_spec: Optional[Union[str, dict, 'PromptTemplate']] = None,
-        task_type: Optional[str] = None,
+        task_name: Optional[str] = None,
         usr_prompt_spec: Optional[Union[str, dict, 'PromptTemplate']] = None,
         **kwargs
     ) -> None:
         super().__init__()
         self.base_model = base_model
-        self.task_type = task_type
+        self.task_name = task_name
         
         # Load prompts from registry if not provided
         from ..prompts.registry import PromptRegistry
         agent_name = self._get_agent_name()
         
         if task_prompt_spec is None:
-            task_prompt_spec = PromptRegistry.get('transition', agent_name, task_type)
+            task_prompt_spec = PromptRegistry.get('transition', agent_name, task_name)
         
         if usr_prompt_spec is None:
-            usr_prompt_spec = PromptRegistry.get_usr('transition', agent_name, task_type)
+            usr_prompt_spec = PromptRegistry.get_usr('transition', agent_name, task_name)
         
         # Store prompts
         self.task_prompt_spec = task_prompt_spec
@@ -97,12 +160,16 @@ class Policy(ABC, Generic[StateT, ActionT]):
     """
     Abstract base class for policy implementations. This class provides the framework for generating actions given a state.
     
+    Class Attributes:
+        TASK_TYPE: Interface category for this policy (e.g., 'language_grounded', 'tool_use', 'env_grounded').
+            Subclasses should override this to declare their interface category.
+    
     Args:
         base_model: The LLM model to use for action generation
         task_prompt_spec: System prompt specification (instructions, format, etc.)
             Can be a string, dict, or PromptTemplate. Used to construct the system message.
-        task_type: Task type identifier (e.g., 'math_qa', 'tool_use') for loading
-            task-specific prompts from the registry
+        task_name: Task name identifier (e.g., 'math_qa', 'blocksworld', 'mapeval-sql') for loading
+            task-specific prompts from the registry. This is the prompt lookup key.
         usr_prompt_spec: User message specification. Used to construct the user message
             content. Alternative to task_prompt_spec for different prompt injection needs.
         n_actions: Number of actions to generate per policy call
@@ -117,6 +184,8 @@ class Policy(ABC, Generic[StateT, ActionT]):
         force_terminating_on_depth_limit: Force termination at max_steps
     
     Note:
+        - TASK_TYPE: Interface category (set as class constant in subclasses)
+        - task_name: Prompt lookup key (passed as parameter)
         - task_prompt_spec: For system-level instructions (system prompt)
         - usr_prompt_spec: For user-level content (user message)
     
@@ -185,11 +254,15 @@ class Policy(ABC, Generic[StateT, ActionT]):
     ```
     
     """
+    
+    # Interface category for this policy type (subclasses should override)
+    TASK_TYPE: str = None
+    
     def __init__(
         self,
         base_model,
         task_prompt_spec: Optional[Union[str, dict, 'PromptTemplate']] = None,
-        task_type: Optional[str] = None,
+        task_name: Optional[str] = None,
         usr_prompt_spec: Optional[Union[str, dict, 'PromptTemplate']] = None,
         n_actions: int = 4,
         max_length: Optional[int] = None,
@@ -213,26 +286,26 @@ class Policy(ABC, Generic[StateT, ActionT]):
 
         # Policy configuration
         self.n_actions = n_actions
-        self.task_type = task_type
+        self.task_name = task_name
         
         # Load prompts from registry if not provided
         from ..prompts.registry import PromptRegistry
         agent_name = self._get_agent_name()
         
-        logger.debug(f"Policy.__init__: agent_name={agent_name}, task_type={task_type}")
+        logger.debug(f"Policy.__init__: agent_name={agent_name}, task_name={task_name}")
         logger.debug(f"Policy.__init__: task_prompt_spec (before registry) type={type(task_prompt_spec)}, value={task_prompt_spec}")
         
         if task_prompt_spec is None:
-            if PromptRegistry.get('policy', agent_name, task_type) is not None:
-                task_prompt_spec =  PromptRegistry.get('policy', agent_name, task_type)
+            if PromptRegistry.get('policy', agent_name, task_name) is not None:
+                task_prompt_spec =  PromptRegistry.get('policy', agent_name, task_name)
             else: 
-                logger.warning(f"Policy.__init__: task_prompt_spec not found for the task type ({task_type}) in registry, using default")
+                logger.warning(f"Policy.__init__: task_prompt_spec not found for the task name ({task_name}) in registry, using default")
                 task_prompt_spec = PromptRegistry.get('policy', agent_name, None)
             
             logger.debug(f"Policy.__init__: task_prompt_spec loaded from registry, type={type(task_prompt_spec)}, value={task_prompt_spec}")
         
         if usr_prompt_spec is None:
-            usr_prompt_spec = PromptRegistry.get_usr('policy', agent_name, task_type)
+            usr_prompt_spec = PromptRegistry.get_usr('policy', agent_name, task_name)
             logger.debug(f"Policy.__init__: usr_prompt_spec loaded from registry, type={type(usr_prompt_spec)}, value={usr_prompt_spec}")
         
         # Store prompts
@@ -253,7 +326,7 @@ class Policy(ABC, Generic[StateT, ActionT]):
         # Post-generation callback for action validation/processing
         self._post_generation_fn: Optional[Callable[[List[StepT], dict], None]] = None
     
-    def _get_agent_name(self) -> str:
+    def _get_agent_name(self, first_word: bool = False) -> str:
         """
         Infer agent name from class name.
         
@@ -267,9 +340,10 @@ class Policy(ABC, Generic[StateT, ActionT]):
         if class_name.endswith('Policy'):
             class_name = class_name[:-len('Policy')]
         # Convert CamelCase to snake_case
-        import re
         name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', class_name)
         name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+        if first_word:
+            return name.split('_')[0]
         return name
     
     def set_dynamic_notes_fn(self, fn: Callable[[], List[str]]) -> None:
@@ -318,7 +392,7 @@ class Policy(ABC, Generic[StateT, ActionT]):
                         step,
                         query_idx=context.get('query_idx'),
                         policy_model_name=context.get('policy_model_name'),
-                        task_type=context.get('task_type')
+                        task_name=context.get('task_name')
                     )
                     if result and not result['is_valid']:
                         logger.warning(f"Invalid SQL: {result['issue']}")
@@ -496,7 +570,7 @@ class Policy(ABC, Generic[StateT, ActionT]):
                     'critic': critic,
                     'from_phase': from_phase,
                     'policy_model_name': kwargs.get('policy_model_name'),
-                    'task_type': kwargs.get('task_type'),
+                    'task_name': kwargs.get('task_name'),
                 }
                 self._post_generation_fn(outputs, context)
             except Exception as e:
@@ -597,12 +671,16 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
     Reward models evaluate the quality of actions or states in tree search.
     They can evaluate actions before execution (fast_reward) or after (reward).
     
+    Class Attributes:
+        TASK_TYPE: Interface category for this reward model (e.g., 'language_grounded', 'tool_use', 'env_grounded').
+            Subclasses should override this to declare their interface category.
+    
     Args:
         base_model: The LLM model to use for reward evaluation
         task_prompt_spec: System prompt specification (instructions, format, etc.)
             Can be a string, dict, or PromptTemplate. Used to construct the system message.
-        task_type: Task type identifier (e.g., 'math_qa', 'tool_use') for loading
-            task-specific prompts from the registry
+        task_name: Task name identifier (e.g., 'math_qa', 'blocksworld', 'mapeval-sql') for loading
+            task-specific prompts from the registry. This is the prompt lookup key.
         usr_prompt_spec: User message specification. Used to construct the user message
             content. Alternative to task_prompt_spec for different prompt injection needs.
         max_length: Maximum total sequence length for generation
@@ -614,15 +692,21 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         reward_confidence_default: Default confidence when evaluation is uncertain
     
     Note:
+        - TASK_TYPE: Interface category (set as class constant in subclasses)
+        - task_name: Prompt lookup key (passed as parameter)
         - task_prompt_spec: For system-level instructions (system prompt)
         - usr_prompt_spec: For user-level content (user message)
         - Priority: task_prompt_spec > usr_prompt_spec > registry
     """
+    
+    # Interface category for this reward model type (subclasses should override)
+    TASK_TYPE: str = None
+    
     def __init__(
         self,
         base_model: LanguageModel,
         task_prompt_spec: Optional[Union[str, dict, 'PromptTemplate']] = None,
-        task_type: Optional[str] = None,
+        task_name: Optional[str] = None,
         usr_prompt_spec: Optional[Union[str, dict, 'PromptTemplate']] = None,
         max_length=None,
         max_new_tokens=None,
@@ -634,18 +718,18 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
     ) -> None:
         super().__init__()
         self.base_model = base_model
-        self.task_type = task_type
+        self.task_name = task_name
         
         # Load prompts from registry if not provided
         from ..prompts.registry import PromptRegistry
         agent_name = self._get_agent_name()
         
         if task_prompt_spec is None:
-            logger.debug(f"Task prompt spec not provided, loading from registry for agent '{agent_name}' and task '{task_type}'")
-            task_prompt_spec = PromptRegistry.get('reward', agent_name, task_type)
+            logger.debug(f"Task prompt spec not provided, loading from registry for agent '{agent_name}' and task '{task_name}'")
+            task_prompt_spec = PromptRegistry.get('reward', agent_name, task_name)
         
         if usr_prompt_spec is None:
-            usr_prompt_spec = PromptRegistry.get_usr('reward', agent_name, task_type)
+            usr_prompt_spec = PromptRegistry.get_usr('reward', agent_name, task_name)
         
         # Store prompts
         self.task_prompt_spec = task_prompt_spec
@@ -660,7 +744,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         self.reward_alpha = reward_alpha
         self.reward_confidence_default = reward_confidence_default
         
-    def fast_reward(self, state, action, query_or_goals, query_idx, from_phase="") -> tuple[float, dict]:
+    def fast_reward(self, state, action_or_step, query_or_goals, query_idx, from_phase="") -> tuple[float, dict]:
         """
         Generate a reward for an action without executing it.
         
@@ -676,29 +760,40 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
             query_or_goals: The problem/question being solved
             query_idx: Index of the example (for logging)
             state: Current state before action execution
-            action: Proposed action to evaluate
+            action_or_step: Proposed action or step to evaluate
             from_phase: Description of algorithm phase (for logging)
         
         Returns:
             Tuple of (reward, auxiliary_dict) where:
             - reward: Float score indicating action quality
-            - auxiliary_dict: Additional metrics (e.g., {'r_useful': probability})
+            - auxiliary_dict: Additional metrics from _fast_reward (e.g., {'r_useful': probability})
         
         Note:
             This differs from `reward()` which evaluates after action execution.
         """
         logger.debug("\n>>>>>>>>> + 1 Fast Reward Evaluator Call; Outputs (BEGIN) <<<<<<<<<")
-
-        fast_reward = self._fast_reward(state, action, query_or_goals, query_idx, from_phase=from_phase)
-
-        fast_reward = self.calculate_reward(fast_reward)
+        if self.task_prompt_spec:
+            self.base_model.sys_prompt = self.task_prompt_spec
+        
+        # Call _fast_reward which may return float or (float, dict)
+        result = self._fast_reward(state, action_or_step, query_or_goals, query_idx, from_phase=from_phase)
+        
+        # Handle both return types from _fast_reward
+        if isinstance(result, tuple):
+            raw_reward, details = result
+        else:
+            raw_reward = result
+            details = {}
+        
+        # Apply calculate_reward transformation
+        fast_reward = self.calculate_reward(raw_reward)
 
         logger.debug(f"fast_reward: {fast_reward}")
         logger.debug(">>>>>>>>> + 1 Fast Reward Evaluator Call; Outputs (END) <<<<<<<<<\n")
 
-        return fast_reward, {'r_useful': float(fast_reward)}
+        return fast_reward, details
 
-    def _get_agent_name(self) -> str:
+    def _get_agent_name(self, first_word=False) -> str:
         """
         Infer agent name from class name.
         
@@ -714,13 +809,60 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         elif class_name.endswith('RM'):
             class_name = class_name[:-2]
         # Convert CamelCase to snake_case
-        import re
         name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', class_name)
         name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+        if first_word:
+            return name.split('_')[0]
         return name
     
     @abstractmethod
-    def _fast_reward(self, state, action,  query, query_idx, from_phase="") -> float:
+    def _fast_reward(self, state, action, query, query_idx, from_phase="") -> float:
+        """Evaluate action quality without executing it. Subclasses must implement this.
+        
+        This is the core evaluation logic called by fast_reward(). Implementations should
+        use query_idx and from_phase for inference logging via create_role().
+        
+        Args:
+            state: Current state before action execution
+            action: Proposed action to evaluate
+            query: The problem/question being solved (query_or_goals)
+            query_idx (int): Index of the current example. Used for:
+                - Tracking which example an LLM call belongs to
+                - Constructing role strings via create_role(llm_role, query_idx, from_phase)
+                - Debugging and log analysis
+            from_phase (str): Algorithm phase description. Used for:
+                - Inference logging to distinguish LLM calls from different search phases
+                - Common values: 'expand', 'simulate', 'continuation', 'sort'
+                - Passed to create_role() to construct role like 'evaluator_logits_3_expand'
+        
+        Returns:
+            float or tuple[float, dict]: Reward score, optionally with auxiliary info dict.
+            
+            Return Types:
+            1. float: Simple reward score (details dict will be empty {})
+            2. tuple[float, dict]: Reward score with auxiliary details
+            
+            The auxiliary dict serves two purposes:
+            1. **Primary**: Provide additional metrics needed by the reward() method.
+               For example, RapPRM returns {'r_useful': score, 'r_correct': score} which
+               are then passed to reward() for final reward calculation.
+            2. **Secondary**: Record evaluation details in search nodes for tracking/debugging.
+               The dict is stored in node.fast_reward_details and can be used for analysis,
+               logging, or visualization of the search process.
+        
+        Example:
+            # Simple return (no additional details needed)
+            def _fast_reward(self, state, action, query, query_idx, from_phase=""):
+                score = self.evaluate(state, action)
+                return score
+            
+            # Return with details (for reward() method or tracking)
+            def _fast_reward(self, state, action, query, query_idx, from_phase=""):
+                from ..utils import create_role
+                output = self.base_model(prompt, role=create_role("evaluator_logits", query_idx, from_phase))
+                score = parse_score(output)
+                return score, {"r_useful": score, "raw_output": output.text}
+        """
         raise NotImplementedError("_fast_reward is not implemented for RewardModel")
     
     @abstractmethod

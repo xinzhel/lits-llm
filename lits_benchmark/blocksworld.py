@@ -173,10 +173,32 @@ def get_intermediate_states(domain_path, instance, config_data, shuffle=False):
         cur_state = s
     return states
 
-def load_blocksworld(config_file, domain_file, data_file=None, data_list=None, return_intermediate=False, load_by_num_steps=None):
+def load_blocksworld(config_file, domain_file, data_file=None, data_list=None, return_intermediate=False, load_by_num_steps=None, base_dir=None):
+    """Load BlocksWorld dataset from PDDL files.
+    
+    Args:
+        config_file: Path to config YAML file
+        domain_file: Path to domain PDDL file
+        data_file: Path to data JSON file (mutually exclusive with data_list)
+        data_list: List of data items (mutually exclusive with data_file)
+        return_intermediate: Whether to return intermediate states
+        load_by_num_steps: Filter by number of plan steps
+        base_dir: Base directory for resolving relative PDDL instance paths.
+                  If None, uses the directory containing data_file.
+    
+    Returns:
+        List of cleaned data dictionaries with 'init_state_str' and 'query_or_goals'
+    """
     assert data_file is not None and data_list is None or data_file is None and data_list is not None
     if data_file is not None:
         data_list = json.load(open(data_file, 'r'))
+        # Infer base_dir from data_file if not provided
+        if base_dir is None:
+            base_dir = str(Path(data_file).parent)
+    
+    if base_dir is None:
+        base_dir = ""  # Use current working directory
+    
     config_data = read_config(config_file)
     domain_pddl = domain_file
     data = []
@@ -187,6 +209,9 @@ def load_blocksworld(config_file, domain_file, data_file=None, data_list=None, r
         prefix = "gpt-plan-benchmark/gpt_plan_test/instances/"
         if path.startswith(prefix):
             path = path[len(prefix):]
+        # Resolve path relative to base_dir
+        if base_dir:
+            path = os.path.join(base_dir, path)
         problem = get_problem(path, domain_pddl)
         gt_plan_code = cur_instance[1]
 

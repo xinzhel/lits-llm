@@ -9,6 +9,9 @@ from ...lm.base import HfChatModel, HfModel
 logger = logging.getLogger(__name__)
 
 class RapPRM(RewardModel):
+    # Interface category for language-grounded tasks
+    TASK_TYPE: str = "language_grounded"
+    
     def __init__(self, **kwargs):
         super().__init__(base_model=kwargs.pop("base_model", None), task_prompt_spec=kwargs.pop("task_prompt_spec", None), **kwargs)
         self.n_shot_eval = 4 # evaluator
@@ -57,6 +60,6 @@ class RapPRM(RewardModel):
             fast_reward: float = None,
             confidence: float = None) -> tuple[float, dict]:
         # return confidence, {'r_conf': confidence}
-        assert r_useful is not None, "fast_reward is required to calculate reward, consider passing it in fast_reward"
+        assert fast_reward is not None, "fast_reward is required to calculate reward, consider passing it in fast_reward"
         assert confidence is not None, "confidence is required to calculate reward, consider passing it in world model's step"
         return self.calculate_reward(fast_reward, confidence) 

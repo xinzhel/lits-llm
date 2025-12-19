@@ -304,7 +304,7 @@ class LanguageModel:
         max_length = None if max_new_tokens is not None else max_length
         return max_length, max_new_tokens
     
-    def sample_binary_output(self, user_message, sample_size, target="yes", contrast="no", role=None, temperature=0.6, max_new_tokens=None, max_length=None):
+    def sample_binary_output(self, user_message, sample_size, target="yes", contrast="no", unknown=None, role=None, temperature=0.6, max_new_tokens=None, max_length=None, max_retries=3):
         """Sample binary outputs (e.g., yes/no) from the model.
         
         Args:
@@ -312,36 +312,74 @@ class LanguageModel:
             sample_size: Number of samples to generate
             target: The target response (default: "yes")
             contrast: The contrasting response (default: "no")
+            unknown: Optional unknown token (default: None). If provided, will be tracked separately.
             role: Role for logging purposes
             temperature: Sampling temperature
             max_new_tokens: Maximum new tokens to generate
             max_length: Maximum total length
+            max_retries: Maximum retries per sample if output is unclear
             
         Returns:
-            Dict with counts for target and contrast responses
+            Dict with counts for target, contrast, and optionally unknown responses
         """
         answer_samples = {target: 0, contrast: 0}
+        if unknown is not None:
+            answer_samples[unknown] = 0
         orig_verbose = self.verbose
         
         max_length, max_new_tokens = self._get_gen_legnth(max_new_tokens, max_length)
 
-        for i in range(sample_size):  
-            while True:
-                self.verbose = (i == 0) and orig_verbose  # only verbose for the first sample
-                output_text = self(user_message, role=role, temperature=temperature, max_new_tokens=max_new_tokens, max_length=max_length, enable_thinking=False).text.strip()
-                output_text = output_text.lower().strip()
-                output_text = output_text[:-1] if output_text.endswith('.') else output_text # remove period
-                if output_text in [target, contrast]:
-                    break
-                else:
-                    user_message += f"Please answer with only one word: {target} or {contrast}.\n"
+        # Build valid tokens list
+        valid_tokens = [target, contrast]
+        if unknown is not None:
+            valid_tokens.append(unknown)
 
-            if output_text.lower() == target:
-                answer_samples[target] += 1
-            elif output_text.lower() == contrast:
-                answer_samples[contrast] += 1
-            else:
-                raise ValueError(f"Unknown output_text: {output_text}")
+        def extract_last_word(text: str) -> str:
+            """Extract and normalize the last word from text."""
+            text = text.strip().lower()
+            # Remove trailing punctuation
+            while text and text[-1] in '.!?,;:':
+                text = text[:-1]
+            # Get last word
+            words = text.split()
+            return words[-1] if words else ""
+
+        for i in range(sample_size):
+            retry_count = 0
+            current_message = user_message
+            matched = False
+            
+            while retry_count < max_retries:
+                self.verbose = (i == 0 and retry_count == 0) and orig_verbose
+                output_text = self(current_message, role=role, temperature=temperature, max_new_tokens=max_new_tokens, max_length=max_length, enable_thinking=False).text.strip()
+                
+                # Check if entire output (normalized) matches
+                normalized_full = output_text.lower().strip()
+                if normalized_full.endswith('.'):
+                    normalized_full = normalized_full[:-1]
+                
+                if normalized_full in valid_tokens:
+                    answer_samples[normalized_full] += 1
+                    matched = True
+                    break
+                
+                # Check if last word matches
+                last_word = extract_last_word(output_text)
+                if last_word in valid_tokens:
+                    answer_samples[last_word] += 1
+                    matched = True
+                    break
+                
+                # Retry with clarification
+                retry_count += 1
+                token_options = f"{target}, {contrast}" + (f", or {unknown}" if unknown else "")
+                current_message = user_message + f"\nPlease answer with only one word: {token_options}."
+            
+            if not matched:
+                # After max retries, default to unknown if provided, else contrast
+                default_token = unknown if unknown is not None else contrast
+                logger.warning(f"Could not extract answer after {max_retries} retries. Output: '{output_text}'. Defaulting to '{default_token}'.")
+                answer_samples[default_token] += 1
         
         self.verbose = orig_verbose
         if self.verbose and self.LOG_MODEL_OUTPUT:

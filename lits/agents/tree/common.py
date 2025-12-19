@@ -100,9 +100,9 @@ def _sample_actions_with_existing(
         if critic == "" or critic is None:
             logger.debug(f"Critic is empty")
             critic = "No Critic"
-    new_actions = []
+    steps = []
     if n_needed > 0:
-        new_actions = policy.get_actions(
+        steps = policy.get_actions(
             node.state,
             query=query_or_goals,
             critic=critic,  # can extend later if use_critic=True
@@ -110,7 +110,7 @@ def _sample_actions_with_existing(
             query_idx=query_idx,
             from_phase=from_phase
         )
-    return new_actions
+    return steps
     
 def _assign_fast_reward(node, reward_model, query_or_goals, query_idx, from_phase):
     """Helper function to assign fast_reward to a node.
@@ -132,7 +132,7 @@ def _assign_fast_reward(node, reward_model, query_or_goals, query_idx, from_phas
     
     logger.debug(f"Assigning fast reward for Node {node.id}")
     fast_reward, fast_reward_details = reward_model.fast_reward(
-        node.parent.state, step_or_action, query=query_or_goals, query_idx=query_idx, from_phase=from_phase
+        node.parent.state, step_or_action, query_or_goals=query_or_goals, query_idx=query_idx, from_phase=from_phase
     )
     assert isinstance(fast_reward, float), f"fast_reward should be a float, got {type(fast_reward)} from {reward_model.__class__}"
     assert isinstance(fast_reward_details, dict), f"fast_reward_details should be a dict, got {type(fast_reward_details)} from {reward_model.__class__}"

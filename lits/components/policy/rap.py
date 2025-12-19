@@ -9,6 +9,9 @@ import re
 logger = logging.getLogger(__name__)
 
 class RAPPolicy(Policy):
+    # Interface category for this policy type
+    TASK_TYPE: str = "language_grounded"
+    
     def _create_error_steps(self, n_actions: int, error_msg: str) -> list[SubQAStep]:
         """Create SubQAStep error steps for RAPPolicy."""
         return [SubQAStep(sub_question="", sub_answer="", confidence=0.0, error=error_msg) for _ in range(n_actions)]

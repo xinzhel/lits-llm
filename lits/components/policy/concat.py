@@ -50,6 +50,9 @@ class ConcatPolicy(Policy):
     4. Retrying if validation fails
     """
     
+    # Interface category for this policy type
+    TASK_TYPE: str = "language_grounded"
+    
     # Constants
     SIMILARITY_THRESHOLD = 0.98
     MAX_TOKEN_LENGTH = 1000

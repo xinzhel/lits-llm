@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 class GenerativePRM(RewardModel):
     """ A Process Reward Model that evaluates the correctness and usefulness of a new step in the reasoning trace by directly prompting generative LLMs."""
+    
+    # Interface category for language-grounded tasks
+    TASK_TYPE: str = "language_grounded"
+    
     def __init__(self, **kwargs):
         # pop GenerativePRM-specific attributes
         self.think_for_correctness = kwargs.pop('think_for_correctness', True)
@@ -148,7 +152,7 @@ class GenerativePRM(RewardModel):
         return fast_reward
     
     def reward(self, state: StateT, action: ActionT,
-            r_useful: float = None,
+            fast_reward: float = None,
             confidence: float = None) -> tuple[float, dict]:
         
-        return r_useful 
+        return fast_reward 

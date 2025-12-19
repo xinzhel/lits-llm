@@ -21,7 +21,7 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseAction]):
         self.tools = tools
         self.observation_on_error = observation_on_error
 
-    def init_state(self) -> ToolUseState:
+    def init_state(self, **kwargs) -> ToolUseState:
         """Start each search trace with an empty tool-use history."""
         return ToolUseState()
 

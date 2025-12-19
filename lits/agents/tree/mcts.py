@@ -335,6 +335,45 @@ def _simulate(
 
 ##### BACK-PROPAGATE (BEGIN) #####
 def _back_propagate(path: list[MCTSNode], cum_reward_func):
+    """
+    Backpropagate cumulative rewards from leaf to root along the selected path.
+    
+    This function traverses the path in reverse order (leaf to root), accumulating rewards
+    and computing cumulative reward values using the provided aggregation function. Each node
+    along the path stores the cumulative reward for this rollout in its cum_rewards list.
+    
+    Args:
+        path: List of MCTSNode objects representing the path from root to leaf
+        cum_reward_func: Function to aggregate rewards (e.g., sum, np.mean)
+    
+    Returns:
+        The cumulative reward value at the root node for this rollout
+    
+    Example:
+        Given a path with 11 nodes (root to leaf) and individual rewards:
+        
+        Rewards (leaf -> root): [0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, -1]
+        
+        If cum_reward_func = np.mean, the cumulative rewards appended to each node are:
+        - Leaf (depth 10):     mean([0.25]) = 0.25
+        - Node (depth 9):      mean([0.25, 0.25]) = 0.25
+        - Node (depth 8):      mean([0.25, 0.25, 0.0]) = 0.167
+        - Node (depth 7):      mean([0.25, 0.25, 0.0, 0.25]) = 0.188
+        - Node (depth 6):      mean([0.25, 0.25, 0.0, 0.25, 0.0]) = 0.15
+        - Node (depth 5):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25]) = 0.167
+        - Node (depth 4):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0]) = 0.143
+        - Node (depth 3):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25]) = 0.156
+        - Node (depth 2):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0]) = 0.139
+        - Node (depth 1):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25]) = 0.15
+        - Root (depth 0):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, -1]) = 0.045
+        
+        Each node's cum_rewards list grows with each backpropagation (one value per rollout).
+        UCT then computes Q-values as calc_q(cum_rewards), which defaults to np.mean.
+        
+        Note: When cum_reward_func = np.mean and calc_q = np.mean, Q becomes the mean of means:
+        - First mean: aggregates rewards within a single rollout (backpropagation)
+        - Second mean: aggregates across multiple rollouts (UCT selection)
+    """
     logger.debug("\n=========== [Backpropagate Begin] ===========")
     rewards = []
     cum_rewards_appened = []
@@ -362,9 +401,43 @@ def _back_propagate(path: list[MCTSNode], cum_reward_func):
 ##### BACK-PROPAGATE (END)
 
 ##### MCTS (BEGIN) #####
-def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, reward_model, bn_evaluator=None) -> MCTSResult:
+def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, reward_model, bn_evaluator=None, init_state_kwargs: dict = None, checkpoint_dir: str = None, override_checkpoint: bool = True) -> MCTSResult:
+    """Run MCTS search.
+    
+    Args:
+        query_or_goals: The query or goals string
+        query_idx: Index of the query
+        mcts_search_config: MCTS configuration
+        world_model: Transition model
+        policy: Policy model
+        reward_model: Reward model
+        bn_evaluator: Optional BN evaluator
+        init_state_kwargs: Optional kwargs passed to world_model.init_state().
+                           For env_grounded tasks, should include 'init_state_str'.
+        checkpoint_dir: Optional directory to save incremental checkpoints during search.
+                       If provided, saves rollout paths and results as they're generated.
+        override_checkpoint: Whether to overwrite existing checkpoint files. Default True.
+    
+    Returns:
+        MCTSResult with search results
+    """
     logger.debug(f"Question: {query_or_goals}")
     logger.debug(f"\n\n\n=========== [MCTS for Example {query_idx} Begin] ===========")
+    
+    # Setup checkpoint directory if provided
+    if checkpoint_dir:
+        from pathlib import Path
+        import json
+        from ...structures.trace import _serialize_obj
+        
+        checkpoint_path = Path(checkpoint_dir)
+        # Only append "checkpoints" if not already present
+        if not checkpoint_path.name == "checkpoints":
+            checkpoint_path = checkpoint_path / "checkpoints"
+        checkpoint_path.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Checkpoints will be saved to: {checkpoint_path}")
+    else:
+        checkpoint_path = None
     
     MCTSNode.set_default_calc_q(mcts_search_config.calc_q)
     
@@ -384,7 +457,9 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
     _output_iter = None
     SearchNode.reset_id() # MCTSNode.reset_id() only resets MCTSNode.id_iter, not SearchNode.id_iter. But my constructor always does next(SearchNode.id_iter)
     
-    root = MCTSNode(state=world_model.init_state(), action=query_or_goals, parent=None)
+    # Pass init_state_kwargs to init_state for task types that need it (e.g., env_grounded)
+    _init_kwargs = init_state_kwargs if init_state_kwargs is not None else {}
+    root = MCTSNode(state=world_model.init_state(**_init_kwargs), action=query_or_goals, parent=None)
     assert root.id == 0, f"Root node ID should be 0 not {root.id}"
     
     trace_in_each_iter = []
@@ -501,6 +576,17 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
             ##### Save trace in this iteration  #####
             trace_in_each_iter.append(deepcopy(path))
             unselected_terminal_paths_during_simulate.extend(unselected_terminal_paths)
+            
+            # Save incremental checkpoint for this iteration
+            if checkpoint_path:
+                checkpoint_file = checkpoint_path / f"{query_idx}_{idx_iter}.json"
+                if not override_checkpoint and checkpoint_file.exists():
+                    logger.debug(f"Skipping existing checkpoint: {checkpoint_file}")
+                else:
+                    checkpoint_data = _serialize_obj(path)
+                    with open(checkpoint_file, 'w') as f:
+                        json.dump(checkpoint_data, f, indent=2)
+                    logger.debug(f"Saved checkpoint: {checkpoint_file}")
             ##### Save trace in this iteration (END) #####
             
     except (ValueError, *([torch.cuda.OutOfMemoryError] if torch is not None else [])) as e:
@@ -517,6 +603,17 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
     # retrieve the path with maximum cumulative reward
     if mcts_search_config.output_strategy == 'max_reward':
         _output_cum_reward, _output_iter = _dfs_max_reward([root])
+    
+    # Save final result path checkpoint
+    if checkpoint_path and _output_iter:
+        result_file = checkpoint_path / f"{query_idx}_result.json"
+        if not override_checkpoint and result_file.exists():
+            logger.debug(f"Skipping existing result file: {result_file}")
+        else:
+            result_data = _serialize_obj(_output_iter)
+            with open(result_file, 'w') as f:
+                json.dump(result_data, f, indent=2)
+            logger.debug(f"Saved final result: {result_file}")
     
     # Collect all terminal nodes for unified post-processing
     def collect_terminal_nodes(node, terminals):

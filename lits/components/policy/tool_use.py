@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 class ToolUsePolicy(Policy[ToolUseState, ActionT]):
     """Policy that samples the next ReAct tool-use step from a chat model."""
 
+    # Interface category for this policy type
+    TASK_TYPE: str = "tool_use"
+
     def _create_error_steps(self, n_actions: int, error_msg: str) -> list[ToolUseStep]:
         """Create ToolUseStep error steps for ToolUsePolicy."""
         return [ToolUseStep(action=None, observation=None, answer=None, error=error_msg) for _ in range(n_actions)]
@@ -26,7 +29,6 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         base_model,
         tools,
         task_prompt_spec=None,
-        task_type: Optional[str] = None,
         tool_context: str = "",
         stop_token: Optional[str] = "<observation>",
         **kwargs,
@@ -34,8 +36,7 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         self.tools = tools
         self.stop_token = stop_token
         
-        # Pass task_type to parent for registry loading
-        super().__init__(base_model=base_model, task_prompt_spec=task_prompt_spec, task_type=task_type, **kwargs)
+        super().__init__(base_model=base_model, task_prompt_spec=task_prompt_spec, **kwargs)
 
         # If task_prompt_spec is a PromptTemplate, format it with tool information
         if isinstance(self.task_prompt_spec, PromptTemplate):

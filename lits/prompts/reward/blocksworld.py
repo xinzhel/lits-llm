@@ -255,4 +255,4 @@ As initial conditions I have that, <init_state>
 My goal is to <goals>
 [ACTION]
 <action>
-[EVALUATION]"""
+[REASONING]"""

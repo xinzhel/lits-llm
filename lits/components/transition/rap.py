@@ -13,6 +13,9 @@ class RAPTransition(LlmTransition):
     State: [[sub_question_1, sub_answer_1, confidence_1], [sub_question_2, sub_answer_2, confidence_2], ...]
     Action: sub_question
     """
+    
+    # Interface category for this transition type
+    TASK_TYPE: str = "language_grounded"
 
     def __init__(
         self,
@@ -49,7 +52,7 @@ class RAPTransition(LlmTransition):
         # self.early_stop_base = early_stop_base if early_stop_base is not None else n_confidence
         self.early_stop_threshold = early_stop_threshold
 
-    def init_state(self) -> list:
+    def init_state(self, **kwargs) -> list:
         return []
 
     def _generate_prompt(self, query_or_goals: str, state: StateT, action: Action) -> str:

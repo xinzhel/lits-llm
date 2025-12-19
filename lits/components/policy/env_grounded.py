@@ -1,7 +1,9 @@
 from typing import List, Optional
 from ..base import Policy
 from ...structures.env_grounded import EnvState, EnvStep, EnvAction
+import logging
 
+logger = logging.getLogger(__name__)
 class EnvGroundedPolicy(Policy):
     """
     Environment-grounded policy that generates valid actions for planning tasks.
@@ -63,6 +65,10 @@ class EnvGroundedPolicy(Policy):
         - Invalid LLM generations are retried until a valid action is selected.
         - All returned actions are guaranteed to be valid in the current state.
     """
+    
+    # Interface category for this policy type
+    TASK_TYPE: str = "env_grounded"
+    
     def __init__(
         self,
         base_model,  # Required parameter from parent
@@ -93,6 +99,11 @@ class EnvGroundedPolicy(Policy):
         self.generate_all_actions = generate_all_actions
         self.goal_reward_default = goal_reward_default
         self.goal_reached_reward = goal_reached_reward
+        # Verify policy prompts for blocksworld
+        if self.task_name == "blocksworld":
+            assert self.usr_prompt_spec.startswith("I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do\nPick up a block\nUnstack a block"), \
+                f"EnvGroundedPolicy usr_prompt_spec does not match expected BlocksWorld prompt. Got:\n{self.usr_prompt_spec}"
+
 
     def _create_error_steps(self, n_actions: int, error_msg: str) -> List[EnvStep]:
         """Create EnvStep error steps for EnvGroundedPolicy."""
@@ -144,6 +155,8 @@ class EnvGroundedPolicy(Policy):
             >>> steps = policy._get_actions(state, n_actions=2, temperature=0.8, query="clear A")
             >>> # Returns: [EnvStep(action=StringAction("unstack A from B"), reward=0.0), ...]
         """
+        from ..utils import create_role
+        query_idx = kwargs.get("query_idx", None)
         valid_actions = self.generate_all_actions(state.env_state)
         actions_selected = []
         if self.base_model:
@@ -154,8 +167,17 @@ class EnvGroundedPolicy(Policy):
                 
                 valid_gen = False
                 while not valid_gen:
-                    gen_action = self.base_model(prompt, temperature=temperature, from_phase=from_phase).text.strip()
+                    role = create_role("policy", query_idx, from_phase)
+                    gen_action = self.base_model(prompt, temperature=temperature, from_phase=from_phase, role=role).text.strip()
                     if gen_action in valid_actions:
+                        # find another from valid actions if duplicated
+                        if gen_action in actions_selected:
+                            other_valid_actions = [a for a in valid_actions if a not in actions_selected] 
+                            if other_valid_actions:
+                                gen_action = other_valid_actions[0]
+                            else:
+                                logger.warning("All valid actions have been selected, allowing duplicates.")
+    
                         actions_selected.append(gen_action)
                         valid_gen = True
         else:

@@ -40,7 +40,7 @@ class ReActChat(ChainAgent[ToolUseState]):
         transition: ToolUseTransition,
         max_iter: int = 10,
         policy_model_name: Optional[str] = None,
-        task_type: Optional[str] = None,
+        task_name: Optional[str] = None,
         step_evaluators: Optional[list] = None,
         trajectory_evaluators: Optional[list] = None,
     ):
@@ -51,7 +51,7 @@ class ReActChat(ChainAgent[ToolUseState]):
             transition: ToolUseTransition that executes actions and produces observations
             max_iter: Maximum number of reasoning iterations
             policy_model_name: Optional policy model name (for callbacks like SQL validation)
-            task_type: Optional task type (for callbacks like SQL validation)
+            task_name: Optional task name for prompt lookup (for callbacks like SQL validation)
             step_evaluators: Optional list of step-level evaluators (e.g., SQLValidator)
                 that validate each generated step
             trajectory_evaluators: Optional list of trajectory-level evaluators 
@@ -62,7 +62,7 @@ class ReActChat(ChainAgent[ToolUseState]):
         self.transition = transition
         self.max_iter = max_iter
         self.policy_model_name = policy_model_name
-        self.task_type = task_type
+        self.task_name = task_name
         self.step_evaluators = step_evaluators or []
         self.trajectory_evaluators = trajectory_evaluators or []
         
@@ -89,7 +89,7 @@ class ReActChat(ChainAgent[ToolUseState]):
                 try:
                     notes = evaluator.load_eval_as_prompt(
                         self.policy_model_name,
-                        self.task_type,
+                        self.task_name,
                         max_items=5
                     )
                     if notes:
@@ -129,7 +129,7 @@ class ReActChat(ChainAgent[ToolUseState]):
                                 context=state_context,  # Pass state history as context
                                 query_idx=context.get('query_idx'),
                                 policy_model_name=context.get('policy_model_name'),
-                                task_type=context.get('task_type')
+                                task_name=context.get('task_name')
                             )
                     except Exception as e:
                         logger.error(f"Error in {evaluator.__class__.__name__}.evaluate(): {e}")
@@ -191,7 +191,7 @@ class ReActChat(ChainAgent[ToolUseState]):
                     state,
                     query_idx=query_idx,
                     policy_model_name=self.policy_model_name,
-                    task_type=self.task_type
+                    task_name=self.task_name
                 )
                 logger.debug(f"Trajectory evaluated by {evaluator.__class__.__name__}")
             except Exception as e:
@@ -214,7 +214,7 @@ class ReActChat(ChainAgent[ToolUseState]):
             ToolUseState
         """
         # Step 1: Policy generates action
-        # Pass policy_model_name and task_type for post-generation callbacks
+        # Pass policy_model_name and task_name for post-generation callbacks
         steps = self.policy.get_actions(
             state,
             query=query,
@@ -222,7 +222,7 @@ class ReActChat(ChainAgent[ToolUseState]):
             query_idx=query_idx,
             from_phase=from_phase,
             policy_model_name=self.policy_model_name,
-            task_type=self.task_type,
+            task_name=self.task_name,
         )
         if not steps:
             raise RuntimeError("ToolUsePolicy returned no candidate generation.")

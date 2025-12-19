@@ -123,21 +123,36 @@ def apply_change(change, state):
     return ", ".join(sorted_states) + "."
 
 class BlocksWorldTransition(LlmTransition):
-    """BlocksWorld Transition
-    State: (step_idx, last_blocks_state, blocks_state, buffered_action)
-    Action: e.g. "put the red block on the green block"
-    Additional notes about the state:
-        the state is updated every two actions. 
-        When there is a block in hand, the state is not updated, but the action is buffered. 
-        With the next action, the state is updated and the buffer is cleared.
+    """BlocksWorld Transition for environment-grounded planning tasks.
+    
+    This is a reference implementation for env_grounded task types that demonstrates
+    how to implement init_state() with the init_state_kwargs convention.
+    
+    State: EnvState containing the current blocks configuration
+    Action: Natural language action (e.g., "put the red block on the green block")
+    
+    init_state_kwargs:
+        - init_state_str (required): Initial state description from dataset
+          Example: "the red block is on the table, the blue block is on the red block"
+    
+    Example usage:
+        dataset_example = {
+            'init_state_str': 'the red block is on the table...',
+            'query_or_goals': 'the blue block is on top of the yellow block'
+        }
+        
+        # Tree search passes example as init_state_kwargs
+        state = transition.init_state(**dataset_example)
     """
+    
+    # Interface category for this transition type
+    TASK_TYPE: str = "env_grounded"
 
     def __init__(
         self,
         base_model,
         goal_check: Callable,
         task_prompt_spec: Optional[Union[str, dict]] = None,
-        task_type: Optional[str] = None,
         usr_prompt_spec: Optional[Union[str, dict]] = None,
         max_steps: int = 6,
         **kwargs
@@ -145,36 +160,53 @@ class BlocksWorldTransition(LlmTransition):
         super().__init__(
             base_model=base_model,
             task_prompt_spec=task_prompt_spec,
-            task_type=task_type,
             usr_prompt_spec=usr_prompt_spec,
             **kwargs
         )
         self.max_steps = max_steps
         self.goal_check = goal_check
         
-    def init_state(self, state_str) -> EnvState:
+    def init_state(self, **kwargs) -> EnvState:
         """Initialize the world model.
+        
+        Args:
+            **kwargs: Must include 'init_state_str' - the initial state description
+                      from the dataset (e.g., "the red block is on the table...")
 
-        :return: the initial state
+        Returns:
+            The initial EnvState
         """
+        state_str = kwargs.get('init_state_str')
+        if state_str is None:
+            raise ValueError(
+                "BlocksWorldTransition.init_state() requires 'init_state_str' in kwargs. "
+                "Pass the example dict or init_state_str from the dataset."
+            )
         return EnvState(init_state=state_str)
 
-    def step(self, state: EnvState, step_or_action, query_or_goals:str) -> tuple[EnvState, dict]:
+    def step(self, state: EnvState, step_or_action, query_or_goals:str, query_idx: Optional[int] = None, from_phase: str = "") -> tuple[EnvState, dict]:
         """Take a step in the world model.
         
         :param state: the current state
-        :param step_or_action: the action to take (EnvAction)
+        :param step_or_action: EnvStep (from policy) or EnvAction to execute
+        :param query_or_goals: the goal statement
+        :param query_idx: optional query index for logging
+        :param from_phase: description of algorithm phase (for logging)
         :return: the next state and additional information cached for reward calculation
         """
-        # For BlocksWorld, we only use actions (EnvAction), not full steps
         assert isinstance(query_or_goals, str), "query_or_goals must be str"
-        action = step_or_action
+        
+        # Extract action from EnvStep if needed
+        if isinstance(step_or_action, EnvStep):
+            action = step_or_action.action
+        else:
+            action = step_or_action
         
         # Create a copy of the state (which is a list)
         new_state = copy.deepcopy(state)
         
         env_state = new_state.env_state
-        env_state = self.update_blocks(env_state, action)
+        env_state = self.update_blocks(env_state, action, query_idx=query_idx, from_phase=from_phase)
 
         # Create new step
         new_step = EnvStep(action=action, next_state=env_state)
@@ -192,7 +224,7 @@ class BlocksWorldTransition(LlmTransition):
         elif "stack" in action:
             key = "world_update_stack"
         else:
-            raise ValueError("Invalid action")
+            raise ValueError(f"Invalid action: {action}")
         return self.usr_prompt_spec[key]
         
     def update_blocks(self, env_state: str, action: EnvAction, query_idx: int=None, from_phase: str='') -> str:
@@ -215,7 +247,7 @@ class BlocksWorldTransition(LlmTransition):
         logger.warning("[NEW STATE] %s", new_state)
         return new_state    
 
-    def is_terminal(self, query_or_goals: str, state: EnvState) -> bool:
+    def is_terminal(self, state: EnvState, query_or_goals: str, **kwargs) -> bool:
         if self.goal_check(query_or_goals, state.env_state)[0]:
             return True
         elif state.step_idx == self.max_steps:

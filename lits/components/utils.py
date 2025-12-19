@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 
 def create_role(llm_role, query_idx=None, from_phase=""):
     VALID_LLM_ROLES = [
+        "prm_env", "prm_tool", "prm_language", \
         "evaluator_logits_ORM", "evaluator_logits", \
         "evaluator_logits", "evaluator_tooluse", "evaluator_correctness", "evaluator_usefulness", \
         "dynamics", "dynamics_verify", "dynamics_critic", \
-        "policy", \
+        "policy", "policy_env_grounded", \
         "bn_entropy_agg", "bn_entropy_remove", "bn_eval", "bn_entropy", \
         None, ""
     ]

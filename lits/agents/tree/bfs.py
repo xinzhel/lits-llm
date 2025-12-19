@@ -145,12 +145,34 @@ def bfs_topk(
     evaluator, 
     bn_evaluator=None, 
     max_leaves_to_terminate=5,
-    only_continuation_at_head=False
+    only_continuation_at_head=False,
+    init_state_kwargs: dict = None
 ) -> BFSResult:
+    """Run BFS tree search.
+    
+    Args:
+        question: The query or goals string
+        query_idx: Index of the query
+        search_config: BFS configuration
+        world_model: Transition model
+        policy: Policy model
+        evaluator: Reward model
+        bn_evaluator: Optional BN evaluator
+        max_leaves_to_terminate: Max terminal leaves before stopping
+        only_continuation_at_head: Whether to only continue at head
+        init_state_kwargs: Optional kwargs passed to world_model.init_state().
+                           For env_grounded tasks, should include 'init_state_str'.
+    
+    Returns:
+        BFSResult with search results
+    """
     logger.debug(f"Question: {question}")
     logger.debug(f"\n\n\n=========== [BFS for Example {query_idx} Begin] ===========")
     stop_continuation = False
-    root = SearchNode(state=world_model.init_state(), action=None, parent=None)
+    
+    # Pass init_state_kwargs to init_state for task types that need it (e.g., env_grounded)
+    _init_kwargs = init_state_kwargs if init_state_kwargs is not None else {}
+    root = SearchNode(state=world_model.init_state(**_init_kwargs), action=None, parent=None)
     terminal_nodes = []
 
     

@@ -159,6 +159,10 @@ class ExperimentConfig:
             self.n_iters = 50
             self.force_terminating_on_depth_limit = False
         
+        if self.benchmark_name == "blocksworld":
+            self.max_steps = 6
+            self.roll_out_steps = 6
+        
         if self.n_action_for_simulate is None:
             self.n_action_for_simulate = self.n_actions
         

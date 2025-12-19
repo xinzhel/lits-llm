@@ -55,7 +55,7 @@ Do not explain anything. Do not add extra text.
 """
         self.critic = """""Given a science or math problem and a corresponding solution that may be incomplete, your task is to give some advice on how to solve the problem based on current steps or what to consider next."""
 
-    def init_state(self) -> list:
+    def init_state(self, **kwargs) -> list:
         return []
 
     def step(self, state: StateT, step_or_action, query_or_goals: str=None, query_idx: int=None, from_phase="") -> Union[StateT, Tuple[StateT, dict]]:

@@ -1,15 +1,20 @@
 # Tool-augmented benchmarks that expect ToolUsePolicy-driven search.
 TOOL_USE_DATASETS = {"mapeval", "clue", "mapeval-sql"}
 
+# Language-grounded benchmarks (math reasoning, spatial reasoning, etc.)
+LANGUAGE_GROUNDED_DATASETS = {"gsm8k", "math500", "spart_yn"}
+
 
 def infer_task_type(dataset_name: str) -> str:
-    """Infer task type from dataset name."""
-    if dataset_name in ["gsm8k", "math500"]:
-        return "math_qa"
+    """Infer task type (interface category) from dataset name.
+    
+    Returns one of: 'language_grounded', 'tool_use', or 'env_grounded'.
+    These represent interface categories, not prompt lookup keys.
+    """
+    if dataset_name in LANGUAGE_GROUNDED_DATASETS:
+        return "language_grounded"
     elif dataset_name in ["blocksworld"]:
         return "env_grounded"
-    elif dataset_name in ["spart_yn"]:
-        return "spatial_qa"
     elif dataset_name in TOOL_USE_DATASETS:
         return "tool_use"
     else:

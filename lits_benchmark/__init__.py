@@ -45,7 +45,7 @@ def load_resource(
     - tools: List of tool instances to be used by the agent, each tool should implement a `_run` method and has name, description, args_schema attributes."""
     if benchmark_name == "mapeval" or benchmark_name == "mapeval-sql":
 
-        from lits.benchmarks.mapeval import construct_prompt, retrieve_answer as parse_answer, make_answer_extractor
+        from lits_benchmark.mapeval import construct_prompt, retrieve_answer as parse_answer, make_answer_extractor
 
         ToolUseStep.configure_extractors(answer_extractor=make_answer_extractor(make_tag_extractor("answer"), parse_answer))
         raw_examples = list(load_dataset("xinzhel/mapeval_query", split="test"))

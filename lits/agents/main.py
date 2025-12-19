@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def create_tool_use_agent(
     tools: list,
     agent_type: str = "react_chat",
-    task_type:str=None,
+    task_name:str=None,
     tool_context: str="",
     root_dir: str = "./results",
     model_name=DEFAULT_MODEL_NAME, 
@@ -97,7 +97,7 @@ def create_tool_use_agent(
     policy = ToolUsePolicy(
         base_model=base_model,
         tools=tools,
-        task_type=task_type,
+        task_name=task_name,
         tool_context=tool_context,
         task_prompt_spec=None,
         max_length=max_length,
@@ -123,7 +123,7 @@ def create_tool_use_agent(
             transition=transition,
             max_iter=max_iter,
             policy_model_name=model_name,
-            task_type=task_type,
+            task_type=task_name,
             step_evaluators=step_evaluators,
             trajectory_evaluators=trajectory_evaluators,
         )
@@ -136,7 +136,7 @@ from lits.lm import LanguageModel
 def create_env_chain_agent(
     generate_all_actions: Callable,
     world_model: Transition,
-    task_type: str = None,
+    task_name: str = None,
     usr_prompt_spec: str = None,
     agent_type: str = "env_chain",
     root_dir: str = "./results",
@@ -163,7 +163,7 @@ def create_env_chain_agent(
         generate_all_actions: Function(env_state: str) -> List[str] that returns
             valid action strings for the given environment state.
         world_model: Transition instance for executing actions and updating state.
-        task_type: Task type identifier (e.g., 'blocksworld') for loading prompts.
+        task_name: Task name identifier (e.g., 'blocksworld') for loading prompts.
         usr_prompt_spec: Optional user prompt specification.
         agent_type: Type of agent to create. Default is "env_chain".
         root_dir: Directory to save results and configurations.
@@ -211,7 +211,7 @@ def create_env_chain_agent(
     # Construct policy
     policy = EnvGroundedPolicy(
         base_model=base_model,
-        task_type=task_type,
+        task_name=task_name,
         usr_prompt_spec=usr_prompt_spec,
         generate_all_actions=generate_all_actions,
         goal_reward_default=goal_reward_default,

@@ -23,14 +23,16 @@ def setup_logging(
     add_console_handler=False,
     verbose=False,
     allowed_namespaces=("lits", "mem0"),
+    override=True,
 ):
     os.makedirs(result_dir, exist_ok=True)
     log_path = os.path.join(result_dir, f"{run_id}.log")
     namespace_filter = _NamespaceFilter(allowed_namespaces)
 
     # ～～～～～～ 文件处理器 (Begin) ～～～～～～
-    # Create file handler. If the file exists, append the log.
-    file_handler = logging.FileHandler(log_path, mode='a', encoding='utf-8')
+    # Create file handler. If override=True, overwrite the file; otherwise append.
+    file_mode = 'w' if override else 'a'
+    file_handler = logging.FileHandler(log_path, mode=file_mode, encoding='utf-8')
     
     # 文件处理器的级别设置为 logging.DEBUG，这意味着它会接收所有日志事件（只要记录器本身的级别允许）
     file_handler.setLevel(logging.DEBUG)

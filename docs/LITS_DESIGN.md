@@ -91,23 +91,90 @@ RewardModel: (state, action) → correctness_score
 **Components:**
 - **Policy**: `EnvGroundedPolicy` - Generates valid actions for environment
 - **Transition**: `BlocksWorldTransition` or custom - Simulates environment dynamics
-- **RewardModel**: TBD (goal-based reward)
+- **RewardModel**: `EnvGroundedPRM` - Evaluates action quality via LLM
 
 **Flow:**
 ```
-Policy: state → EnvAction
-Transition: (state, action) → (new_state, env_reward)
-RewardModel: (state, action) → goal_progress
+Policy: state → EnvStep(action)
+Transition: (state, action) → (new_state with next_state, goal_reached)
+RewardModel: (state, action, query) → action_score
 ```
 
-### Type Compatibility Matrix
+**Example:**
+```python
+from lits_benchmark.blocksworld import goal_check, generate_all_actions
 
-| Agent Type | Policy | Transition | State Type | Action Type |
-|------------|--------|------------|------------|-------------|
-| ReActChat | ToolUsePolicy | ToolUseTransition | ToolUseState | ToolUseAction |
-| RAP (MCTS) | RapPolicy | RapTransition | SubQAState | SubQAStep |
-| ReST (MCTS) | ConcatPolicy | ConcatTransition | ThoughtState | ThoughtStep |
-| EnvChain | EnvGroundedPolicy | Custom | EnvState | EnvAction |
+policy = EnvGroundedPolicy(
+    base_model=model,
+    task_name='blocksworld',  # task_name for prompt registry lookup
+    generate_all_actions=generate_all_actions
+)
+transition = BlocksWorldTransition(
+    base_model=model,
+    task_name='blocksworld',
+    goal_check=goal_check,
+    max_steps=10
+)
+evaluator = EnvGroundedPRM(
+    base_model=eval_model,
+    task_name='blocksworld'
+)
+
+# Use with tree search (RAP, REST, or BFS - all use same components)
+result = bfs_topk(query, query_idx, config, transition, policy, evaluator)
+```
+
+### Component Compatibility by TASK_TYPE and Method
+
+Components define their interface category via the `TASK_TYPE` class constant:
+
+| TASK_TYPE | Method | Policy | Transition | RewardModel | State/Step Types | LLM Type | Notes |
+|-----------|--------|--------|------------|-------------|------------------|----------|-------|
+| **env_grounded** | Chain (`EnvChain`) | `EnvGroundedPolicy` | `BlocksWorldTransition` | — | `EnvState` / `EnvStep` | Chat | Sequential execution without search |
+| **env_grounded** | Tree (RAP / REST / BFS) | `EnvGroundedPolicy` | `BlocksWorldTransition` | `EnvGroundedPRM` | `EnvState` / `EnvStep` | Chat | **Same components for all tree methods** - only search settings differ |
+| **tool_use** | Chain (`ReActChat`) | `ToolUsePolicy` | `ToolUseTransition` | — | `ToolUseState` / `ToolUseAction` | Chat | Sequential tool execution with observations |
+| **tool_use** | Tree (REST / BFS) | `ToolUsePolicy` | `ToolUseTransition` | `ToolUsePRM` | `ToolUseState` / `ToolUseAction` | Chat | Same components as chain + RewardModel |
+| **language_grounded** | Tree (RAP) | `RAPPolicy` | `RAPTransition` | `RapPRM` | `SubQAState` / `SubQAStep` | **Completion** | Requires completion model, sub-question decomposition |
+| **language_grounded** | Tree (REST / BFS) | `ConcatPolicy` | `ConcatTransition` | `GenerativePRM` | `ThoughtState` / `ThoughtStep` | Chat | Chain-of-thought style reasoning |
+
+### TASK_TYPE vs task_name
+
+The framework distinguishes between two concepts:
+
+| Concept | Purpose | Example Values | Where Used |
+|---------|---------|----------------|------------|
+| **TASK_TYPE** (class constant) | Defines the interface category a component implements | `'env_grounded'`, `'tool_use'`, `'language_grounded'` | Component class definitions |
+| **task_name** (constructor param) | Key for prompt registry lookup | `'blocksworld'`, `'gsm8k'`, `'mapeval-sql'` | Component instantiation |
+
+**Example:**
+```python
+class EnvGroundedPolicy(Policy):
+    TASK_TYPE = "env_grounded"  # Interface category
+    
+    def __init__(self, base_model, task_name: str, ...):
+        # task_name (e.g., 'blocksworld') used for prompt lookup
+        super().__init__(base_model, task_name=task_name, ...)
+```
+
+This separation allows:
+- **TASK_TYPE**: Used by factory functions to select appropriate component classes
+- **task_name**: Used by components to load task-specific prompts from the registry
+
+**Why no chain method for language_grounded?** Language-grounded QA tasks (math reasoning, multi-hop QA) don't require interrupting the reasoning chain for external execution. Chain-of-thought can be generated in a single LLM inference due to the sequential nature of language models. Tree search is used only when exploring multiple reasoning paths is beneficial.
+
+**Key Insight:** For environment-grounded and tool-use tasks, chain and tree methods share the same Policy and Transition components. Tree search simply adds a RewardModel for evaluating and selecting among multiple candidate paths. For env_grounded tasks, all tree search variants (RAP, REST, BFS) use identical components—only the search hyperparameters differ:
+
+| Setting | RAP (MCTS) | REST (MCTS) | BFS |
+|---------|------------|-------------|-----|
+| Algorithm | MCTS with UCB | MCTS with value estimation | Beam search |
+| `n_iterations` | Higher (100+) | Medium (50) | N/A |
+| `beam_width` | N/A | N/A | Configurable (5-20) |
+| `depth_limit` | Configurable | Configurable | Configurable |
+| Reward aggregation | Backpropagation | Backpropagation | Cumulative |
+
+For QA tasks, RAP requires fundamentally different components because it uses sub-question decomposition with a completion-style LLM, while REST/BFS use chain-of-thought with chat models.
+
+
 
 ## Key Design Patterns
 
@@ -332,10 +399,11 @@ def _world_modeling(query, node, transition_model, ...):
 ### Adding New Task Types
 
 1. Define State and Action types
-2. Implement Policy for action generation
-3. Implement Transition for execution
-4. (Optional) Implement RewardModel for evaluation
-5. Use with existing agents (ReActChat, MCTS, BFS)
+2. Implement Policy for action generation (set `TASK_TYPE` class constant)
+3. Implement Transition for execution (set `TASK_TYPE` class constant)
+4. (Optional) Implement RewardModel for evaluation (set `TASK_TYPE` class constant)
+5. Register prompts in `PromptRegistry` with your `task_name`
+6. Use with existing agents (ReActChat, MCTS, BFS)
 
 ### Adding New Agents
 

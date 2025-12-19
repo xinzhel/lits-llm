@@ -12,13 +12,16 @@ from lits.components.transition.tool_use import ToolUseTransition
 from lits.components.policy.concat import ConcatPolicy
 from lits.components.policy.rap import RAPPolicy
 from lits.components.policy.tool_use import ToolUsePolicy
+from lits.components.policy.env_grounded import EnvGroundedPolicy
+from lits.components.transition.blocksworld import BlocksWorldTransition
+from lits.components.reward.env_grounded import EnvGroundedPRM
 from lits.lm.base import HfChatModel
 
 
 def create_rap_components_math_qa(
     base_model,
     eval_base_model,
-    task_type: str,
+    task_name: str,
     n_actions: int,
     n_confidence: int,
     max_steps: int,
@@ -34,7 +37,7 @@ def create_rap_components_math_qa(
     world_model = RAPTransition(
         base_model=base_model,
         task_prompt_spec=None,
-        task_type=task_type,
+        task_name=task_name,
         usr_prompt_spec=None,
         max_length=max_length,
         batch_size=1,
@@ -46,7 +49,7 @@ def create_rap_components_math_qa(
     policy = RAPPolicy(
         base_model=base_model,
         task_prompt_spec=None,
-        task_type=task_type,
+        task_name=task_name,
         usr_prompt_spec=None,
         n_actions=n_actions,
         temperature=0.8,
@@ -61,7 +64,7 @@ def create_rap_components_math_qa(
     evaluator = RapPRM(
         base_model=eval_base_model,
         task_prompt_spec=None, 
-        task_type=task_type,
+        task_name=task_name,
         temperature=0.8,
         reward_alpha=0.5,
         reward_confidence_default=0.8,
@@ -75,7 +78,7 @@ def create_rest_bfs_components_math_qa(
     base_model,
     eval_base_model,
     terminal_model,
-    task_type: str,
+    task_name: str,
     n_actions: int,
     max_steps: int,
     force_terminating_on_depth_limit: bool,
@@ -106,7 +109,7 @@ def create_rest_bfs_components_math_qa(
     policy = ConcatPolicy(
         base_model=base_model,
         task_prompt_spec=None,
-        task_type=task_type,
+        task_name=task_name,
         n_actions=n_actions,
         temperature=0.7,
         force_terminating_on_depth_limit=force_terminating_on_depth_limit,
@@ -123,7 +126,7 @@ def create_rest_bfs_components_math_qa(
         evaluator = GenerativePRM(
             base_model=eval_base_model,
             task_prompt_spec=None,
-            task_type=task_type,
+            task_name=task_name,
             save_dir=None,
             think_for_correctness=think_for_correctness,
             think_for_usefulness=think_for_usefulness,
@@ -134,11 +137,11 @@ def create_rest_bfs_components_math_qa(
     return world_model, policy, evaluator
 
 
-def create_rest_bfs_components_tool_use(
+def create_components_tool_use(
     base_model,
     eval_base_model,
     tool_use_spec: Dict[str, Any],
-    task_type: str,
+    task_name: str,
     n_actions: int,
     max_steps: int,
     force_terminating_on_depth_limit: bool,
@@ -151,7 +154,7 @@ def create_rest_bfs_components_tool_use(
         base_model: LLM for policy (action generation)
         eval_base_model: LLM for reward model (trajectory evaluation)
         tool_use_spec: Dictionary containing 'tools' and 'tool_context'
-        task_type: Task type identifier
+        task_name: Task name for prompt lookup
         n_actions: Number of actions to generate per step
         max_steps: Maximum steps in trajectory
         force_terminating_on_depth_limit: Whether to force termination at depth limit
@@ -172,7 +175,7 @@ def create_rest_bfs_components_tool_use(
     policy = ToolUsePolicy(
         base_model=base_model,
         task_prompt_spec=None,
-        task_type=task_type,
+        task_name=task_name,
         tools=tools,
         tool_context=tool_context,
         n_actions=n_actions,
@@ -187,13 +190,80 @@ def create_rest_bfs_components_tool_use(
         base_model=eval_base_model,
         tools=tools,
         task_prompt_spec=None,
-        task_type=task_type,
+        task_name=task_name,
         max_rollout_steps=max_eval_rollout_steps,
         max_length=max_length,
         save_rollouts_dir=None  # Will be set from main_search.py if needed
     )
     
     return world_model, policy, evaluator
+
+
+def create_components_env_grounded(
+    base_model,
+    eval_base_model,
+    task_name: str,
+    n_actions: int,
+    max_steps: int,
+    force_terminating_on_depth_limit: bool,
+    max_length: int,
+    benchmark_name: str = "blocksworld"
+) -> Tuple:
+    """
+    Create components for environment-grounded tasks (e.g., BlocksWorld) with tree search.
+    
+    For env_grounded tasks, all search methods (RAP, REST, BFS) use the SAME components.
+    The only difference is the search algorithm configuration (e.g., iterations, beam width).
+    This is in contrast to QA tasks where RAP requires specific components (completion model,
+    RAPPolicy, RAPTransition with sub-question decomposition).
+    
+    Args:
+        base_model: LLM for policy (action generation)
+        eval_base_model: LLM for reward model (action evaluation)
+        task_name: Task name for prompt lookup (uses benchmark_name)
+        n_actions: Number of actions to generate per step
+        max_steps: Maximum steps in trajectory
+        force_terminating_on_depth_limit: Whether to force termination at depth limit
+        max_length: Maximum token length for generation
+        benchmark_name: Benchmark name (e.g., 'blocksworld')
+        
+    Returns:
+        Tuple of (world_model, policy, evaluator)
+    """
+    if benchmark_name == "blocksworld":
+        from lits_benchmark.blocksworld import goal_check, generate_all_actions
+        
+        # Create world model (transition)
+        world_model = BlocksWorldTransition(
+            base_model=base_model,
+            task_name=task_name,
+            goal_check=goal_check,
+            max_steps=max_steps
+        )
+        
+        # Create policy
+        policy = EnvGroundedPolicy(
+            base_model=base_model,
+            task_name=task_name,
+            generate_all_actions=generate_all_actions,
+            n_actions=n_actions,
+            temperature=0.7,
+            force_terminating_on_depth_limit=force_terminating_on_depth_limit,
+            max_steps=max_steps,
+            max_length=max_length,
+        )
+        
+        # Create evaluator (reward model)
+        evaluator = EnvGroundedPRM(
+            base_model=eval_base_model,
+            task_name=task_name,
+            goal_reward_default=0.0,
+            goal_reached_reward=100.0
+        )
+        
+        return world_model, policy, evaluator
+    else:
+        raise ValueError(f"Unknown benchmark for env_grounded task type: {benchmark_name}")
 
 
 def create_bn_evaluator(
@@ -223,8 +293,6 @@ def create_bn_evaluator(
         )
         bn_model.inference_logger = inference_logger
     else:
-        assert isinstance(base_model, HfChatModel), \
-            f"BN model must be a HfChatModel, got {type(base_model)}"
         bn_model = base_model
     
     return BNEvaluator(
@@ -240,6 +308,7 @@ def create_bn_evaluator(
 def create_components(
     reasoning_method: str,
     task_type: str,
+    task_name: str,
     base_model,
     eval_base_model,
     terminal_model,
@@ -249,14 +318,24 @@ def create_components(
     """
     Create all components (world model, policy, evaluator) based on configuration.
     
+    Args:
+        reasoning_method: Search method (rap, rest, bfs)
+        task_type: Interface category (language_grounded, tool_use, env_grounded)
+        task_name: Prompt lookup key (e.g., benchmark_name)
+        base_model: LLM for policy
+        eval_base_model: LLM for reward model
+        terminal_model: LLM for terminal evaluation (optional)
+        tool_use_spec: Tool specification for tool_use tasks
+        config: Search configuration
+        
     Returns:
         Tuple of (world_model, policy, evaluator)
     """
-    if reasoning_method == "rap" and task_type == "math_qa":
+    if reasoning_method == "rap" and task_type == "language_grounded":
         return create_rap_components_math_qa(
             base_model=base_model,
             eval_base_model=eval_base_model,
-            task_type=task_type,
+            task_name=task_name,
             n_actions=config.n_actions,
             n_confidence=config.n_confidence,
             max_steps=config.max_steps,
@@ -266,15 +345,26 @@ def create_components(
             num_shot=config.num_shot
         )
     
-    elif reasoning_method == "rap" and task_type == "env_grounded":
-        raise NotImplementedError(f"RAP not implemented for dataset {config.dataset_name}")
+    elif task_type == "env_grounded":
+        # For env_grounded tasks (e.g., BlocksWorld), all search methods (RAP, REST, BFS)
+        # use the same components. Only the search algorithm settings differ.
+        return create_components_env_grounded(
+            base_model=base_model,
+            eval_base_model=eval_base_model,
+            task_name=task_name,
+            n_actions=config.n_actions,
+            max_steps=config.max_steps,
+            force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,
+            max_length=config.max_length,
+            benchmark_name=config.benchmark_name
+        )
     
-    elif reasoning_method in ["rest", "bfs"] and task_type == "math_qa":
+    elif reasoning_method in ["rest", "bfs"] and task_type == "language_grounded":
         return create_rest_bfs_components_math_qa(
             base_model=base_model,
             eval_base_model=eval_base_model,
             terminal_model=terminal_model,
-            task_type=task_type,
+            task_name=task_name,
             n_actions=config.n_actions,
             max_steps=config.max_steps,
             force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,
@@ -290,7 +380,8 @@ def create_components(
             n_for_usefulness=config.n_for_usefulness
         )
     
-    elif reasoning_method in ["rest", "bfs"] and task_type == "tool_use":
+    elif task_type == "tool_use":
+        assert reasoning_method != "rap"
         # Validate tool_use_spec is provided
         if tool_use_spec is None:
             raise ValueError(
@@ -298,11 +389,11 @@ def create_components(
                 f"Ensure the dataset is in TOOL_USE_DATASETS and load_resource() succeeds."
             )
         
-        return create_rest_bfs_components_tool_use(
+        return create_components_tool_use(
             base_model=base_model,
             eval_base_model=eval_base_model,
             tool_use_spec=tool_use_spec,
-            task_type=task_type,
+            task_name=task_name,
             n_actions=config.n_actions,
             max_steps=config.max_steps,
             force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,

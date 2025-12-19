@@ -38,7 +38,6 @@ class ToolUsePRM(RewardModel):
         base_model: LLM to use for evaluation
         tools: List of tools available for execution
         task_prompt_spec: System prompt for evaluation (loaded from registry if None)
-        task_type: Task type identifier (e.g., 'tool_use')
         max_rollout_steps: Maximum steps to continue trajectory (default: 5)
         **kwargs: Additional arguments passed to RewardModel
 
@@ -54,7 +53,6 @@ class ToolUsePRM(RewardModel):
         reward_model = ToolUsePRM(
             base_model=model,
             tools=tools,
-            task_type='tool_use'
         )
 
         # Evaluate a state
@@ -66,13 +64,15 @@ class ToolUsePRM(RewardModel):
         )
         ```
     """
+    
+    # Interface category for tool-use tasks
+    TASK_TYPE: str = "tool_use"
 
     def __init__(
         self,
         base_model,
         tools: List,
         task_prompt_spec: Optional[str] = None,
-        task_type: Optional[str] = None,
         max_rollout_steps: int = 5,
         save_rollouts_dir: Optional[str] = None,
         **kwargs
@@ -80,7 +80,6 @@ class ToolUsePRM(RewardModel):
         super().__init__(
             base_model=base_model,
             task_prompt_spec=task_prompt_spec,
-            task_type=task_type,
             **kwargs
         )
         self.tools = tools
@@ -111,7 +110,7 @@ class ToolUsePRM(RewardModel):
             self._policy = ToolUsePolicy(
                 base_model=self.base_model,
                 tools=self.tools,
-                task_type=self.task_type,
+                task_name=self.task_name,
                 n_actions=1,
                 temperature=0.7,
                 max_steps=self.max_rollout_steps
