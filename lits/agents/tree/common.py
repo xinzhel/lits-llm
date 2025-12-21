@@ -102,13 +102,16 @@ def _sample_actions_with_existing(
             critic = "No Critic"
     steps = []
     if n_needed > 0:
+        # Allow duplicates during continuation for BN self-consistency evaluation
+        allow_duplicates = (from_phase == "continuation")
         steps = policy.get_actions(
             node.state,
             query=query_or_goals,
             critic=critic,  # can extend later if use_critic=True
             n_actions=n_needed,
             query_idx=query_idx,
-            from_phase=from_phase
+            from_phase=from_phase,
+            allow_duplicates=allow_duplicates
         )
     return steps
     

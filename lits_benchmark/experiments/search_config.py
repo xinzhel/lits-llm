@@ -91,6 +91,7 @@ class ExperimentConfig:
     sample_threshold_verify: float = 0.8
     force_terminating_on_depth_limit: bool = False
     terminate_on_terminal_node: bool = True
+    terminate_on_first_solution: bool = False  # Terminate MCTS when first solution is found (for feasibility checking)
     
     # Evaluation
     think_for_usefulness: Optional[bool] = None
@@ -162,6 +163,7 @@ class ExperimentConfig:
         if self.benchmark_name == "blocksworld":
             self.max_steps = 6
             self.roll_out_steps = 6
+            self.terminate_on_first_solution =True
         
         if self.n_action_for_simulate is None:
             self.n_action_for_simulate = self.n_actions
@@ -184,7 +186,8 @@ class ExperimentConfig:
             self.n_for_usefulness = None
         
         # Set continuation defaults
-        if self.add_continuation:
+        if self.bn_method:
+            self.add_continuation = True
             if self.bn_method == "entropy":
                 self.reward_gamma = 0.13
                 self.max_new_tokens_for_bn_eval = 1000

@@ -79,8 +79,8 @@ def _continuation(
             else:
                 assert bn_evaluator.eval_method == "direct"
                 if len(node.children) == 0:
-                    expand_func(example, query_idx, node, policy, n_actions=1, reward_model=reward_model, assign_rewards=False, use_critic=use_critic, from_phase="continuation")
-                bn_score = bn_evaluator.evaluate(example, node.state, [node.children[0].action], query_idx=query_idx)
+                    expand_func(query_or_goals, query_idx, node, policy, n_actions=1, reward_model=reward_model, assign_rewards=False, use_critic=use_critic, from_phase="continuation")
+                bn_score = bn_evaluator.evaluate(query_or_goals, node.state, [node.children[0].action], query_idx=query_idx)
                 node.children[0].bn_score = bn_score
 
             if bn_score < threshold_gamma:
@@ -93,7 +93,7 @@ def _continuation(
             child = node.children[0]
             # set state/reward/is_terminal for the child node
             if world_modeling_func is not None:
-                world_modeling_func(example, query_idx, child, world_model, reward_model, from_phase="continuation")
+                world_modeling_func(query_or_goals, query_idx, child, world_model, reward_model, from_phase="continuation")
             logger.debug(f"[continuation] took step to={child.state}, reward={child.reward:.3f}")
             if child.state_conf < threshold_conf:
                 logger.debug(f"[continuation exit] state_conf={child.state_conf:.3f} < {threshold_conf}, stopping continuation")

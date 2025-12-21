@@ -222,7 +222,7 @@ def _expand(
 ):
     logger.debug(f"\n=========== [Expand for Example {query_idx} Begin] ===========")
 
-    new_actions = _sample_actions_with_existing(
+    new_steps_or_actions = _sample_actions_with_existing(
         query_or_goals,
         query_idx,
         node,
@@ -233,7 +233,7 @@ def _expand(
         from_phase=from_phase
     )
     
-    for step in new_actions:
+    for step in new_steps_or_actions:
         action = step.get_action()  # Extract action from Step object
         child = MCTSNode(state=None, action=action, parent=node)
         # Store the full step for transition model
@@ -569,6 +569,14 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
                 roll_out_steps=mcts_search_config.roll_out_steps
             )  ####### simulate
             # ====== Simulate (End) ======
+
+            # ====== Terminate on First Solution (Begin) ======
+            if mcts_search_config.terminate_on_first_solution and path[-1].is_terminal:
+                logger.debug(f"!!!!! The MCTS terminates due to first solution found (terminate_on_first_solution=True)")
+                _back_propagate(path, mcts_search_config.cum_reward)
+                trace_in_each_iter.append(deepcopy(path))
+                break
+            # ====== Terminate on First Solution (End) ======
 
        
             cum_reward = _back_propagate(path, mcts_search_config.cum_reward)

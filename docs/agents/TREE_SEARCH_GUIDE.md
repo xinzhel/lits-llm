@@ -148,6 +148,76 @@ bfs_config = BFSConfig(
 
 MCTS uses `BaseSearchConfig` with additional parameters for exploration, simulation, and continuation.
 
+### MCTS Termination Behavior
+
+MCTS has multiple termination controls that operate at different levels:
+
+#### Separation of Concerns
+
+There are two distinct types of termination in MCTS:
+
+1. **Task-level termination** (`Transition.is_terminal()`): Checks if the **goal/answer is achieved**
+   - Implemented in your world model (e.g., `BlocksWorldTransition.is_terminal()`)
+   - Should ONLY check goal achievement, NOT max_steps
+
+2. **Search-level termination** (`_is_terminal_with_depth_limit()`): Checks if **max_steps is reached**
+   - Handled automatically by tree search algorithms
+   - Controlled by `max_steps` and `force_terminating_on_depth_limit` config
+
+**Important:** Do NOT check `max_steps` in your `Transition.is_terminal()` method. This is handled by the search algorithm.
+
+#### Termination Configuration Parameters
+
+```python
+config = BaseSearchConfig(
+    # Search depth limit
+    max_steps=10,
+    force_terminating_on_depth_limit=True,  # Force stop at max_steps
+    
+    # Terminal node handling during selection
+    terminate_on_terminal_node=True,  # Stop iteration when selecting a terminal node
+    
+    # Early termination for feasibility checking
+    terminate_on_first_solution=False,  # Stop MCTS when first solution is found
+)
+```
+
+#### Parameter Details
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `terminate_on_terminal_node` | `True` | When selecting a previously-visited terminal node, stop the current iteration. Set to `False` to continue exploring other branches. |
+| `terminate_on_first_solution` | `False` | When any path reaches a terminal node (goal achieved) during simulation, immediately stop MCTS. Useful for feasibility checking where you only care if a solution exists, not finding the optimal one. |
+
+#### Use Cases
+
+**Finding optimal solutions (default):**
+```python
+config = BaseSearchConfig(
+    terminate_on_terminal_node=True,   # Default
+    terminate_on_first_solution=False,  # Default - explore all iterations
+)
+# MCTS will run all n_iters iterations to find the best solution
+```
+
+**Feasibility checking (stop on first solution):**
+```python
+config = BaseSearchConfig(
+    terminate_on_first_solution=True,  # Stop as soon as any solution is found
+)
+# Useful for environment-grounded tasks where you only need to verify
+# that a valid solution exists, not find the optimal one
+```
+
+**Full exploration (never stop early):**
+```python
+config = BaseSearchConfig(
+    terminate_on_terminal_node=False,  # Continue even when selecting terminal nodes
+    terminate_on_first_solution=False,  # Run all iterations
+)
+# Maximum exploration - useful for collecting diverse solutions
+```
+
 ## Result Structure
 
 Both MCTS and BFS return results with a unified structure:

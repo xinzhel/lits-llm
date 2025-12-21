@@ -33,6 +33,7 @@ class BaseSearchConfig(BaseConfig):
     sample_threshold_verify: float = None
     force_terminating_on_depth_limit: bool = True
     terminate_on_terminal_node: bool = True
+    terminate_on_first_solution: bool = False  # if True, terminate MCTS when first terminal node is found (useful for feasibility checking)
 
     # Continuation parameters
     bn_model_name: str = None

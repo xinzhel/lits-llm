@@ -154,7 +154,6 @@ class BlocksWorldTransition(LlmTransition):
         goal_check: Callable,
         task_prompt_spec: Optional[Union[str, dict]] = None,
         usr_prompt_spec: Optional[Union[str, dict]] = None,
-        max_steps: int = 6,
         **kwargs
     ) -> None:
         super().__init__(
@@ -163,7 +162,6 @@ class BlocksWorldTransition(LlmTransition):
             usr_prompt_spec=usr_prompt_spec,
             **kwargs
         )
-        self.max_steps = max_steps
         self.goal_check = goal_check
         
     def init_state(self, **kwargs) -> EnvState:
@@ -249,7 +247,5 @@ class BlocksWorldTransition(LlmTransition):
 
     def is_terminal(self, state: EnvState, query_or_goals: str, **kwargs) -> bool:
         if self.goal_check(query_or_goals, state.env_state)[0]:
-            return True
-        elif state.step_idx == self.max_steps:
             return True
         return False

@@ -237,8 +237,7 @@ def create_components_env_grounded(
         world_model = BlocksWorldTransition(
             base_model=base_model,
             task_name=task_name,
-            goal_check=goal_check,
-            max_steps=max_steps
+            goal_check=goal_check
         )
         
         # Create policy
@@ -277,7 +276,8 @@ def create_bn_evaluator(
     device: str,
     enable_think_policy: bool,
     model_verbose: bool,
-    inference_logger
+    inference_logger,
+    task_type: str = "math_qa"
 ) -> Optional[BNEvaluator]:
     """Create BN evaluator if bn_method is specified."""
     if not bn_method:
@@ -294,6 +294,16 @@ def create_bn_evaluator(
         bn_model.inference_logger = inference_logger
     else:
         bn_model = base_model
+    
+    if task_type == "env_grounded":
+        from lits.components.bn_evaluator import BNEvaluatorEnv
+        return BNEvaluatorEnv(
+            base_model=bn_model,
+            eval_method=bn_method,
+            max_length=max_length,
+            max_new_tokens_for_bn_eval=max_new_tokens_for_bn_eval,
+            max_try_for_bn_eval=max_try_for_bn_eval
+        )
     
     return BNEvaluator(
         base_model=bn_model,

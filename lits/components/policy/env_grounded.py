@@ -125,11 +125,21 @@ class EnvGroundedPolicy(Policy):
         """
         Generate n_actions valid actions for the given environment state.
         
-        This method:
-        1. Generates all valid actions for the current state using generate_all_actions
-        2. If base_model exists, prompts it to select actions from valid options
-        3. Validates LLM outputs and retries until valid actions are selected
-        4. Returns EnvStep objects with selected actions
+        Action Generation Logic:
+        1. Generate all valid actions for current state via generate_all_actions()
+        2. Format actions as tab-separated options for the prompt
+        3. For each of n_actions requested:
+           a. Prompt LLM with state, goals, and valid action options
+           b. Parse LLM response:
+              - If response is exact action text: use it directly
+              - If response is a number (e.g., "3"): interpret as index into valid_actions
+                * Try 1-indexed first (1-3 → actions[0-2])
+                * Fall back to 0-indexed (0-2 → actions[0-2])
+           c. Validate parsed action is in valid_actions list
+           d. If invalid, retry up to max_retries (5 attempts)
+           e. If max_retries exceeded: fall back to first unused valid action
+              (or first action if allow_duplicates=True or all actions used)
+        4. Return EnvStep objects wrapping selected actions
         
         Args:
             state: Current environment state (EnvState with env_state string).
@@ -137,7 +147,9 @@ class EnvGroundedPolicy(Policy):
             temperature: Sampling temperature for LLM generation.
             query: Optional goal description or query context (e.g., "stack A on B").
             from_phase: Description of current search phase (e.g., 'expansion', 'simulation').
-            **kwargs: Additional arguments (ignored, for compatibility with parent signature).
+            **kwargs: Additional arguments including:
+                - allow_duplicates: If True, allows same action to be selected multiple times.
+                  Useful for BN evaluation where self-consistency is measured.
         
         Returns:
             List of EnvStep objects, each containing:
@@ -148,30 +160,48 @@ class EnvGroundedPolicy(Policy):
         Behavior:
             - If base_model is None: Returns all valid actions as EnvSteps
             - If base_model exists: Samples n_actions from valid actions using LLM
-            - Invalid LLM outputs are rejected and regeneration is attempted
+            - Invalid LLM outputs trigger retry (max 5 attempts per action)
+            - After max retries: selects first unused valid action as fallback
+            - Duplicates prevented by default unless allow_duplicates=True
         
         Example:
             >>> state = EnvState(step_idx=0, env_state="on(A, B), on(B, table)", ...)
             >>> steps = policy._get_actions(state, n_actions=2, temperature=0.8, query="clear A")
+            >>> # LLM might return "unstack A from B" or "2" (index)
             >>> # Returns: [EnvStep(action=StringAction("unstack A from B"), reward=0.0), ...]
         """
         from ..utils import create_role
         query_idx = kwargs.get("query_idx", None)
+        allow_duplicates = kwargs.get("allow_duplicates", False)
         valid_actions = self.generate_all_actions(state.env_state)
         actions_selected = []
         if self.base_model:
+            max_retries = 1  # Prevent infinite loops from bad LLM outputs
             for _ in range(n_actions):
                 options = '\t'+'\n\t'.join(valid_actions)
                 prompt = self.usr_prompt_spec.replace("<init_state>", state.env_state)\
                             .replace("<goals>", query).replace("<action>", options)
                 
                 valid_gen = False
-                while not valid_gen:
+                retry_count = 0
+                while not valid_gen and retry_count < max_retries:
+                    retry_count += 1
                     role = create_role("policy", query_idx, from_phase)
                     gen_action = self.base_model(prompt, temperature=temperature, from_phase=from_phase, role=role).text.strip()
+                    
+                    # Try to parse as index if LLM returns a number
+                    if gen_action.isdigit():
+                        idx = int(gen_action)
+                        if 1 <= idx <= len(valid_actions):
+                            gen_action = valid_actions[idx - 1]  # 1-indexed
+                            logger.debug(f"Parsed numeric response '{gen_action}' as action index")
+                        elif 0 <= idx < len(valid_actions):
+                            gen_action = valid_actions[idx]  # 0-indexed fallback
+                            logger.debug(f"Parsed numeric response '{gen_action}' as 0-indexed action")
+                    
                     if gen_action in valid_actions:
-                        # find another from valid actions if duplicated
-                        if gen_action in actions_selected:
+                        # Handle duplicates based on allow_duplicates flag
+                        if not allow_duplicates and gen_action in actions_selected:
                             other_valid_actions = [a for a in valid_actions if a not in actions_selected] 
                             if other_valid_actions:
                                 gen_action = other_valid_actions[0]
@@ -180,6 +210,17 @@ class EnvGroundedPolicy(Policy):
     
                         actions_selected.append(gen_action)
                         valid_gen = True
+                    else:
+                        logger.warning(f"Invalid action generated (attempt {retry_count}/{max_retries}): '{gen_action}'")
+                
+                # Fallback: pick first available valid action if retries exhausted
+                if not valid_gen:
+                    logger.error(f"Max retries ({max_retries}) exceeded. Falling back to first valid action.")
+                    fallback_actions = [a for a in valid_actions if a not in actions_selected] if not allow_duplicates else valid_actions
+                    if fallback_actions:
+                        actions_selected.append(fallback_actions[0])
+                    elif valid_actions:
+                        actions_selected.append(valid_actions[0])
         else:
             actions_selected = valid_actions
         

@@ -386,19 +386,26 @@ def step(self, state: EnvState, step_or_action, query_or_goals: str,
     return new_state, {"goal_reached": self.goal_check(query_or_goals, env_state)}
 ```
 
-**3. Accepting kwargs in is_terminal:**
+**3. is_terminal checks goal achievement only:**
+
+The `is_terminal()` method should only check if the **goal/answer is reached** (task-level termination). Search-level termination (max_steps) is handled separately by `_is_terminal_with_depth_limit()` in the tree search algorithms.
+
 ```python
 def is_terminal(self, state: EnvState, query_or_goals: str, **kwargs) -> bool:
-    """Check if goal is reached or max steps exceeded.
+    """Check if goal is reached.
     
-    Note: **kwargs accepts fast_reward, query_idx, from_phase from tree search.
+    Note: 
+    - **kwargs accepts fast_reward, query_idx, from_phase from tree search.
+    - max_steps termination is handled by tree search algorithms, NOT here.
     """
     if self.goal_check(query_or_goals, state.env_state)[0]:
         return True
-    elif state.step_idx == self.max_steps:
-        return True
     return False
 ```
+
+**Important:** Do NOT check `max_steps` in `is_terminal()`. The separation of concerns is:
+- `Transition.is_terminal()`: Checks if the **goal/answer is achieved** (task-level)
+- `_is_terminal_with_depth_limit()` in tree search: Checks if **max_steps is reached** (search-level)
 
 **4. Using query_idx and from_phase for logging:**
 ```python
@@ -434,6 +441,9 @@ def update_blocks(self, env_state: str, action: EnvAction,
 5. **Return auxiliary data** from `step()` for reward model consumption
 6. **Use `query_idx` and `from_phase`** for proper inference logging via `create_role()`
 7. **Follow the init_state_kwargs convention** for your task type (see table above)
+8. **Separation of concerns for termination**:
+   - `is_terminal()` should ONLY check goal/answer achievement (task-level)
+   - Do NOT check `max_steps` in `is_terminal()` - this is handled by tree search algorithms via `_is_terminal_with_depth_limit()`
 
 ## Testing Your Transition
 
