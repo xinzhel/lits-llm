@@ -145,8 +145,9 @@ class BlocksWorldTransition(LlmTransition):
         state = transition.init_state(**dataset_example)
     """
     
-    # Interface category for this transition type
-    TASK_TYPE: str = "env_grounded"
+    # Task-instance-specific component: TASK_TYPE is None to prevent fallback to generic prompts.
+    # This ensures prompts are only loaded via task_name='blocksworld', avoiding format mismatches.
+    TASK_TYPE: str = None
 
     def __init__(
         self,

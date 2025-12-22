@@ -1,0 +1,97 @@
+\section{LiTS: A Unified Grammar}
+Figure 1 presents a container view of subpackages. Each subpackage (or container) is a 
+separately deployable or runnable unit with dependencies on the left or/and bottom 
+containers.
+
+\paragraph{Design Goals.}
+LiTS separates low-level task-specific definitions 
+(components and prompts) from search algorithm implementations.
+This design achieves two key goals:
+(1) Search algorithms (BFS, MCTS, etc.) can be reused across 
+diverse task types without modification, 
+enabled by the high-level \code{lits.structures} 
+that standardize communication between components.
+(2) Low-level task-specific implementations 
+(\code{lits.components} and \code{lits.prompts}) 
+can be reused or customized depending on users' needs, 
+benefiting from our task-instance-prioritized, 
+task-type-aware-fallback prompt registry design.
+The paragraphs below demonstrate the specific design 
+over the above mentioned three subpackages.
+
+\paragraph{lits.components}
+LiTS adopts a \textbf{role-aware orchestration} design, where each component plays a 
+distinct role in the reasoning and planning process.
+It decomposes an LLM-based reasoning workflow into three modular components:
+
+\begin{itemize}
+\item \code{Policy}: Generates candidate actions from states. 
+Defines how each node expands by generating the next action or thought, 
+e.g., \code{ConcatPolicy}, \code{RAPPolicy}, \code{ToolUsePolicy}, \code{EnvGroundedPolicy}.
+
+\item \code{RewardModel}: Evaluates action quality through value estimation or 
+preference modeling, e.g., \code{GenerativePRM}, \code{RLHFlowPRM}, \code{RapPRM}, 
+\code{EnvGroundedPRM}.
+
+\item \code{Transition}: Executes actions and produces new states. 
+Specifies how local expansions are concatenated and how state transitions occur, 
+e.g., \code{ConcatTransition}, \code{RAPTransition}, \code{ToolUseTransition},
+ \code{BlocksWorldTransition}.
+\end{itemize}
+
+These components compose into agents (MCTS, BFS, ReAct, EnvChain) that can be mixed and 
+matched for different tasks. 
+For environment-grounded and tool-use tasks, 
+chain and tree methods share the same Policy and Transition components
+—tree search simply adds a RewardModel for evaluating and selecting among multiple 
+candidate paths.
+
+\paragraph{lits.prompts: Task-instance-prioritized, 
+task-type-aware-fallback}
+LiTS abstracts three task types—\textbf{Environment Grounded} (e.g., BlocksWorld), 
+\textbf{Language Grounded} (e.g., Math QA), and \textbf{Tool Use} (e.g., ReAct)—to 
+unify diverse LLM reasoning paradigms under the low-level interfaces \code{lits.components} 
+and \code{lits.structures}.
+
+Most components are designed around these three predefined task types, declared via a 
+\code{TASK\_TYPE} class constant (e.g., \code{'env\_grounded'}, \code{'tool\_use'}, 
+\code{'language\_grounded'}). This allows users to benefit from general-purpose prompts 
+when applying LiTS to their specific task instances (e.g., using \code{'language\_grounded'} 
+prompts for a new math reasoning benchmark). However, component design is not limited to 
+these predefined types. For task instances requiring specialized behavior, developers can 
+create task-instance-specific components. For example, \code{BlocksWorldTransition} 
+implements BlocksWorld-specific state parsing and sets \code{TASK\_TYPE = None} to ensure 
+only its dedicated prompts are loaded.
+
+\paragraph{lits.structures: Hierarchical and Polymorphic Structures.}
+The framework establishes a hierarchical information containment structure: 
+Action 
+$\rightarrow$ Step 
+$\rightarrow$ State 
+$\rightarrow$ Node. 
+Polymorphic subclasses at each level enable seamless support for language-grounded, tool-augmented, and environment-grounded tasks.
+
+\begin{itemize}
+\item \textbf{Action}: The atomic unit of agency, formalized through a type-safe hierarchy. \code{StringAction} supports free-form language actions, while \code{ToolUseAction} and \code{EnvAction} provide structured representations for tool invocation and environment interaction.
+
+\item \textbf{Step}: Encapsulates an action within its execution context. Subclasses are determined by the task structure and domain-specific transition semantics:
+    \begin{itemize}
+        \item \code{ThoughtStep}: A single reasoning step in chain-of-thought QA tasks.
+        \item \code{ToolUseStep}: A complete thought-action-observation cycle in tool-use scenarios.
+        \item \code{EnvStep}: An action paired with the resulting environment state snapshot (\code{next\_state}) in environment-grounded tasks.
+        \item \code{SubQAStep}: A decomposition step consisting of a sub-question (action) and its sub-answer (transition) for RAP-style reasoning.
+    \end{itemize}
+
+    \item \textbf{State}: Represents the accumulation of steps over time. The base \code{TrajectoryState} maintains the full history of steps (e.g., ReAct traces) and provides unified methods for history rendering and message construction. Subclasses handle domain-specific requirements:
+    \begin{itemize}
+        \item \code{EnvState}: Extends \code{TrajectoryState} to track environment-specific attributes like \code{init\_state} and provides accessors for the current environment snapshot (\code{env\_state}). This design clearly distinguishes the LiTS state (the full reasoning trajectory) from the external environment state (a snapshot of the world, e.g., BlocksWorld configuration).
+        \item \code{ToolUseState}: Extends \code{TrajectoryState} for tool-use contexts with tool execution history.
+    \end{itemize}
+
+    \item \textbf{Node}: A search-oriented wrapper around a \code{State}. Unlike the task-oriented components above, \code{SearchNode} manages search-specific attributes (e.g., parent pointers, children, rewards, visit counts) to facilitate algorithms like MCTS and BFS.
+\end{itemize}
+
+This design decouples search algorithms from task-specific logic. Researchers can implement new reasoning domains by defining the appropriate \code{State}, \code{Action}, and \code{Transition} components, allowing the same search pipelines (BFS, MCTS, etc.) to be reused without modification.
+
+\paragraph{Prompt Registry System}
+LiTS uses a centralized \code{PromptRegistry} to manage prompts for all LLM-based components. Components use two types of prompts: \code{task\_prompt\_spec} (system-level instructions) and \code{usr\_prompt\_spec} (user message templates). The registry supports a fallback lookup priority: explicit parameter $\rightarrow$ \code{task\_name} $\rightarrow$ \code{TASK\_TYPE} $\rightarrow$ default. Task-instance-specific components (e.g., \code{BlocksWorldTransition}) set \code{TASK\_TYPE = None} to prevent fallback to generic prompts, ensuring format compatibility between prompts and component parsing logic.

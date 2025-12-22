@@ -21,11 +21,11 @@ class Transition(ABC, Generic[StateT, ActionT]):
     The init_state() method receives kwargs from the dataset example.
     Different task types pass different fields:
     
-    | Task Type     | Expected kwargs           | Description                          |
-    |---------------|---------------------------|--------------------------------------|
-    | env_grounded  | init_state_str: str       | Initial environment state description|
-    | math_qa       | (none)                    | Returns empty list                   |
-    | tool_use      | (none)                    | Returns empty ToolUseState           |
+    | Task Type         | Expected kwargs           | Description                          |
+    |-------------------|---------------------------|--------------------------------------|
+    | env_grounded      | init_state_str: str       | Initial environment state description|
+    | language_grounded | (none)                    | Returns empty list                   |
+    | tool_use          | (none)                    | Returns empty ToolUseState           |
     
     When implementing a custom Transition:
     - Extract only the kwargs you need using kwargs.get('key_name')
@@ -54,7 +54,7 @@ class Transition(ABC, Generic[StateT, ActionT]):
         Args:
             **kwargs: Example-specific data from the dataset. Contents depend on task type:
                       - env_grounded: expects 'init_state_str' (str) - initial state description
-                      - math_qa: no kwargs needed, returns empty trajectory
+                      - language_grounded: no kwargs needed, returns empty trajectory
                       - tool_use: no kwargs needed, returns empty ToolUseState
                       Subclasses should extract what they need and ignore the rest.
         
@@ -96,7 +96,7 @@ class LlmTransition(Transition, Generic[StateT, ActionT]):
         base_model: The LLM model to use for generation
         task_prompt_spec: System prompt specification (instructions, format, etc.)
             Can be a string, dict, or PromptTemplate. Used to construct the system message.
-        task_name: Task name identifier (e.g., 'math_qa', 'blocksworld', 'mapeval-sql') for loading
+        task_name: Task name identifier (e.g., 'gsm8k', 'blocksworld', 'mapeval-sql') for loading
             task-specific prompts from the registry. This is the prompt lookup key.
         usr_prompt_spec: User message specification. Used to construct the user message
             content. Alternative to task_prompt_spec for different prompt injection needs.
@@ -129,11 +129,14 @@ class LlmTransition(Transition, Generic[StateT, ActionT]):
         from ..prompts.registry import PromptRegistry
         agent_name = self._get_agent_name()
         
+        # Get task_type from class attribute TASK_TYPE for fallback lookup
+        task_type = getattr(self.__class__, 'TASK_TYPE', None)
+        
         if task_prompt_spec is None:
-            task_prompt_spec = PromptRegistry.get('transition', agent_name, task_name)
+            task_prompt_spec = PromptRegistry.get('transition', agent_name, task_name, task_type)
         
         if usr_prompt_spec is None:
-            usr_prompt_spec = PromptRegistry.get_usr('transition', agent_name, task_name)
+            usr_prompt_spec = PromptRegistry.get_usr('transition', agent_name, task_name, task_type)
         
         # Store prompts
         self.task_prompt_spec = task_prompt_spec
@@ -168,7 +171,7 @@ class Policy(ABC, Generic[StateT, ActionT]):
         base_model: The LLM model to use for action generation
         task_prompt_spec: System prompt specification (instructions, format, etc.)
             Can be a string, dict, or PromptTemplate. Used to construct the system message.
-        task_name: Task name identifier (e.g., 'math_qa', 'blocksworld', 'mapeval-sql') for loading
+        task_name: Task name identifier (e.g., 'gsm8k', 'blocksworld', 'mapeval-sql') for loading
             task-specific prompts from the registry. This is the prompt lookup key.
         usr_prompt_spec: User message specification. Used to construct the user message
             content. Alternative to task_prompt_spec for different prompt injection needs.
@@ -292,20 +295,22 @@ class Policy(ABC, Generic[StateT, ActionT]):
         from ..prompts.registry import PromptRegistry
         agent_name = self._get_agent_name()
         
-        logger.debug(f"Policy.__init__: agent_name={agent_name}, task_name={task_name}")
+        # Get task_type from class attribute TASK_TYPE for fallback lookup
+        task_type = getattr(self.__class__, 'TASK_TYPE', None)
+        
+        logger.debug(f"Policy.__init__: agent_name={agent_name}, task_name={task_name}, task_type={task_type}")
         logger.debug(f"Policy.__init__: task_prompt_spec (before registry) type={type(task_prompt_spec)}, value={task_prompt_spec}")
         
         if task_prompt_spec is None:
-            if PromptRegistry.get('policy', agent_name, task_name) is not None:
-                task_prompt_spec =  PromptRegistry.get('policy', agent_name, task_name)
-            else: 
-                logger.warning(f"Policy.__init__: task_prompt_spec not found for the task name ({task_name}) in registry, using default")
-                task_prompt_spec = PromptRegistry.get('policy', agent_name, None)
-            
-            logger.debug(f"Policy.__init__: task_prompt_spec loaded from registry, type={type(task_prompt_spec)}, value={task_prompt_spec}")
+            # Try task_name first, then fallback to TASK_TYPE
+            task_prompt_spec = PromptRegistry.get('policy', agent_name, task_name, task_type)
+            if task_prompt_spec is None:
+                logger.warning(f"Policy.__init__: task_prompt_spec not found for task_name='{task_name}' or task_type='{task_type}'")
+            else:
+                logger.debug(f"Policy.__init__: task_prompt_spec loaded from registry, type={type(task_prompt_spec)}")
         
         if usr_prompt_spec is None:
-            usr_prompt_spec = PromptRegistry.get_usr('policy', agent_name, task_name)
+            usr_prompt_spec = PromptRegistry.get_usr('policy', agent_name, task_name, task_type)
             logger.debug(f"Policy.__init__: usr_prompt_spec loaded from registry, type={type(usr_prompt_spec)}, value={usr_prompt_spec}")
         
         # Store prompts
@@ -679,7 +684,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         base_model: The LLM model to use for reward evaluation
         task_prompt_spec: System prompt specification (instructions, format, etc.)
             Can be a string, dict, or PromptTemplate. Used to construct the system message.
-        task_name: Task name identifier (e.g., 'math_qa', 'blocksworld', 'mapeval-sql') for loading
+        task_name: Task name identifier (e.g., 'gsm8k', 'blocksworld', 'mapeval-sql') for loading
             task-specific prompts from the registry. This is the prompt lookup key.
         usr_prompt_spec: User message specification. Used to construct the user message
             content. Alternative to task_prompt_spec for different prompt injection needs.
@@ -724,12 +729,15 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         from ..prompts.registry import PromptRegistry
         agent_name = self._get_agent_name()
         
+        # Get task_type from class attribute TASK_TYPE for fallback lookup
+        task_type = getattr(self.__class__, 'TASK_TYPE', None)
+        
         if task_prompt_spec is None:
-            logger.debug(f"Task prompt spec not provided, loading from registry for agent '{agent_name}' and task '{task_name}'")
-            task_prompt_spec = PromptRegistry.get('reward', agent_name, task_name)
+            logger.debug(f"Task prompt spec not provided, loading from registry for agent '{agent_name}', task_name='{task_name}', task_type='{task_type}'")
+            task_prompt_spec = PromptRegistry.get('reward', agent_name, task_name, task_type)
         
         if usr_prompt_spec is None:
-            usr_prompt_spec = PromptRegistry.get_usr('reward', agent_name, task_name)
+            usr_prompt_spec = PromptRegistry.get_usr('reward', agent_name, task_name, task_type)
         
         # Store prompts
         self.task_prompt_spec = task_prompt_spec
@@ -753,7 +761,7 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         to observe its outcome. This is useful for:
         
         - Tasks where action execution is expensive (e.g., env_grounded tasks)
-        - Reasoning tasks where we can evaluate thought quality before execution (e.g., math_qa with RAP)
+        - Reasoning tasks where we can evaluate thought quality before execution (e.g., language_grounded with RAP)
         - Pruning unpromising actions early in tree search
         
         Args:

@@ -1,7 +1,9 @@
 """Branching Necessity Evaluator for Environment-Grounded Tasks."""
 
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 from collections import Counter
+
+from ...structures.env_grounded import EnvAction
 from ...structures import Action, EnvState
 from ..utils import create_role
 from ...lm.base import HfChatModel, DEFAULT_MAX_LENGTH
@@ -135,14 +137,16 @@ class BNEvaluatorEnv:
             assert len(actions) == 1, "direct eval only supports single action"
             bn_score = self.direct_eval(example, state, actions[0], query_idx)
             result = (bn_score, actions[0])
+            logger.debug(f"\n Output from BN evaluator: {result}")
+            logger.debug(">>>>>>>>> BN Evaluation Env (End) <<<<<<<<<")
+            return result[0]
         elif self.eval_method == "sc":
             result = self.sc_eval(actions)
+            logger.debug(f"\n Output from BN evaluator: {result}")
+            logger.debug(">>>>>>>>> BN Evaluation Env (End) <<<<<<<<<")
+            return result
         else:
             raise ValueError(f"Unknown eval method: {self.eval_method}")
-        
-        logger.debug(f"\n Output from BN evaluator: {result}")
-        logger.debug(">>>>>>>>> BN Evaluation Env (End) <<<<<<<<<")
-        return result[0]
 
     def direct_eval(
         self, 
@@ -179,7 +183,7 @@ class BNEvaluatorEnv:
         
         return 0.0
 
-    def sc_eval(self, actions: List[str]) -> Tuple[float, Optional[str]]:
+    def sc_eval(self, actions: Union[List[str], List[EnvAction]]) -> Tuple[float, Optional[str]]:
         """
         Self-consistency evaluation by aggregating identical actions and 
         returning the proportion of the most frequent action.
@@ -190,6 +194,10 @@ class BNEvaluatorEnv:
         Returns:
             (bn_score, canonical_action): proportion and the most frequent action
         """
-        return aggregate_actions(actions)
+        bn_score, canonical_action = aggregate_actions([str(a) for a in actions])
+        if isinstance(actions[0], str):
+            return bn_score, canonical_action
+        else:
+            return bn_score, type(actions[0])(canonical_action)
 
 # ===== Branching Necessity (BN) Evaluator for Env Tasks (END) =====

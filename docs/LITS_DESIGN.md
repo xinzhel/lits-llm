@@ -1,17 +1,17 @@
 # LiTS Framework Design
 
-## Design Rationale
+## Section 1: Design Rationale
 
 LiTS (Language Inference via Tree Search) is designed around a modular architecture that separates concerns between reasoning, execution, and evaluation. This separation enables flexible composition of different algorithms and components.
 
-### Core Principles
+### Section 1.1: Core Principles
 
 1. **Separation of Concerns**: Policy (reasoning), Transition (execution), and RewardModel (evaluation) are independent components
 2. **Composability**: Components can be mixed and matched to create different agents
 3. **Reusability**: Same components work across chain agents and tree search algorithms
 4. **Type Safety**: Generic types ensure compile-time correctness
 
-### Architecture Layers
+### Section 1.2: Architecture Layers
 
 The framework is organized into three main layers:
 
@@ -31,13 +31,13 @@ The framework is organized into three main layers:
 - `State`: Trajectory or environment snapshot
 - `Node`: Tree search node (MCTSNode, BFSNode)
 
-## Component Compatibility
+## Section 2: Component Compatibility
 
-### Policy + Transition + RewardModel Combinations
+### Section 2.1: Policy + Transition + RewardModel Combinations
 
 Different task types require different component combinations:
 
-#### Tool Use Tasks (e.g., ReAct, Function Calling)
+#### Section 2.1.1: Tool Use Tasks (e.g., ReAct, Function Calling)
 
 **Components:**
 - **Policy**: `ToolUsePolicy` - Generates tool calls with reasoning
@@ -58,7 +58,7 @@ transition = ToolUseTransition(tools=tools)
 agent = ReActChat(policy=policy, transition=transition)
 ```
 
-#### Reasoning Tasks (e.g., Math QA, RAP)
+#### Section 2.1.2: Reasoning Tasks (e.g., Math QA, RAP)
 
 **Components:**
 - **Policy**: `RapPolicy` - Generates sub-questions
@@ -72,7 +72,7 @@ Transition: (state, sub_question) → (new_state, sub_answer)
 RewardModel: (state, sub_question) → usefulness_score
 ```
 
-#### Sequential Reasoning (e.g., ReST, Chain-of-Thought)
+#### Section 2.1.3: Sequential Reasoning (e.g., ReST, Chain-of-Thought)
 
 **Components:**
 - **Policy**: `ConcatPolicy` - Generates reasoning steps
@@ -86,7 +86,7 @@ Transition: (state, action) → new_state
 RewardModel: (state, action) → correctness_score
 ```
 
-#### Environment-Grounded Tasks (e.g., BlocksWorld, Robotics)
+#### Section 2.1.4: Environment-Grounded Tasks (e.g., BlocksWorld, Robotics)
 
 **Components:**
 - **Policy**: `EnvGroundedPolicy` - Generates valid actions for environment
@@ -124,7 +124,7 @@ evaluator = EnvGroundedPRM(
 result = bfs_topk(query, query_idx, config, transition, policy, evaluator)
 ```
 
-### Component Compatibility by TASK_TYPE and Method
+### Section 2.2: Component Compatibility by TASK_TYPE and Method
 
 Components define their interface category via the `TASK_TYPE` class constant:
 
@@ -137,13 +137,13 @@ Components define their interface category via the `TASK_TYPE` class constant:
 | **language_grounded** | Tree (RAP) | `RAPPolicy` | `RAPTransition` | `RapPRM` | `SubQAState` / `SubQAStep` | **Completion** | Requires completion model, sub-question decomposition |
 | **language_grounded** | Tree (REST / BFS) | `ConcatPolicy` | `ConcatTransition` | `GenerativePRM` | `ThoughtState` / `ThoughtStep` | Chat | Chain-of-thought style reasoning |
 
-### TASK_TYPE vs task_name
+### Section 2.3: TASK_TYPE vs task_name
 
 The framework distinguishes between two concepts:
 
 | Concept | Purpose | Example Values | Where Used |
 |---------|---------|----------------|------------|
-| **TASK_TYPE** (class constant) | Defines the interface category a component implements | `'env_grounded'`, `'tool_use'`, `'language_grounded'` | Component class definitions |
+| **TASK_TYPE** (class constant) | Defines the interface category a component implements | `'env_grounded'`, `'tool_use'`, `'language_grounded'`, `None` | Component class definitions |
 | **task_name** (constructor param) | Key for prompt registry lookup | `'blocksworld'`, `'gsm8k'`, `'mapeval-sql'` | Component instantiation |
 
 **Example:**
@@ -157,7 +157,7 @@ class EnvGroundedPolicy(Policy):
 ```
 
 This separation allows:
-- **TASK_TYPE**: Used by factory functions to select appropriate component classes
+- **TASK_TYPE**: Used by factory functions to select appropriate component classes, and as fallback for prompt lookup
 - **task_name**: Used by components to load task-specific prompts from the registry
 
 **Why no chain method for language_grounded?** Language-grounded QA tasks (math reasoning, multi-hop QA) don't require interrupting the reasoning chain for external execution. Chain-of-thought can be generated in a single LLM inference due to the sequential nature of language models. Tree search is used only when exploring multiple reasoning paths is beneficial.
@@ -174,11 +174,213 @@ This separation allows:
 
 For QA tasks, RAP requires fundamentally different components because it uses sub-question decomposition with a completion-style LLM, while REST/BFS use chain-of-thought with chat models.
 
+### Section 2.4: Task-Instance-Specific Components
 
+Most components are designed to work across multiple task instances within a `TASK_TYPE`. However, some components are specific to a single task instance and set `TASK_TYPE = None`:
 
-## Key Design Patterns
+| Component | TASK_TYPE | Task Instance | Why Task-Specific |
+|-----------|-----------|---------------|-------------------|
+| `BlocksWorldTransition` | `None` | `blocksworld` | Implements BlocksWorld-specific state parsing and goal checking |
 
-### 1. Policy Returns Steps, Transition Receives Steps (v0.2.5+)
+**Why `TASK_TYPE = None` for task-instance-specific components?**
+
+Setting `TASK_TYPE = None` prevents the prompt registry from falling back to a generic task type prompt when `task_name` lookup fails. This is important because:
+
+1. **Prevents format mismatches** - Task-instance-specific components often expect specific output formats that generic prompts don't provide
+2. **Forces explicit prompt registration** - Developers must register prompts under the specific `task_name`
+3. **Enables extensibility** - Components with `TASK_TYPE = None` can be adapted for new tasks beyond predefined categories by registering appropriate prompts
+
+**Example:**
+```python
+class BlocksWorldTransition(LlmTransition):
+    # TASK_TYPE is None to prevent fallback to generic 'env_grounded' prompts
+    # Prompts must be registered under task_name='blocksworld'
+    TASK_TYPE: str = None
+```
+
+## Section 3: Prompt Registry System
+
+LiTS uses a centralized registry to manage prompts for all LLM-based components. This enables:
+- Task-specific prompt customization
+- Easy prompt injection for experiments
+- Consistent prompt management across components
+
+### Section 3.1: Prompt Types
+
+Components use two types of prompts:
+- **`task_prompt_spec`** (System Prompt): Instructions, format specifications, few-shot examples
+- **`usr_prompt_spec`** (User Template): Structures for formatting query-specific information
+
+### Section 3.2: Registry Lookup Priority
+
+When a component is instantiated, prompts are loaded with the following priority:
+
+1. **Explicit parameter** - If `task_prompt_spec` or `usr_prompt_spec` is passed directly
+2. **task_name lookup** - Registry lookup by `task_name` (e.g., `'blocksworld'`)
+3. **TASK_TYPE lookup** - Registry lookup by component's `TASK_TYPE` (e.g., `'language_grounded'`) - **skipped if TASK_TYPE is None**
+4. **Default** - Registry lookup with key `'default'`
+
+```python
+# Example: GenerativePRM with TASK_TYPE = "language_grounded"
+evaluator = GenerativePRM(
+    base_model=model,
+    task_name='gsm8k'  # Lookup order: 'gsm8k' → 'language_grounded' → 'default'
+)
+
+# Example: BlocksWorldTransition with TASK_TYPE = None
+transition = BlocksWorldTransition(
+    base_model=model,
+    task_name='blocksworld'  # Lookup order: 'blocksworld' → 'default' (no TASK_TYPE fallback)
+)
+```
+
+### Section 3.3: Registered Prompts
+
+#### Section 3.3.1: Policy Prompts
+| Agent | Task Type | System Prompt | User Template |
+|-------|-----------|---------------|---------------|
+| `rap` | `language_grounded` | ✓ | ✓ |
+| `concat` | `language_grounded` | ✓ | — |
+| `env_grounded` | `blocksworld` | — | ✓ |
+| `tool_use` | `default` | ✓ | — |
+
+#### Section 3.3.2: Reward Prompts
+| Agent | Task Type | System Prompt | User Template |
+|-------|-----------|---------------|---------------|
+| `rap` | `language_grounded` | ✓ | — |
+| `generative` | `language_grounded` | ✓ | — |
+| `env_grounded` | `blocksworld` | ✓ | ✓ |
+
+#### Section 3.3.3: Transition Prompts
+| Agent | Task Type | System Prompt | User Template |
+|-------|-----------|---------------|---------------|
+| `rap` | `language_grounded` | ✓ | ✓ |
+| `rap` | `default` | ✓ | — |
+| `blocksworld` | `default` | ✓ | ✓ |
+
+### Section 3.4: Prompt Injection Methods
+
+#### Section 3.4.1: Direct Injection
+
+```python
+from lits.components.policy.rap import RAPPolicy
+
+# Inject custom system prompt
+policy = RAPPolicy(
+    base_model=model,
+    task_prompt_spec="Custom system instructions...",
+    task_name='gsm8k'  # usr_prompt_spec loaded from registry
+)
+
+# Inject both prompts
+policy = RAPPolicy(
+    base_model=model,
+    task_prompt_spec="Custom system...",
+    usr_prompt_spec={'format': 'custom'}
+)
+```
+
+#### Section 3.4.2: Registry Injection
+
+```python
+from lits.prompts.registry import PromptRegistry
+
+# Register for a new task
+PromptRegistry.register('policy', 'rap', 'my_task', 'Custom instructions...')
+PromptRegistry.register_usr('policy', 'rap', 'my_task', {'format': 'custom'})
+
+# Now components with task_name='my_task' use these prompts
+policy = RAPPolicy(base_model=model, task_name='my_task')
+```
+
+### Section 3.5: Adding New Prompts
+
+#### Step 1: Create Prompt File
+
+```python
+# lits/prompts/policy/my_agent.py
+
+# System prompt for language_grounded tasks
+task_prompt_spec_language_grounded = """
+Your system instructions here...
+"""
+
+# User template for language_grounded tasks
+usr_prompt_spec_language_grounded = {
+    'question_format': 'Question: {question}',
+    'answer_format': 'Answer: {answer}'
+}
+```
+
+#### Step 2: Register in load_default_prompts()
+
+```python
+# In lits/prompts/registry.py
+def load_default_prompts():
+    from .policy import my_agent
+    
+    if hasattr(my_agent, 'task_prompt_spec_language_grounded'):
+        PromptRegistry.register(
+            'policy', 'my_agent', 'language_grounded',
+            my_agent.task_prompt_spec_language_grounded
+        )
+    
+    if hasattr(my_agent, 'usr_prompt_spec_language_grounded'):
+        PromptRegistry.register_usr(
+            'policy', 'my_agent', 'language_grounded',
+            my_agent.usr_prompt_spec_language_grounded
+        )
+```
+
+#### Step 3: Implement Component
+
+```python
+from ..base import Policy
+
+class MyAgentPolicy(Policy):
+    TASK_TYPE = "language_grounded"  # Used for prompt fallback lookup
+    
+    def _get_agent_name(self) -> str:
+        return 'my_agent'  # Must match registry key
+    
+    def _get_actions(self, state, n_actions, temperature, **kwargs):
+        # self.task_prompt_spec and self.usr_prompt_spec are auto-loaded
+        ...
+```
+
+### Section 3.6: Best Practices
+
+**Use `task_prompt_spec` for:**
+- System-level instructions that don't change per query
+- Output format specifications
+- Few-shot examples
+
+**Use `usr_prompt_spec` for:**
+- Query-specific formatting with placeholders
+- Action-specific templates
+- State-dependent formatting
+
+**Type Guidelines:**
+```python
+# ✓ task_prompt_spec: string, dict, or PromptTemplate
+task_prompt_spec = "Instructions..."
+task_prompt_spec = {'instruction': '...', 'examples': [...]}
+
+# ✓ usr_prompt_spec: dict or PromptTemplate (NOT string)
+usr_prompt_spec = {'question': 'Q: {q}', 'answer': 'A: {a}'}
+
+# ✗ BAD: usr_prompt_spec as plain string
+usr_prompt_spec = "Q: {question}"  # Use dict instead!
+```
+
+**When to use `TASK_TYPE = None`:**
+- Component requires task-instance-specific prompts with specific output formats
+- Component's parsing logic depends on prompt-generated text structure
+- You want to prevent accidental fallback to generic prompts
+
+## Section 4: Key Design Patterns
+
+### Section 4.1: Policy Returns Steps, Transition Receives Steps (v0.2.5+)
 
 **Pattern:**
 ```python
@@ -197,7 +399,7 @@ new_state, aux = transition.step(state, node.step, ...)
 
 **Rationale:** Transitions need full step context to handle special cases (answers, errors, malformed outputs) without requiring logic in agents.
 
-### 2. Transition Handles Multiple Step Types
+### Section 4.2: Transition Handles Multiple Step Types
 
 **Pattern:**
 ```python
@@ -230,7 +432,7 @@ def step(self, state, step_or_action, ...):
 
 **Rationale:** Transition owns all step handling logic, keeping agents clean and focused on orchestration.
 
-### 3. Chain Agents Pass Full Steps to Transition
+### Section 4.3: Chain Agents Pass Full Steps to Transition
 
 **Pattern:**
 ```python
@@ -245,7 +447,7 @@ return new_state
 
 **Rationale:** Transition receives full step context (think, assistant_message) and handles all cases internally, eliminating special case logic in agents.
 
-### 4. Tree Search Uses Actions as Node Identity
+### Section 4.4: Tree Search Uses Actions as Node Identity
 
 **Pattern:**
 ```python
@@ -259,9 +461,9 @@ if node.state is None:
 
 **Rationale:** Actions uniquely identify transitions; states are materialized lazily for efficiency.
 
-## Component Interface Contracts
+## Section 5: Component Interface Contracts
 
-### Policy Interface
+### Section 5.1: Policy Interface
 
 ```python
 class Policy(ABC, Generic[StateT, ActionT]):
@@ -279,7 +481,7 @@ class Policy(ABC, Generic[StateT, ActionT]):
 - Must NOT execute actions or modify environment
 - Must implement `_create_error_steps()` for error handling
 
-### Transition Interface
+### Section 5.2: Transition Interface
 
 ```python
 class Transition(ABC, Generic[StateT, ActionT]):
@@ -303,7 +505,7 @@ class Transition(ABC, Generic[StateT, ActionT]):
 - Must handle action steps (execute), answer steps (append), error steps (append), and malformed steps
 - Must NOT generate new actions
 
-### RewardModel Interface
+### Section 5.3: RewardModel Interface
 
 ```python
 class RewardModel(ABC, Generic[StateT, ActionT]):
@@ -320,12 +522,12 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
 - `fast_reward`: Evaluates before execution (for pruning)
 - `reward`: Evaluates after execution (for scoring)
 
-## Common Pitfalls
+## Section 6: Common Pitfalls
 
-### ❌ Wrong: Handling Answer/Error Logic in Agents
+### Section 6.1: Handling Answer/Error Logic in Agents
 
 ```python
-# WRONG - special case logic scattered in agent code
+# ❌ WRONG - special case logic scattered in agent code
 class ReActChat:
     def update_state(self, query, state, ...):
         step = policy.get_actions(...)[0]
@@ -342,10 +544,8 @@ class ReActChat:
         new_state, aux = transition.step(state, step.action, ...)
 ```
 
-### ✅ Correct: Transition Handles All Cases
-
 ```python
-# CORRECT - transition handles all step types
+# ✅ CORRECT - transition handles all step types
 class ReActChat:
     def update_state(self, query, state, ...):
         step = policy.get_actions(...)[0]
@@ -355,10 +555,10 @@ class ReActChat:
         return new_state
 ```
 
-### ❌ Wrong: Policy Executes Actions
+### Section 6.2: Policy Executes Actions
 
 ```python
-# WRONG - violates separation of concerns
+# ❌ WRONG - violates separation of concerns
 class ToolUsePolicy(Policy):
     def get_actions(self, state, ...):
         action = self.generate_action(state)
@@ -366,52 +566,48 @@ class ToolUsePolicy(Policy):
         return [ToolUseStep(action=action, observation=observation)]
 ```
 
-### ✅ Correct: Policy Only Generates
-
 ```python
-# CORRECT - policy only generates
+# ✅ CORRECT - policy only generates
 class ToolUsePolicy(Policy):
     def get_actions(self, state, ...):
         action = self.generate_action(state)
         return [ToolUseStep(action=action, observation=None)]  # ✅
 ```
 
-### ❌ Wrong: Extracting Only Actions for Transition
+### Section 6.3: Extracting Only Actions for Transition
 
 ```python
-# WRONG - loses step context (pre-v0.2.5 pattern)
+# ❌ WRONG - loses step context (pre-v0.2.5 pattern)
 def _world_modeling(query, node, transition_model, ...):
     action = node.action  # Only action, no step context
     node.state, aux = transition_model.step(node.parent.state, action, ...)
 ```
 
-### ✅ Correct: Passing Full Steps to Transition
-
 ```python
-# CORRECT - preserves step context (v0.2.5+ pattern)
+# ✅ CORRECT - preserves step context (v0.2.5+ pattern)
 def _world_modeling(query, node, transition_model, ...):
     step_or_action = getattr(node, 'step', node.action)  # Full step if available
     node.state, aux = transition_model.step(node.parent.state, step_or_action, ...)
 ```
 
-## Extension Points
+## Section 7: Extension Points
 
-### Adding New Task Types
+### Section 7.1: Adding New Task Types
 
 1. Define State and Action types
-2. Implement Policy for action generation (set `TASK_TYPE` class constant)
-3. Implement Transition for execution (set `TASK_TYPE` class constant)
+2. Implement Policy for action generation (set `TASK_TYPE` class constant, or `None` for task-instance-specific)
+3. Implement Transition for execution (set `TASK_TYPE` class constant, or `None` for task-instance-specific)
 4. (Optional) Implement RewardModel for evaluation (set `TASK_TYPE` class constant)
-5. Register prompts in `PromptRegistry` with your `task_name`
+5. Register prompts in `PromptRegistry` with your `task_name` or `TASK_TYPE`
 6. Use with existing agents (ReActChat, MCTS, BFS)
 
-### Adding New Agents
+### Section 7.2: Adding New Agents
 
 1. Implement agent loop (e.g., new search algorithm)
 2. Use existing Policy/Transition/RewardModel interfaces
 3. Follow the pattern: Policy → extract action → Transition
 
-### Adding New Reward Models
+### Section 7.3: Adding New Reward Models
 
 1. Inherit from `RewardModel` base class
 2. Implement `_fast_reward()` and `reward()` methods
@@ -420,6 +616,7 @@ def _world_modeling(query, node, transition_model, ...):
 ## See Also
 
 - [Component Base Classes](../lits/components/base.py) - Abstract interfaces
+- [Prompt Registry](../lits/prompts/registry.py) - Prompt management
 - [Tree Search Guide](agents/TREE_SEARCH_GUIDE.md) - Using tree search algorithms
 - [ToolUseTransition](components/transitions/TOOL_USE_TRANSITION.md) - Tool execution example
 - [RewardModel Interface](components/REWARD_MODEL_INTERFACE.md) - Evaluation interface

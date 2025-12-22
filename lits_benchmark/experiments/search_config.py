@@ -193,7 +193,7 @@ class ExperimentConfig:
                 self.max_new_tokens_for_bn_eval = 1000
                 self.n_actions_for_bne = 3
             elif self.bn_method == "sc":
-                self.reward_gamma = 0.49
+                self.reward_gamma = 0.99 if self.benchmark_name == "blocksworld" else 0.49
                 self.n_actions_for_bne = 3
             elif self.bn_method == "direct":
                 self.reward_gamma = 0.7

@@ -3,6 +3,11 @@ Centralized prompt registry for LLM-based components.
 
 This module provides a registry system for managing prompts across different
 components (Policy, RewardModel, Transition) and task types.
+
+Lookup priority in get()/get_usr():
+1. task_name (benchmark-specific, e.g., 'blocksworld')
+2. task_type (from component's TASK_TYPE, e.g., 'language_grounded', 'env_grounded', 'tool_use')
+3. 'default'
 """
 
 from typing import Optional, Dict, Any, Union
@@ -14,14 +19,11 @@ class PromptRegistry:
     Centralized registry for managing prompts across components and task types.
     
     Usage:
-        # Register a prompt
-        PromptRegistry.register('policy', 'rap', 'math_qa', prompt_spec)
+        # Register a prompt for a task type
+        PromptRegistry.register('policy', 'rap', 'language_grounded', prompt_spec)
         
-        # Get a prompt
-        prompt = PromptRegistry.get('policy', 'rap', 'math_qa')
-        
-        # Inject custom prompt
-        PromptRegistry.register('policy', 'custom_agent', 'my_task', my_prompt)
+        # Get a prompt (tries task_name first, then task_type, then default)
+        prompt = PromptRegistry.get('policy', 'rap', task_name='gsm8k', task_type='language_grounded')
     """
     
     _registry: Dict[str, Dict[str, Dict[str, Any]]] = {
@@ -49,8 +51,8 @@ class PromptRegistry:
         
         Args:
             component_type: 'policy', 'reward', or 'transition'
-            agent_name: Name of the agent (e.g., 'rap', 'rest', 'tool_use')
-            task_type: Task type (e.g., 'math_qa', 'tool_use') or None for default
+            agent_name: Name of the agent (e.g., 'rap', 'concat', 'tool_use')
+            task_type: Task type (e.g., 'language_grounded', 'env_grounded', 'tool_use') or None for default
             prompt_spec: Prompt specification (string, dict, or PromptTemplate)
         """
         if component_type not in cls._registry:
@@ -67,15 +69,22 @@ class PromptRegistry:
         cls,
         component_type: str,
         agent_name: str,
+        task_name: Optional[str] = None,
         task_type: Optional[str] = None
     ) -> Optional[Union[str, Dict, PromptTemplate]]:
         """
-        Get a prompt from the registry.
+        Get a prompt from the registry with fallback support.
+        
+        Lookup priority:
+        1. task_name (benchmark-specific, e.g., 'blocksworld')
+        2. task_type (from component's TASK_TYPE, e.g., 'language_grounded')
+        3. 'default'
         
         Args:
             component_type: 'policy', 'reward', or 'transition'
             agent_name: Name of the agent
-            task_type: Task type or None
+            task_name: Benchmark name (e.g., 'gsm8k', 'blocksworld')
+            task_type: Component's TASK_TYPE (e.g., 'language_grounded', 'env_grounded')
         
         Returns:
             Prompt specification or None if not found
@@ -88,13 +97,16 @@ class PromptRegistry:
         
         agent_prompts = cls._registry[component_type][agent_name]
         
-        # Try task-specific first, then fall back to default
-        key = task_type if task_type else 'default'
-        if key in agent_prompts:
-            return agent_prompts[key]
+        # Priority 1: Try task_name (benchmark-specific)
+        if task_name and task_name in agent_prompts:
+            return agent_prompts[task_name]
         
-        # Fall back to default if task-specific not found
-        if task_type and 'default' in agent_prompts:
+        # Priority 2: Try task_type (from component's TASK_TYPE)
+        if task_type and task_type in agent_prompts:
+            return agent_prompts[task_type]
+        
+        # Priority 3: Fall back to default
+        if 'default' in agent_prompts:
             return agent_prompts['default']
         
         return None
@@ -128,7 +140,7 @@ class PromptRegistry:
         Args:
             component_type: 'policy', 'reward', or 'transition'
             agent_name: Agent identifier (e.g., 'rap', 'tool_use')
-            task_type: Task type (e.g., 'math_qa') or None for default
+            task_type: Task type (e.g., 'language_grounded') or None for default
             usr_prompt_spec: User prompt specification (dict or PromptTemplate, NOT string)
         """
         if component_type not in cls._usr_registry:
@@ -145,15 +157,22 @@ class PromptRegistry:
         cls,
         component_type: str,
         agent_name: str,
+        task_name: Optional[str] = None,
         task_type: Optional[str] = None
     ) -> Optional[Union[Dict, PromptTemplate]]:
         """
-        Get a usr_prompt_spec from the registry.
+        Get a usr_prompt_spec from the registry with fallback support.
+        
+        Lookup priority:
+        1. task_name (benchmark-specific, e.g., 'blocksworld')
+        2. task_type (from component's TASK_TYPE, e.g., 'language_grounded')
+        3. 'default'
         
         Args:
             component_type: 'policy', 'reward', or 'transition'
             agent_name: Agent identifier
-            task_type: Task type or None for default
+            task_name: Benchmark name (e.g., 'gsm8k', 'blocksworld')
+            task_type: Component's TASK_TYPE (e.g., 'language_grounded', 'env_grounded')
         
         Returns:
             User prompt specification or None if not found
@@ -166,13 +185,16 @@ class PromptRegistry:
         
         agent_prompts = cls._usr_registry[component_type][agent_name]
         
-        # Try task-specific first, then fall back to default
-        key = task_type if task_type else 'default'
-        if key in agent_prompts:
-            return agent_prompts[key]
+        # Priority 1: Try task_name (benchmark-specific)
+        if task_name and task_name in agent_prompts:
+            return agent_prompts[task_name]
         
-        # Fall back to default if task-specific not found
-        if task_type and 'default' in agent_prompts:
+        # Priority 2: Try task_type (from component's TASK_TYPE)
+        if task_type and task_type in agent_prompts:
+            return agent_prompts[task_type]
+        
+        # Priority 3: Fall back to default
+        if 'default' in agent_prompts:
             return agent_prompts['default']
         
         return None
@@ -197,6 +219,9 @@ def load_default_prompts():
     Load all default prompts from lits.prompts into the registry.
     
     This function is called automatically when the package is imported.
+    
+    Note: Prompts are registered under task_type (e.g., 'language_grounded', 'env_grounded')
+    not benchmark names. The component's TASK_TYPE is used for lookup.
     """
     # Import prompt modules
     try:
@@ -211,43 +236,49 @@ def load_default_prompts():
         from .transition import blocksworld as blocksworld_transition
         
         # Register policy prompts
-        # if hasattr(rap_policy, 'task_prompt_spec'):
-        #     PromptRegistry.register('policy', 'rap', None, rap_policy.task_prompt_spec)
+        # RAP policy for language_grounded tasks (gsm8k, math500, spart_yn)
         if hasattr(rap_policy, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('policy', 'rap', 'math_qa', rap_policy.task_prompt_spec_math_qa)
+            PromptRegistry.register('policy', 'rap', 'language_grounded', rap_policy.task_prompt_spec_math_qa)
         if hasattr(rap_policy, 'usr_prompt_spec_math_qa'):
-            PromptRegistry.register_usr('policy', 'rap', 'math_qa', rap_policy.usr_prompt_spec_math_qa)
+            PromptRegistry.register_usr('policy', 'rap', 'language_grounded', rap_policy.usr_prompt_spec_math_qa)
+        
+        # EnvGrounded policy for blocksworld (benchmark-specific)
         if hasattr(blocksworld_policy, 'usr_prompt_spec'):
-            PromptRegistry.register_usr('policy', 'env_grounded', "blocksworld", blocksworld_policy.usr_prompt_spec)
+            PromptRegistry.register_usr('policy', 'env_grounded', 'blocksworld', blocksworld_policy.usr_prompt_spec)
         
-        # if hasattr(concat_policy, 'task_prompt_spec'):
-        #     PromptRegistry.register('policy', 'rest', None, concat_policy.task_prompt_spec)
+        # Concat policy for language_grounded tasks
         if hasattr(concat_policy, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('policy', 'concat', 'math_qa', concat_policy.task_prompt_spec_math_qa)
+            PromptRegistry.register('policy', 'concat', 'language_grounded', concat_policy.task_prompt_spec_math_qa)
         
+        # ToolUse policy (default for all tool_use tasks)
         if hasattr(tool_use_policy, 'task_prompt_spec'):
             PromptRegistry.register('policy', 'tool_use', None, tool_use_policy.task_prompt_spec)
 
         # Register reward prompts
-        # if hasattr(rap_reward, 'task_prompt_spec'):
-        #     PromptRegistry.register('reward', 'rap', None, rap_reward.task_prompt_spec)
+        # RAP reward for language_grounded tasks
         if hasattr(rap_reward, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('reward', 'rap', 'math_qa', rap_reward.task_prompt_spec_math_qa)
+            PromptRegistry.register('reward', 'rap', 'language_grounded', rap_reward.task_prompt_spec_math_qa)
+        
+        # Generative reward for language_grounded tasks
         if hasattr(generative_reward, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('reward', 'generative', 'math_qa', generative_reward.task_prompt_spec_math_qa)
+            PromptRegistry.register('reward', 'generative', 'language_grounded', generative_reward.task_prompt_spec_math_qa)
+        
+        # EnvGrounded reward for blocksworld (benchmark-specific)
         if hasattr(blocksworld_reward, 'task_prompt_spec_blocksworld'):
-            PromptRegistry.register('reward', 'env_grounded', "blocksworld", blocksworld_reward.task_prompt_spec_blocksworld)
+            PromptRegistry.register('reward', 'env_grounded', 'blocksworld', blocksworld_reward.task_prompt_spec_blocksworld)
         if hasattr(blocksworld_reward, 'usr_prompt_spec_blocksworld'):
-            PromptRegistry.register_usr('reward', 'env_grounded', "blocksworld", blocksworld_reward.usr_prompt_spec_blocksworld)
+            PromptRegistry.register_usr('reward', 'env_grounded', 'blocksworld', blocksworld_reward.usr_prompt_spec_blocksworld)
                 
         # Register transition prompts
+        # RAP transition (default and language_grounded)
         if hasattr(rap_transition, 'task_prompt_spec'):
             PromptRegistry.register('transition', 'rap', None, rap_transition.task_prompt_spec)
         if hasattr(rap_transition, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('transition', 'rap', 'math_qa', rap_transition.task_prompt_spec_math_qa)
+            PromptRegistry.register('transition', 'rap', 'language_grounded', rap_transition.task_prompt_spec_math_qa)
         if hasattr(rap_transition, 'usr_prompt_spec_math_qa'):
-            PromptRegistry.register_usr('transition', 'rap', 'math_qa', rap_transition.usr_prompt_spec_math_qa)
+            PromptRegistry.register_usr('transition', 'rap', 'language_grounded', rap_transition.usr_prompt_spec_math_qa)
         
+        # BlocksWorld transition (benchmark-specific)
         if hasattr(blocksworld_transition, 'task_prompt_spec'):
             PromptRegistry.register('transition', 'blocksworld', None, blocksworld_transition.task_prompt_spec)
         if hasattr(blocksworld_transition, 'usr_prompt_spec'):
