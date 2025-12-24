@@ -1,8 +1,61 @@
 from .node import SearchNode
+from typing import Optional, Type, TypeVar
 import logging
 import copy
 
 logger = logging.getLogger(__name__)
+
+NodeT = TypeVar('NodeT', bound=SearchNode)
+
+
+def create_child_node(
+    node_class: Type[NodeT],
+    parent: SearchNode,
+    action,
+    step=None,
+    child_index: Optional[int] = None,
+    **kwargs
+) -> NodeT:
+    """
+    Create a child node with proper trajectory_key assignment.
+    
+    This centralizes child node creation logic so trajectory key computation
+    is consistent across all search algorithms (MCTS, BFS, etc.).
+    
+    The trajectory_key encodes the path from root to this node as a tuple of branch indices.
+    For example, if parent has indices=(0, 1) and child_index=2, the child's trajectory_key
+    will have indices=(0, 1, 2), representing path "q/0/1/2".
+    
+    Args:
+        node_class: The node class to instantiate (MCTSNode, SearchNode, etc.)
+        parent: Parent node
+        action: Action that led to this child
+        step: Optional Step object containing the action (stored as child.step)
+        child_index: Index of this child among parent's children (for trajectory_key).
+                     If None, trajectory_key will not be set even if parent has one.
+        **kwargs: Additional arguments passed to node constructor
+    
+    Returns:
+        Newly created child node with trajectory_key set if parent has one and child_index provided
+    """
+    # Compute trajectory_key from parent if available
+    child_traj_key = None
+    if hasattr(parent, 'trajectory_key') and parent.trajectory_key is not None:
+        if child_index is not None:
+            child_traj_key = parent.trajectory_key.child(child_index)
+    
+    child = node_class(
+        state=None, 
+        action=action, 
+        parent=parent, 
+        trajectory_key=child_traj_key,
+        **kwargs
+    )
+    
+    if step is not None:
+        child.step = step
+    
+    return child
 
 def _is_terminal_with_depth_limit(node, max_steps, force_terminating_on_depth_limit):
     """

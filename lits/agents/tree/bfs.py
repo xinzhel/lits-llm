@@ -9,7 +9,7 @@ from .node import SearchNode
 from .base import BaseSearchConfig
 from .continuation import _continuation
 from ...lm.base import DETERMINISTIC_TEMPERATURE  
-from .common import _world_modeling, _is_terminal_with_depth_limit, _sample_actions_with_existing
+from .common import _world_modeling, _is_terminal_with_depth_limit, _sample_actions_with_existing, create_child_node
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +63,21 @@ def _expand(
         action = step.get_action()  # Extract action from Step object
         is_terminal_for_repeats.append(True if action == "ALWAY REPEAT. TERMINATE" else False)
 
-    for step, is_terminal_for_repeat in zip(steps, is_terminal_for_repeats):
+    # Determine the starting index for new children (to handle existing children)
+    existing_children_count = len(node.children)
+
+    for idx, (step, is_terminal_for_repeat) in enumerate(zip(steps, is_terminal_for_repeats)):
         action = step.get_action()  # Extract action from Step object
-        child = SearchNode(state=None, action=action, parent=node)
-        # Store the full step for transition model
-        child.step = step
+        child_idx = existing_children_count + idx
+        
+        # Use unified helper to create child with proper trajectory_key
+        child = create_child_node(
+            SearchNode,
+            parent=node,
+            action=action,
+            step=step,
+            child_index=child_idx
+        )
         child.is_terminal_for_repeat = is_terminal_for_repeat
         
         # Assign fast_reward using common helper
@@ -108,12 +118,23 @@ def _expand_with_existing(
         from_phase=from_phase
     )
 
+    # Determine the starting index for new children (to handle existing children).
+    # This ensures each child gets a unique trajectory_key index.
+    existing_children_count = len(node.children)
+
     # Step 3: Assign rewards + terminal flags for new actions
-    for step in new_actions:
+    for idx, step in enumerate(new_actions):
         action = step.get_action()  # Extract action from Step object
-        child = SearchNode(state=None, action=action, parent=node)
-        # Store the full step for transition model
-        child.step = step
+        child_idx = existing_children_count + idx
+        
+        # Use unified helper to create child with proper trajectory_key
+        child = create_child_node(
+            SearchNode,
+            parent=node,
+            action=action,
+            step=step,
+            child_index=child_idx
+        )
 
         # Assign terminal-for-repeat
         child.is_terminal_for_repeat = (action == "ALWAY REPEAT. TERMINATE")

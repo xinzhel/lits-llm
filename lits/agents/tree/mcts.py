@@ -13,9 +13,11 @@ try:
 except ImportError:
     torch = None
 from ...structures.base import State, Action, Trace
+from ...memory.types import TrajectoryKey
+from ...memory.manager import LiTSMemoryManager, AugmentedContext
 from .node import MCTSNode, SearchNode
 from .base import BaseSearchConfig
-from .common import visualize_node, visualize_path, _sample_actions_with_existing, _world_modeling, _is_terminal_with_depth_limit, _is_terminal_with_depth_limit_and_r_threshold
+from .common import visualize_node, visualize_path, _sample_actions_with_existing, _world_modeling, _is_terminal_with_depth_limit, _is_terminal_with_depth_limit_and_r_threshold, create_child_node
 from .continuation import _continuation
 
 logger = logging.getLogger(__name__)
@@ -233,11 +235,24 @@ def _expand(
         from_phase=from_phase
     )
     
-    for step in new_steps_or_actions:
+    # Determine the starting index for new children (to handle existing children).
+    # This ensures each child gets a unique trajectory_key index when _expand() is called
+    # multiple times on the same node (e.g., during simulate phase).
+    existing_children_count = len(node.children)
+    
+    for idx, step in enumerate(new_steps_or_actions):
         action = step.get_action()  # Extract action from Step object
-        child = MCTSNode(state=None, action=action, parent=node)
-        # Store the full step for transition model
-        child.step = step
+        child_idx = existing_children_count + idx
+        
+        # Use unified helper to create child with proper trajectory_key
+        child = create_child_node(
+            MCTSNode,
+            parent=node,
+            action=action,
+            step=step,
+            child_index=child_idx
+        )
+        
         # Assign terminal-for-repeat
         child.is_terminal_for_repeat = (action == "ALWAY REPEAT. TERMINATE")
 
@@ -401,7 +416,7 @@ def _back_propagate(path: list[MCTSNode], cum_reward_func):
 ##### BACK-PROPAGATE (END)
 
 ##### MCTS (BEGIN) #####
-def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, reward_model, bn_evaluator=None, init_state_kwargs: dict = None, checkpoint_dir: str = None, override_checkpoint: bool = True) -> MCTSResult:
+def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, reward_model, bn_evaluator=None, init_state_kwargs: dict = None, checkpoint_dir: str = None, override_checkpoint: bool = True, memory_manager: Optional[LiTSMemoryManager] = None) -> MCTSResult:
     """Run MCTS search.
     
     Args:
@@ -417,6 +432,9 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
         checkpoint_dir: Optional directory to save incremental checkpoints during search.
                        If provided, saves rollout paths and results as they're generated.
         override_checkpoint: Whether to overwrite existing checkpoint files. Default True.
+        memory_manager: Optional LiTSMemoryManager for cross-trajectory memory.
+                       If provided, enables memory retrieval before expansion and
+                       recording of actions after expansion. Default None (backward compatible).
     
     Returns:
         MCTSResult with search results
@@ -459,7 +477,16 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
     
     # Pass init_state_kwargs to init_state for task types that need it (e.g., env_grounded)
     _init_kwargs = init_state_kwargs if init_state_kwargs is not None else {}
-    root = MCTSNode(state=world_model.init_state(**_init_kwargs), action=query_or_goals, parent=None)
+    
+    # Generate unique search_id for TrajectoryKey
+    search_id = f"{query_idx}_{int(time.time())}"
+    
+    root = MCTSNode(
+        state=world_model.init_state(**_init_kwargs), 
+        action=query_or_goals, 
+        parent=None,
+        trajectory_key=TrajectoryKey(search_id=search_id, indices=())
+    )
     assert root.id == 0, f"Root node ID should be 0 not {root.id}"
     
     trace_in_each_iter = []
@@ -530,6 +557,19 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
                     continue
             # ====== Terminate Check (End) ======
     
+            # ====== Memory Context Retrieval (Begin) ======
+            memory_context: Optional[AugmentedContext] = None
+            if memory_manager is not None and path[-1].trajectory_key is not None:
+                try:
+                    memory_context = memory_manager.build_augmented_context(path[-1].trajectory_key)
+                    logger.debug(f"Retrieved memory context for node {path[-1].id}: "
+                                f"{len(memory_context.inherited_units)} inherited, "
+                                f"{len(memory_context.retrieved_trajectories)} cross-trajectory results")
+                except Exception as e:
+                    logger.warning(f"Failed to retrieve memory context for node {path[-1].id}: {e}")
+                    memory_context = None
+            # ====== Memory Context Retrieval (End) ======
+
             _expand(
                 query_or_goals, 
                 query_idx, 
@@ -542,6 +582,30 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
                 use_critic=mcts_search_config.use_critic,
                 from_phase="expand"
             ) ####### expand
+            
+            # ====== Memory Recording (Begin) ======
+            if memory_manager is not None and path[-1].trajectory_key is not None:
+                try:
+                    # Record actions from newly created children
+                    for child in path[-1].children:
+                        if child.trajectory_key is not None and child.action is not None:
+                            # Convert action to message format for memory recording
+                            action_str = str(child.action) if not isinstance(child.action, str) else child.action
+                            messages = [{"role": "assistant", "content": action_str}]
+                            memory_manager.record_action(
+                                trajectory=child.trajectory_key,
+                                messages=messages,
+                                metadata={
+                                    "trajectory_path": child.trajectory_key.path_str,
+                                    "trajectory_depth": child.trajectory_key.depth,
+                                    "ancestry_paths": list(child.trajectory_key.ancestry_paths),
+                                    "from_phase": "expand"
+                                }
+                            )
+                    logger.debug(f"Recorded {len(path[-1].children)} actions to memory for node {path[-1].id}")
+                except Exception as e:
+                    logger.warning(f"Failed to record actions to memory for node {path[-1].id}: {e}")
+            # ====== Memory Recording (End) ======
             # ====== Expansion (End) ======
 
             # ====== Simulate (Begin) ======
