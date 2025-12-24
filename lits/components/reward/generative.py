@@ -55,20 +55,26 @@ class GenerativePRM(RewardModel):
         assert infer_chat_model(self.base_model.model_name), f"ReST evaluator only supports Chat Model, got {type(self.base_model)}"
         
         
-    def _generate_usr_msg(self, query, state, action) -> str:
+    def _generate_usr_msg(self, query, state, action_str: str) -> str:
         user_message = verbalize_concat_state(query, state)
-        user_message += "New Step to be evaluated: " + action + "\n"
+        user_message += "New Step to be evaluated: " + action_str + "\n"
 
         return user_message
         
-    def _fast_reward(self, state, action, query, query_idx, from_phase="") -> tuple[float, dict]:
-        user_message = self._generate_usr_msg(query, state, action)
+    def _fast_reward(self, state, action_or_step, query, query_idx, from_phase="") -> tuple[float, dict]:
+        # Handle both Step objects and raw action strings
+        from ...structures.base import Step
+        if isinstance(action_or_step, Step):
+            action_str = action_or_step.get_action()
+        else:
+            action_str = action_or_step
+        user_message = self._generate_usr_msg(query, state, action_str)
 
         def save_results(file_path, score, reasoning, full_output):
             save_item = {
                 "query_idx": query_idx, 
                 "query": query, 
-                "steps": [thought.action for idx, thought in enumerate(state)] + [action], 
+                "steps": [thought.action for idx, thought in enumerate(state)] + [action_str], 
                 "from_phase": from_phase, 
                 "score": score,
                 "reasoning": reasoning,

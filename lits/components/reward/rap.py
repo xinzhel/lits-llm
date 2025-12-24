@@ -17,7 +17,14 @@ class RapPRM(RewardModel):
         self.n_shot_eval = 4 # evaluator
         
     # ===== Immediate Reward from glm_eval (BEGIN) =====
-    def _fast_reward(self, state: StateT, action: ActionT, query, query_idx, from_phase="") -> tuple[float, dict]:
+    def _fast_reward(self, state: StateT, action_or_step, query, query_idx, from_phase="") -> tuple[float, dict]:
+        # Handle both Step objects and raw action strings
+        from ...structures.base import Step
+        if isinstance(action_or_step, Step):
+            action = action_or_step.get_action()
+        else:
+            action = action_or_step
+            
         if self.n_shot_eval or isinstance(self.base_model, HfModel):
             with io.StringIO() as f:
                 f.write(self.task_prompt_spec["input"])

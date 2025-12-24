@@ -7,7 +7,7 @@ class ScPRM(RewardModel):
     def __init__(self, **kwargs):
         super().__init__(base_model=kwargs.pop("base_model", None), task_prompt_spec=kwargs.pop("task_prompt_spec", None), **kwargs)
 
-    def _fast_reward(self, state, action, query, query_idx, from_phase="") -> float:
+    def _fast_reward(self, state, action_or_step, query, query_idx, from_phase="") -> float:
         """Return a neutral fast reward so expansion can proceed without PRM guidance."""
         return 0.0
 

@@ -10,7 +10,14 @@ class RLHFlowPRM(RewardModel):
         super().__init__(base_model=kwargs.pop("base_model", None), task_prompt_spec=kwargs.pop("task_prompt_spec", None), **kwargs)
         self.reward_alpha = 1 # so that reward == r_useful 
         
-    def _fast_reward(self, state, action, query, query_idx, from_phase="") -> tuple[float, dict]:
+    def _fast_reward(self, state, action_or_step, query, query_idx, from_phase="") -> tuple[float, dict]:
+        # Handle both Step objects and raw action strings
+        from ...structures.base import Step
+        if isinstance(action_or_step, Step):
+            action = action_or_step.get_action()
+        else:
+            action = action_or_step
+            
         def get_reward(question, existing_steps, next_step, role=None):
             conversation = []
             # question + existing steps
