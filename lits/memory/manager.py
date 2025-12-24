@@ -14,10 +14,46 @@ class AugmentedContext:
     """
     Aggregated memory bundle returned by :class:`LiTSMemoryManager`.
 
+    This class bundles all memory information needed for a node expansion in LiTS-Mem.
+    It is returned by :meth:`LiTSMemoryManager.build_augmented_context` and contains
+    both inherited memories (from ancestor nodes) and cross-trajectory memories
+    (from similar trajectories in the search tree).
+
     The bundle is intentionally lightweight so callers across :mod:`lits.agents`,
     :mod:`lits.components`, and :mod:`lits.framework_config` can pass it around without
-    worrying about backend details.  Policies typically call :meth:`to_prompt_blocks`
+    worrying about backend details. Policies typically call :meth:`to_prompt_blocks`
     when constructing LLM prompts for node expansion.
+
+    Attributes:
+        trajectory: The :class:`TrajectoryKey` identifying the current node's position
+            in the search tree. Format: ``TrajectoryKey(search_id, indices=(0, 1))``
+            represents the path root → child[0] → child[1].
+        inherited_units: Memory facts from ancestor nodes in the current trajectory.
+            These are memories that "flow down" from parent to child - if a fact was
+            recorded at node ``q/0``, it is inherited by all descendants like ``q/0/1``,
+            ``q/0/2``, etc. Sorted by depth and creation time.
+        retrieved_trajectories: Results from cross-trajectory search. Each
+            :class:`TrajectorySimilarity` contains:
+            - ``trajectory_path``: Path of the similar trajectory (e.g., ``"q/1/0"``)
+            - ``score``: Similarity score based on memory overlap
+            - ``missing_units``: Facts present in the similar trajectory but absent
+              from the current trajectory - these are the "new insights" to augment
+            - ``overlapping_units``: Facts that both trajectories share (for provenance)
+
+    Example:
+        During MCTS expansion at node ``q/0/1``::
+
+            context = memory_manager.build_augmented_context(node.trajectory_key)
+            
+            # inherited_units might contain:
+            # - "The problem requires finding the derivative" (from q)
+            # - "Using chain rule for composition" (from q/0)
+            
+            # retrieved_trajectories might find q/1 as similar, with missing_units:
+            # - "Consider substitution u = x^2" (insight from sibling trajectory)
+            
+            prompt_addition = context.to_prompt_blocks()
+            # Inject into policy prompt for better action generation
     """
 
     trajectory: TrajectoryKey
@@ -37,8 +73,38 @@ class AugmentedContext:
     def to_prompt_blocks(self, include_inherited: bool = True) -> str:
         """
         Format the augmented context as a single string suitable for concatenation with
-        policy prompts.  :mod:`lits.components.policy` can call this helper to assemble
-        the ``<memory>`` section before invoking the LLM.
+        policy prompts.
+
+        This method renders all memory information into a human-readable format that can
+        be injected into LLM prompts. The output includes:
+        
+        1. **Inherited memories** (if ``include_inherited=True``): Facts from ancestor
+           nodes, formatted as a bulleted list under "# Inherited memories"
+        2. **Cross-trajectory memories**: For each similar trajectory found, includes
+           the trajectory path, similarity score, and the "missing units" (facts that
+           the current trajectory doesn't have but the similar one does)
+
+        Args:
+            include_inherited: Whether to include inherited memories in the output.
+                Set to ``False`` if inherited context is already in the prompt.
+
+        Returns:
+            A formatted string ready for prompt injection. Returns empty string if
+            no memories are available.
+
+        Example output::
+
+            # Inherited memories
+            - The problem requires finding the derivative
+            - Using chain rule for composition
+
+            Trajectory q/1 (score=0.75)
+            - Consider substitution u = x^2
+            - Apply power rule after substitution
+
+        Note:
+            :mod:`lits.components.policy` can call this helper to assemble the
+            ``<memory>`` section before invoking the LLM.
         """
 
         blocks: List[str] = []

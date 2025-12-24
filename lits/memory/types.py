@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 ROOT_TOKEN = "q"
 
@@ -95,6 +95,23 @@ class TrajectoryKey:
     @classmethod
     def from_path(cls, search_id: str, path: str, root_token: str = ROOT_TOKEN) -> "TrajectoryKey":
         return cls(search_id=search_id, indices=decode_path(path, root_token), root_token=root_token)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a JSON-safe dict."""
+        return {
+            "search_id": self.search_id,
+            "indices": list(self.indices),
+            "root_token": self.root_token,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "TrajectoryKey":
+        """Deserialize from a dict."""
+        return cls(
+            search_id=data["search_id"],
+            indices=tuple(data.get("indices", ())),
+            root_token=data.get("root_token", ROOT_TOKEN),
+        )
 
 
 @dataclass

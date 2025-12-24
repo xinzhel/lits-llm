@@ -14,7 +14,52 @@ except Exception:  # pragma: no cover - qdrant optional for tests
 from .types import MemoryUnit, TrajectoryKey, ancestry_from_indices, decode_path, encode_path
 
 
-class Mem0MemoryBackend:
+class BaseMemoryBackend(ABC):
+    """
+    Abstract base class for memory backends.
+    
+    Memory backends are responsible for storing and retrieving memory units
+    from a vector store. Implementations must provide methods for adding
+    messages/facts and listing all units for a given search.
+    """
+
+    @abstractmethod
+    def add_messages(
+        self,
+        trajectory: TrajectoryKey,
+        messages: Sequence[Dict[str, str]],
+        metadata: Optional[Dict] = None,
+        infer: bool = True,
+    ) -> List[MemoryUnit]:
+        """
+        Add messages to the memory store.
+        
+        Args:
+            trajectory: The trajectory key identifying the current position.
+            messages: List of message dicts with 'role' and 'content' keys.
+            metadata: Optional metadata to attach to stored memories.
+            infer: Whether to use LLM to extract facts from messages.
+            
+        Returns:
+            List of MemoryUnit objects that were stored.
+        """
+        pass
+
+    @abstractmethod
+    def list_all_units(self, search_id: str) -> List[MemoryUnit]:
+        """
+        List all memory units for a given search.
+        
+        Args:
+            search_id: The search instance identifier.
+            
+        Returns:
+            List of all MemoryUnit objects for the search.
+        """
+        pass
+
+
+class Mem0MemoryBackend(BaseMemoryBackend):
     """
 
     The backend is intentionally thin: storage, deduplication, and vector operations

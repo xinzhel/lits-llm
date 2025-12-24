@@ -30,7 +30,7 @@ into the public classes exposed here without needing internal knowledge.
 
 from .config import LiTSMemoryConfig
 from .types import MemoryUnit, TrajectoryKey, TrajectorySimilarity
-from .backends import BaseMemoryBackend, Mem0MemoryBackend, LocalMemoryBackend
+from .backends import BaseMemoryBackend, Mem0MemoryBackend
 from .manager import LiTSMemoryManager, AugmentedContext
 
 __all__ = [
@@ -40,7 +40,6 @@ __all__ = [
     "TrajectorySimilarity",
     "BaseMemoryBackend",
     "Mem0MemoryBackend",
-    "LocalMemoryBackend",
     "LiTSMemoryManager",
     "AugmentedContext",
 ]

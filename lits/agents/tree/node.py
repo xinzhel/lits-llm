@@ -4,7 +4,7 @@ import numpy as np
 from typing import Dict, Any
 from ...structures import StateT, ActionT
 from ...structures.trace import _serialize_obj, _deserialize_obj
-from ...type_registry import TYPE_REGISTRY
+from ...memory.types import TrajectoryKey
 
 class SearchNode(Generic[StateT, ActionT]):
     
@@ -21,7 +21,8 @@ class SearchNode(Generic[StateT, ActionT]):
         parent: Optional['SearchNode'] = None, 
         fast_reward: float = -1, 
         children: Optional[List['SearchNode']] = None, 
-        is_terminal: bool = False
+        is_terminal: bool = False,
+        trajectory_key: Optional[TrajectoryKey] = None
     ):
         """
         A node in the search tree
@@ -29,6 +30,7 @@ class SearchNode(Generic[StateT, ActionT]):
         :param state: the current state
         :param action: the action of the last step, i.e., the action from parent node to current node
         :param parent: the parent node, None if root of the tree
+        :param trajectory_key: identifier for the trajectory within a search instance
         """
         self.id = next(SearchNode.id_iter)
         self.state = state
@@ -41,6 +43,7 @@ class SearchNode(Generic[StateT, ActionT]):
         self.bn_score = -1
         self.state_conf = -1
         self.fast_reward = fast_reward
+        self.trajectory_key = trajectory_key
         # probability distribution over children for puct
         # self.children_priority = children_priority if children_priority is not None else []
 
@@ -60,6 +63,12 @@ class SearchNode(Generic[StateT, ActionT]):
         path = path[::-1] # Reverse the path to get actions and states in order
         return path
     
+    def _serialize_trajectory_key(self) -> Optional[Dict[str, Any]]:
+        """Serialize trajectory_key to a JSON-safe dict."""
+        if self.trajectory_key is None:
+            return None
+        return self.trajectory_key.to_dict()
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert self to a JSON-safe dict, serializing state/action/step recursively."""
 
@@ -72,6 +81,7 @@ class SearchNode(Generic[StateT, ActionT]):
             "bn_score": self.bn_score,
             "state_conf": self.state_conf,
             "fast_reward": self.fast_reward,
+            "trajectory_key": self._serialize_trajectory_key(),
         }
         
         # Serialize step if present (v0.2.5+)
@@ -94,6 +104,10 @@ class SearchNode(Generic[StateT, ActionT]):
         node.state_conf = dct.get("state_conf", -1)
         node.fast_reward = dct.get("fast_reward", -1)
         
+        # Deserialize trajectory_key
+        tk_data = dct.get("trajectory_key")
+        node.trajectory_key = TrajectoryKey.from_dict(tk_data) if tk_data else None
+        
         # Deserialize step if present (v0.2.5+)
         if "step" in dct:
             node.step = _deserialize_obj(dct["step"])
@@ -103,13 +117,15 @@ class SearchNode(Generic[StateT, ActionT]):
 class MCTSNode(SearchNode[StateT, ActionT]):
     def __init__(self, state: Optional[StateT], action: Optional[ActionT], parent: Optional['MCTSNode'] = None,
                  fast_reward: float = -1, fast_reward_details=None,
-                 is_terminal: bool = False, calc_q: Callable[[List[float]], float] = None):
+                 is_terminal: bool = False, calc_q: Callable[[List[float]], float] = None,
+                 trajectory_key: Optional[TrajectoryKey] = None):
         """
         :param fast_reward: an estimation of the reward of the last step
         :param is_terminal: whether the current state is a terminal state
         :param calc_q: the way to calculate the Q value from histories. Defaults: np.mean
+        :param trajectory_key: identifier for the trajectory within a search instance
         """
-        super().__init__(state, action, parent, children=None, is_terminal=is_terminal)
+        super().__init__(state, action, parent, children=None, is_terminal=is_terminal, trajectory_key=trajectory_key)
         
         self.fast_reward = fast_reward # reward for action (no state)
         self.reward = fast_reward
