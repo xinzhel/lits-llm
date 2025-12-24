@@ -2,13 +2,19 @@
 Test suite for tree search common utilities.
 
 Tests the shared functions used by both MCTS and BFS.
+
+run:
+
+```
+python unit_test/agents/test_tree_common.py
+```
 """
 
 import sys
 import os
 
 # Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from lits.agents.tree.node import SearchNode
 from lits.agents.tree.common import extract_answers_from_terminal_nodes
@@ -73,28 +79,24 @@ class TestExtractAnswersFromTerminalNodes:
         """Test basic terminal node extraction."""
         root, terminals = create_mock_tree_with_terminals()
         
-        check_nodes, vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
-            terminal_nodes=terminals,
-            frontier=[],
-            buckets_with_terminal=None,
+        vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
+            terminal_nodes_collected=terminals,
             retrieve_answer=mock_retrieve_answer,
-            question="What is the answer?"
+            query="What is the answer?"
         )
         
-        # Check that all terminal nodes were collected
-        assert len(check_nodes) == 3
-        assert all(node.is_terminal for node in check_nodes)
+        # Check vote counts (two nodes answer "42", one answers "43")
+        assert vote_answers["42"] == 2
+        assert vote_answers["43"] == 1
     
     def test_vote_counting(self):
         """Test answer vote counting."""
         root, terminals = create_mock_tree_with_terminals()
         
-        check_nodes, vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
-            terminal_nodes=terminals,
-            frontier=[],
-            buckets_with_terminal=None,
+        vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
+            terminal_nodes_collected=terminals,
             retrieve_answer=mock_retrieve_answer,
-            question="What is the answer?"
+            query="What is the answer?"
         )
         
         # Check vote counts (two nodes answer "42", one answers "43")
@@ -105,12 +107,10 @@ class TestExtractAnswersFromTerminalNodes:
         """Test reward aggregation by answer."""
         root, terminals = create_mock_tree_with_terminals()
         
-        check_nodes, vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
-            terminal_nodes=terminals,
-            frontier=[],
-            buckets_with_terminal=None,
+        vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
+            terminal_nodes_collected=terminals,
             retrieve_answer=mock_retrieve_answer,
-            question="What is the answer?"
+            query="What is the answer?"
         )
         
         # Check reward lists
@@ -124,12 +124,10 @@ class TestExtractAnswersFromTerminalNodes:
         """Test that the node with highest reward is selected."""
         root, terminals = create_mock_tree_with_terminals()
         
-        check_nodes, vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
-            terminal_nodes=terminals,
-            frontier=[],
-            buckets_with_terminal=None,
+        vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
+            terminal_nodes_collected=terminals,
             retrieve_answer=mock_retrieve_answer,
-            question="What is the answer?"
+            query="What is the answer?"
         )
         
         # Best node should be terminal1 with reward 0.9
@@ -141,12 +139,10 @@ class TestExtractAnswersFromTerminalNodes:
         """Test path reconstruction from best node to root."""
         root, terminals = create_mock_tree_with_terminals()
         
-        check_nodes, vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
-            terminal_nodes=terminals,
-            frontier=[],
-            buckets_with_terminal=None,
+        vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
+            terminal_nodes_collected=terminals,
             retrieve_answer=mock_retrieve_answer,
-            question="What is the answer?"
+            query="What is the answer?"
         )
         
         # Trace should be [root, best_node]
@@ -156,65 +152,15 @@ class TestExtractAnswersFromTerminalNodes:
         assert trace[0].parent is None
         assert trace[1].parent == root
     
-    def test_with_frontier_nodes(self):
-        """Test extraction with additional frontier nodes."""
-        root, terminals = create_mock_tree_with_terminals()
-        
-        # Create a frontier node that is also terminal
-        frontier_terminal = SearchNode(
-            state=[{"action": "Answer: 44", "__type__": "Step"}],
-            action="Answer: 44",
-            parent=root
-        )
-        frontier_terminal.id = 4
-        frontier_terminal.fast_reward = 0.6
-        frontier_terminal.is_terminal = True
-        
-        check_nodes, vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
-            terminal_nodes=terminals,
-            frontier=[frontier_terminal],
-            buckets_with_terminal=None,
-            retrieve_answer=mock_retrieve_answer,
-            question="What is the answer?"
-        )
-        
-        # Should include the frontier terminal node
-        assert len(check_nodes) == 4
-        assert frontier_terminal in check_nodes
-    
-    def test_with_buckets(self):
-        """Test extraction with BFS-style buckets."""
-        root, terminals = create_mock_tree_with_terminals()
-        
-        buckets = {
-            0: [root],
-            1: terminals
-        }
-        
-        check_nodes, vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
-            terminal_nodes=terminals,
-            frontier=[],
-            buckets_with_terminal=buckets,
-            retrieve_answer=mock_retrieve_answer,
-            question="What is the answer?"
-        )
-        
-        # Should work correctly with buckets
-        assert len(check_nodes) == 3
-        assert best_node.fast_reward == 0.9
-    
     def test_empty_terminals(self):
         """Test with no terminal nodes."""
-        check_nodes, vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
-            terminal_nodes=[],
-            frontier=[],
-            buckets_with_terminal=None,
+        vote_answers, answer_reward_d, best_node, trace = extract_answers_from_terminal_nodes(
+            terminal_nodes_collected=[],
             retrieve_answer=mock_retrieve_answer,
-            question="What is the answer?"
+            query="What is the answer?"
         )
         
         # Should handle empty case gracefully
-        assert len(check_nodes) == 0
         assert len(vote_answers) == 0
         assert len(answer_reward_d) == 0
         assert best_node is None
