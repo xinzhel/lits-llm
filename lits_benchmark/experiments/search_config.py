@@ -17,7 +17,8 @@ _EXCLUDE_FROM_SEARCH_CONFIG: Set[str] = {
     "check_action_sim", "use_critic", "model_verbose", "verbose",
     "print_answer_for_each_example", "override_log_result",
     "roll_out_steps", "n_iters", "n_action_for_simulate", "n_confidence",
-    "max_eval_rollout_steps"
+    "max_eval_rollout_steps",
+    "enable_memory", "memory_config"  # Memory config handled separately
 }
 
 
@@ -120,6 +121,10 @@ class ExperimentConfig:
     
     # Tool-use evaluation
     max_eval_rollout_steps: int = 10  # Maximum steps for ToolUsePRM trajectory completion
+    
+    # Memory configuration (LiTS-Mem integration)
+    enable_memory: bool = False  # Whether to enable cross-trajectory memory
+    memory_config: Optional[Dict[str, Any]] = None  # Optional memory configuration dict
     
     # Other
     max_length: int = 32768
