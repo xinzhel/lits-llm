@@ -127,8 +127,28 @@ def _sample_actions_with_existing(
     n_actions,
     transition_model=None,
     use_critic=False,
-    from_phase=""
+    from_phase="",
+    memory_context=None
 ):
+    """
+    Sample actions from the policy, reusing existing children if available.
+    
+    Args:
+        query_or_goals: The query or goals string
+        query_idx: Index of the query
+        node: The node to expand
+        policy: Policy model for action generation
+        n_actions: Number of actions to generate
+        transition_model: Optional transition model for critic generation
+        use_critic: Whether to use critic for action evaluation
+        from_phase: Algorithm phase (expand, simulate, continuation)
+        memory_context: Optional AugmentedContext from LiTS-Mem for cross-trajectory
+                       memory augmentation. If provided, formatted as prompt blocks
+                       and passed to the policy.
+    
+    Returns:
+        List of Step objects representing the generated actions
+    """
     if transition_model is None:
         assert use_critic is False
     assert from_phase in ["expand", "simulate", "continuation"]
@@ -164,7 +184,8 @@ def _sample_actions_with_existing(
             n_actions=n_needed,
             query_idx=query_idx,
             from_phase=from_phase,
-            allow_duplicates=allow_duplicates
+            allow_duplicates=allow_duplicates,
+            memory_context=memory_context
         )
     return steps
     

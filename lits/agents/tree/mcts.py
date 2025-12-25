@@ -220,8 +220,27 @@ def _expand(
     world_model=None, 
     assign_rewards=True, 
     use_critic=False, 
-    from_phase="expand"
+    from_phase="expand",
+    memory_context: Optional[AugmentedContext] = None
 ):
+    """
+    Expand a node by generating candidate actions using the policy.
+    
+    Args:
+        query_or_goals: The query or goals string
+        query_idx: Index of the query
+        node: The node to expand
+        policy: Policy model for action generation
+        n_actions: Number of actions to generate
+        reward_model: Reward model for fast reward assignment
+        world_model: Optional transition model
+        assign_rewards: Whether to assign fast rewards to children
+        use_critic: Whether to use critic for action evaluation
+        from_phase: Algorithm phase (expand, simulate, continuation)
+        memory_context: Optional AugmentedContext from LiTS-Mem for cross-trajectory
+                       memory augmentation. If provided, the memory context is formatted
+                       and passed to the policy for prompt injection.
+    """
     logger.debug(f"\n=========== [Expand for Example {query_idx} Begin] ===========")
 
     new_steps_or_actions = _sample_actions_with_existing(
@@ -232,7 +251,8 @@ def _expand(
         n_actions,
         transition_model=world_model,
         use_critic=use_critic,
-        from_phase=from_phase
+        from_phase=from_phase,
+        memory_context=memory_context
     )
     
     # Determine the starting index for new children (to handle existing children).
@@ -580,7 +600,8 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
                 world_model=world_model,
                 assign_rewards=True,
                 use_critic=mcts_search_config.use_critic,
-                from_phase="expand"
+                from_phase="expand",
+                memory_context=memory_context
             ) ####### expand
             
             # ====== Memory Recording (Begin) ======

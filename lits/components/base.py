@@ -330,6 +330,9 @@ class Policy(ABC, Generic[StateT, ActionT]):
         
         # Post-generation callback for action validation/processing
         self._post_generation_fn: Optional[Callable[[List[StepT], dict], None]] = None
+        
+        # Current memory context for LiTS-Mem integration (set per get_actions call)
+        self._current_memory_context = None
     
     def _get_agent_name(self, first_word: bool = False) -> str:
         """
@@ -429,12 +432,55 @@ class Policy(ABC, Generic[StateT, ActionT]):
             logger.error(f"Error retrieving dynamic notes: {e}", exc_info=True)
             return ""
     
+    def _format_memory_context(self, memory_context) -> str:
+        """
+        Format memory context from LiTS-Mem for prompt injection.
+        
+        This helper method formats an AugmentedContext object into a string suitable
+        for prepending to policy prompts. It wraps the memory context in XML-style
+        tags for clear delineation in the prompt.
+        
+        Args:
+            memory_context: An AugmentedContext object from LiTSMemoryManager, or None.
+                           If None or empty, returns empty string.
+        
+        Returns:
+            Formatted string with memory context wrapped in <memory> tags, or empty
+            string if no memory context is available.
+        
+        Example output::
+        
+            <memory>
+            Trajectory q/1 (score=0.75)
+            - Consider substitution u = x^2
+            - Apply power rule after substitution
+            </memory>
+        
+        Note:
+            By default, inherited memories are excluded (include_inherited=False) since
+            prefix actions are already in the policy prompt via TrajectoryState.render_history().
+            Cross-trajectory memories (from similar trajectories) are included to provide
+            new insights that the current trajectory doesn't have.
+        """
+        if memory_context is None:
+            return ""
+        
+        # Format memory context, excluding inherited memories by default
+        # since they're already in the prompt via state history
+        prompt_blocks = memory_context.to_prompt_blocks(include_inherited=False)
+        
+        if not prompt_blocks:
+            return ""
+        
+        return f"\n<memory>\n{prompt_blocks}\n</memory>\n"
+    
     def set_system_prompt(self) -> None:
         """
         Set the system prompt for the base model based on the task prompt specification.
         
         This method is called every time get_action is invoked, in case of dynamic system prompt construction.
         It automatically appends dynamic notes if a notes function has been set via set_dynamic_notes_fn().
+        It also includes memory context from LiTS-Mem if available (set via _current_memory_context).
         """
         
         if isinstance(self.base_model, (HfChatModel, OpenAIChatModel, BedrockChatModel)):
@@ -443,7 +489,9 @@ class Policy(ABC, Generic[StateT, ActionT]):
                 base_prompt = self._build_system_prompt()
                 # Append dynamic notes if available
                 dynamic_notes = self._get_dynamic_notes()
-                self.base_model.sys_prompt = base_prompt + dynamic_notes
+                # Append memory context if available
+                memory_context_str = self._format_memory_context(self._current_memory_context)
+                self.base_model.sys_prompt = base_prompt + dynamic_notes + memory_context_str
             else:
                 logger.warning("Chat Model but no system prompt constructed since `task_prompt_spec` is None ")
         else:
@@ -494,6 +542,7 @@ class Policy(ABC, Generic[StateT, ActionT]):
         - Exception handling with error step generation
         - Validation of outputs
         - Logging
+        - Memory context injection from LiTS-Mem
 
         Args:
             state: Current state or trajectory to condition the policy.
@@ -504,10 +553,15 @@ class Policy(ABC, Generic[StateT, ActionT]):
             critic: Optional critic for action evaluation.
             from_phase: Description of the current algorithm phase.
             *args, **kwargs: Additional arguments passed to _get_actions.
+                - memory_context: Optional AugmentedContext from LiTS-Mem for
+                  cross-trajectory memory augmentation.
 
         Return:
             List of Step objects with length exactly n_actions.
         """
+        
+        # Extract and store memory context for system prompt injection
+        self._current_memory_context = kwargs.pop('memory_context', None)
         
         self.set_system_prompt()
 
@@ -585,6 +639,9 @@ class Policy(ABC, Generic[StateT, ActionT]):
                     extra={'policy_class': self.__class__.__name__}
                 )
 
+        # Clear memory context after use to avoid leaking to subsequent calls
+        self._current_memory_context = None
+        
         return outputs
     
     @abstractmethod
