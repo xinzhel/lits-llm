@@ -586,12 +586,11 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
             # ====== Memory Recording (Begin) ======
             if memory_manager is not None and path[-1].trajectory_key is not None:
                 try:
-                    # Record actions from newly created children
+                    # Record actions from newly created children using step.to_messages()
                     for child in path[-1].children:
-                        if child.trajectory_key is not None and child.action is not None:
-                            # Convert action to message format for memory recording
-                            action_str = str(child.action) if not isinstance(child.action, str) else child.action
-                            messages = [{"role": "assistant", "content": action_str}]
+                        if (child.trajectory_key is not None and 
+                            hasattr(child, 'step') and child.step is not None):
+                            messages = child.step.to_messages()
                             memory_manager.record_action(
                                 trajectory=child.trajectory_key,
                                 messages=messages,

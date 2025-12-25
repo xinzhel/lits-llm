@@ -38,7 +38,13 @@ class EnvStep(Step):
         return f"Action: {self.action}\nState: {self.next_state}"
 
     def to_messages(self) -> list[dict]:
-        return []
+        """Convert the step into chat messages (action and resulting state)."""
+        messages = []
+        if self.action is not None:
+            messages.append({"role": "assistant", "content": f"Action: {self.action}"})
+        if self.next_state is not None:
+            messages.append({"role": "user", "content": f"Observation: {self.next_state}"})
+        return messages
 
 from ..type_registry import register_state
 

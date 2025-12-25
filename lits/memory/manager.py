@@ -70,7 +70,7 @@ class AugmentedContext:
             snippets.extend(unit.text for unit in result.missing_units)
         return snippets
 
-    def to_prompt_blocks(self, include_inherited: bool = True) -> str:
+    def to_prompt_blocks(self, include_inherited: bool = False) -> str:
         """
         Format the augmented context as a single string suitable for concatenation with
         policy prompts.
