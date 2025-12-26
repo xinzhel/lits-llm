@@ -581,10 +581,22 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
             memory_context: Optional[AugmentedContext] = None
             if memory_manager is not None and path[-1].trajectory_key is not None:
                 try:
+                    retrieval_start_time = time.time()
                     memory_context = memory_manager.build_augmented_context(path[-1].trajectory_key)
-                    logger.debug(f"Retrieved memory context for node {path[-1].id}: "
-                                f"{len(memory_context.inherited_units)} inherited, "
-                                f"{len(memory_context.retrieved_trajectories)} cross-trajectory results")
+                    retrieval_elapsed_ms = (time.time() - retrieval_start_time) * 1000
+                    
+                    # Count total augmented memories from cross-trajectory results
+                    total_augmented = sum(
+                        len(result.missing_units) 
+                        for result in memory_context.retrieved_trajectories
+                    )
+                    
+                    logger.info(f"[Memory Retrieval] Node {path[-1].id} "
+                               f"(trajectory: {path[-1].trajectory_key.path_str}): "
+                               f"inherited={len(memory_context.inherited_units)}, "
+                               f"augmented={total_augmented} from "
+                               f"{len(memory_context.retrieved_trajectories)} trajectories, "
+                               f"elapsed={retrieval_elapsed_ms:.2f}ms")
                 except Exception as e:
                     logger.warning(f"Failed to retrieve memory context for node {path[-1].id}: {e}")
                     memory_context = None
@@ -607,6 +619,8 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
             # ====== Memory Recording (Begin) ======
             if memory_manager is not None and path[-1].trajectory_key is not None:
                 try:
+                    recording_start_time = time.time()
+                    recorded_count = 0
                     # Record actions from newly created children using step.to_messages()
                     for child in path[-1].children:
                         if (child.trajectory_key is not None and 
@@ -622,7 +636,13 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
                                     "from_phase": "expand"
                                 }
                             )
-                    logger.debug(f"Recorded {len(path[-1].children)} actions to memory for node {path[-1].id}")
+                            recorded_count += 1
+                    recording_elapsed_ms = (time.time() - recording_start_time) * 1000
+                    
+                    logger.info(f"[Memory Recording] Node {path[-1].id} "
+                               f"(trajectory: {path[-1].trajectory_key.path_str}): "
+                               f"recorded={recorded_count} actions, "
+                               f"elapsed={recording_elapsed_ms:.2f}ms")
                 except Exception as e:
                     logger.warning(f"Failed to record actions to memory for node {path[-1].id}: {e}")
             # ====== Memory Recording (End) ======
