@@ -193,7 +193,7 @@ class ExperimentConfig:
         # Set continuation defaults
         if self.bn_method:
             self.add_continuation = True
-            if self.bn_method == "entropy":
+            if self.bn_method == "entropy": 
                 self.reward_gamma = 0.13
                 self.max_new_tokens_for_bn_eval = 1000
                 self.n_actions_for_bne = 3
