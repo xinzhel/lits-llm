@@ -186,8 +186,42 @@ class InferenceLogger:
         """
         return self._get_metrics(lambda rec: (role is None and (exclude_roles_prefix is None or not any(rec.get("role", "").startswith(prefix) for prefix in exclude_roles_prefix))) or (rec.get("role", "") == role))
     
-    def get_metrics_by_example_id(self, example_id: int, exclude_subtext: str = None):
-        return self._get_metrics(lambda rec: f"_{example_id}_" in rec.get("role", "") and (exclude_subtext is None or exclude_subtext not in rec.get("role", "")))
+    def get_metrics_by_example_id(
+        self, 
+        example_id: int, 
+        exclude_subtext: str = None,
+        include_subtexts: list[str] = None,
+        exclude_subtexts: list[str] = None
+    ):
+        """Get metrics for a specific example ID with optional filtering.
+        
+        Args:
+            example_id: The example index to filter by (matches "_{example_id}_" in role)
+            exclude_subtext: Single subtext to exclude (deprecated, use exclude_subtexts)
+            include_subtexts: List of subtexts that must ALL be present in role
+            exclude_subtexts: List of subtexts where ANY match excludes the record
+        """
+        # Build exclude list from both old and new params
+        excludes = []
+        if exclude_subtext is not None:
+            excludes.append(exclude_subtext)
+        if exclude_subtexts is not None:
+            excludes.extend(exclude_subtexts)
+        
+        def filter_fn(rec):
+            role = rec.get("role", "")
+            # Must match example_id pattern
+            if f"_{example_id}_" not in role:
+                return False
+            # Check excludes (any match excludes)
+            if excludes and any(ex in role for ex in excludes):
+                return False
+            # Check includes (all must match)
+            if include_subtexts and not all(inc in role for inc in include_subtexts):
+                return False
+            return True
+        
+        return self._get_metrics(filter_fn)
 
     def get_metrics_by_subtext(self, subtext: str):
         return self._get_metrics(lambda rec: subtext in rec.get("role", ""))

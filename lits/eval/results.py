@@ -229,18 +229,27 @@ class TreeToJsonl(BaseResults):
 
 
 def load_jsonl(filepath: str) -> List[Dict[str, Any]]:
-    lines: List[Dict[str, Any]] = []
+    """Load JSON entries from a file (supports both single-line and pretty-printed format)."""
     with open(filepath, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                lines.append( json.loads(line))
-            except json.JSONDecodeError:
-                print(f"============= Error decoding JSON: {line} =============")
-                continue
-    return lines
+        content = f.read().strip()
+    
+    if not content:
+        return []
+    
+    # Split by "}\n{" to handle pretty-printed JSON, then restore braces
+    chunks = content.split("}\n{")
+    results = []
+    for i, chunk in enumerate(chunks):
+        # Restore braces removed by split
+        if i > 0:
+            chunk = "{" + chunk
+        if i < len(chunks) - 1:
+            chunk = chunk + "}"
+        try:
+            results.append(json.loads(chunk))
+        except json.JSONDecodeError as e:
+            print(f"============= Error decoding JSON: {e} =============")
+    return results
 
 def parse_reasoning_and_label(text: str, think_prefix="<think>", think_suffix="</think>", extract_label: str="after_think", truth: str = None) -> Dict[str, Any]:
     """
@@ -280,10 +289,12 @@ class ResultDictToJsonl(BaseResults):
         self,
         run_id: str,
         root_dir: Optional[str] = None,
-        override: bool = False
+        override: bool = False,
+        pretty: bool = True
     ):
         # use .jsonl extension
         super().__init__(run_id, root_dir, override, ext="jsonl")
+        self.pretty = pretty
     
     def load_results(self, filepath: str) -> List[Dict[str, Any]]:
         preds = load_jsonl(filepath)
@@ -301,7 +312,10 @@ class ResultDictToJsonl(BaseResults):
             raise ValueError(f"Unsupported result type: {type(result)}")
         
         with open(self.filepath, "a", encoding="utf-8") as f:
-            json.dump(entry, f)
+            if self.pretty:
+                json.dump(entry, f, indent=2, ensure_ascii=False)
+            else:
+                json.dump(entry, f)
             f.write("\n")
         self._append_result(entry)
 

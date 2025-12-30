@@ -12,14 +12,28 @@ logger = logging.getLogger(__name__)
 def retrieve_answer_from_gsm8k(example: dict) -> str:
     return re.match(r'[\S\s]*#### (.*)$', example['answer'])[1]
 
-def load_qa_dataset(dataset_name):
-    """ All datasets are loaded from huggingface hub """
+def load_qa_dataset(dataset_name, levels: list = None):
+    """Load QA datasets from huggingface hub.
+    
+    Args:
+        dataset_name: Name of the dataset ('gsm8k', 'math500', 'spart_yn')
+        levels: Optional list of difficulty levels (1-5) to filter math500 dataset.
+                Each element can be str or int. Only applicable for math500.
+    
+    Returns:
+        List of examples from the dataset.
+    """
     if dataset_name == "gsm8k":
         full_dataset = list(datasets.load_dataset('gsm8k', 'main', split='test'))
         for example in full_dataset:
             example["answer"] = retrieve_answer_from_gsm8k(example)
     elif dataset_name == "math500":
         full_dataset = list(datasets.load_dataset("xinzhel/math500-float", split='test'))
+        # Filter by levels if specified
+        if levels is not None:
+            # Normalize levels to strings for comparison
+            levels_str = [str(level) for level in levels]
+            full_dataset = [ex for ex in full_dataset if str(ex.get("level", "")) in levels_str]
     elif dataset_name == "spart_yn":
         full_dataset = list(datasets.load_dataset("xinzhel/spart_yn", split='test'))
     else:

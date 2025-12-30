@@ -1222,22 +1222,30 @@ def test_print_summary_with_logger():
         "math_qa", 
         "Meta-Llama-3-8B-Instruct_results"
     )
+   
+    # root_dir_bfs = os.path.join(base_dir, "gsm8k_bfs", "run_a100_v0.1.3")
+    # root_dir_bn = os.path.join(base_dir, "gsm8k_bfs_continuous_bne", "run_a100_v0.1.3") 
+    # root_dir_bn = os.path.join(base_dir, "gsm8k_bfs_continuous_bns", "run_v0.1.6") 
     
-    root_dir_bfs = os.path.join(base_dir, "math500_bfs", "run_a100_v0.1.3")
-    root_dir_bne = os.path.join(base_dir, "math500_bfs_continuous_bne", "run_a100_v0.1.4long")
+    # root_dir_bn = os.path.join(base_dir, "gsm8k_bfs_continuous_bne", "run_a100_v0.1.3_qwen_bn") 
     
+    root_dir_bfs = os.path.join(base_dir, "math500_bfs", "run_a100_v0.1.6")
+    # root_dir_bn = os.path.join(base_dir, "math500_bfs_continuous_bne", "run_v0.1.4_bn_qwen") # "run_a100_v0.1.4long"
+    # root_dir_bn = os.path.join(base_dir, "math500_bfs_continuous_bns", "run_v0.1.6_bn_qwen")
+    root_dir_bn = os.path.join(base_dir, "math500_bfs_continuous_bne", "run_a100_v0.1.4")
+
     # Check if directories exist
-    if not os.path.isdir(root_dir_bfs) or not os.path.isdir(root_dir_bne):
+    if not os.path.isdir(root_dir_bfs) or not os.path.isdir(root_dir_bn):
         print("  SKIPPED: Real data directories not found")
         return True
     
     # Load data
     num_instances = 100
     _, bfs_metrics = load_instance_metrics(root_dir_bfs, num_instances)
-    _, cit_metrics = load_instance_metrics(root_dir_bne, num_instances)
+    _, cit_metrics = load_instance_metrics(root_dir_bn, num_instances)
     
     bfs_bucket_data = load_bucket_data(root_dir_bfs)
-    cit_bucket_data = load_bucket_data(root_dir_bne)
+    cit_bucket_data = load_bucket_data(root_dir_bn)
     
     bfs_reasoning = [extract_reasoning_metrics(b) for b in bfs_bucket_data] if bfs_bucket_data else []
     cit_reasoning = [extract_reasoning_metrics(b) for b in cit_bucket_data] if cit_bucket_data else []
@@ -1253,7 +1261,7 @@ def test_print_summary_with_logger():
     top_regressions = get_top_regressions(comparisons, n=10)
     
     # Create temp directory for log output
-    temp_dir = tempfile.mkdtemp()
+    temp_dir = "../../paper/cit/"
     try:
         result_dir = Path(temp_dir)
         
@@ -1272,8 +1280,8 @@ def test_print_summary_with_logger():
             correlations=correlations,
             top_regressions=top_regressions,
             bfs_dir=root_dir_bfs,
-            cit_dir=root_dir_bne,
-            cit_variant="bne",
+            cit_dir=root_dir_bn,
+            cit_variant="bnd",
             logger=analysis_logger,
             print_to_console=False
         )
@@ -1289,7 +1297,7 @@ def test_print_summary_with_logger():
         assert "CORRELATION ANALYSIS" in log_content, "Missing correlation section"
         assert "TOP 10 REGRESSION INSTANCES" in log_content, "Missing top regressions section"
         assert root_dir_bfs in log_content, "Missing BFS directory in log"
-        assert root_dir_bne in log_content, "Missing CiT directory in log"
+        assert root_dir_bn in log_content, "Missing CiT directory in log"
         
         print(f"  Log file created: {log_file}")
         print(f"  Log file size: {log_file.stat().st_size} bytes")
@@ -1317,9 +1325,9 @@ def test_print_summary_without_logger():
         "Meta-Llama-3-8B-Instruct_results"
     )
     
-    root_dir_bfs = os.path.join(base_dir, "math500_bfs", "run_a100_v0.1.3")
-    root_dir_bne = os.path.join(base_dir, "math500_bfs_continuous_bne", "run_a100_v0.1.4long")
-    
+    root_dir_bfs = os.path.join(base_dir, "math500_bfs", "run_a100_v0.1.6")
+    root_dir_bne = os.path.join(base_dir, "math500_bfs_continuous_bne", "run_v0.1.4_bn_qwen")
+
     # Check if directories exist
     if not os.path.isdir(root_dir_bfs) or not os.path.isdir(root_dir_bne):
         print("  SKIPPED: Real data directories not found")
