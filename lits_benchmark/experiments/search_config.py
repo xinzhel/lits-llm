@@ -13,12 +13,13 @@ from lits.framework_config import PACKAGE_VERSION
 # Fields that should NOT be included in search config dict
 _EXCLUDE_FROM_SEARCH_CONFIG: Set[str] = {
     "benchmark_name",
-    "max_length", "device", "num_shot", "offset", "limit", "eval_idx",
+    "max_length", "device", "num_shot", "offset", "limit", "eval_idx", "levels",
     "check_action_sim", "use_critic", "model_verbose", "verbose",
     "print_answer_for_each_example", "override_log_result",
     "roll_out_steps", "n_iters", "n_action_for_simulate", "n_confidence",
     "max_eval_rollout_steps",
-    "enable_memory", "memory_config"  # Memory config handled separately
+    "enable_memory", "memory_config",  # Memory config handled separately
+    "reward_model_type", "thinkprm_endpoint", "thinkprm_region", "thinkprm_scoring_mode"  # ThinkPRM config
 }
 
 
@@ -95,10 +96,16 @@ class ExperimentConfig:
     terminate_on_first_solution: bool = False  # Terminate MCTS when first solution is found (for feasibility checking)
     
     # Evaluation
+    reward_model_type: str = "generative"  # "generative", "thinkprm", "rlhflow"
     think_for_usefulness: Optional[bool] = None
     think_for_correctness: Optional[bool] = None
     n_for_correctness: Optional[int] = None
     n_for_usefulness: Optional[int] = None
+    
+    # ThinkPRM configuration (only used when reward_model_type="thinkprm")
+    thinkprm_endpoint: str = "thinkprm-14b-endpoint"
+    thinkprm_region: str = "us-east-1"
+    thinkprm_scoring_mode: str = "last_step"  # "last_step", "prefix", "average"
     
     # Continuation
     add_continuation: bool = False
@@ -135,6 +142,7 @@ class ExperimentConfig:
     offset: int = 0  # Starting index for dataset slicing
     limit: Optional[int] = 100  # Number of examples to evaluate (None = all from offset)
     eval_idx: List[int] = field(default_factory=list)  # Specific indices to evaluate (overrides offset/limit)
+    levels: Optional[List[int]] = None  # Filter math500 by difficulty levels (1-5)
     
     check_action_sim: bool = False
     use_critic: bool = False

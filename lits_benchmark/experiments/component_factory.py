@@ -91,9 +91,23 @@ def create_rest_bfs_components_math_qa(
     think_for_correctness: bool,
     think_for_usefulness: bool,
     n_for_correctness: int,
-    n_for_usefulness: int
+    n_for_usefulness: int,
+    reward_model_type: str = "generative",
+    thinkprm_endpoint: str = "thinkprm-14b-endpoint",
+    thinkprm_region: str = "us-east-1",
+    thinkprm_scoring_mode: str = "last_step"
 ) -> Tuple:
-    """Create ReST/BFS components for math QA tasks."""
+    """Create ReST/BFS components for math QA tasks.
+    
+    Args:
+        reward_model_type: Type of reward model to use:
+            - "generative": GenerativePRM (LLM-based evaluation)
+            - "thinkprm": ThinkPRM on SageMaker (specialized math verifier)
+            - "rlhflow": RLHFlow PRM
+        thinkprm_endpoint: SageMaker endpoint name (only for thinkprm)
+        thinkprm_region: AWS region (only for thinkprm)
+        thinkprm_scoring_mode: Scoring mode for ThinkPRM ("last_step", "prefix", "average")
+    """
     
     # Create world model
     world_model = ConcatTransition(
@@ -118,11 +132,19 @@ def create_rest_bfs_components_math_qa(
         check_action_sim=check_action_sim
     )
     
-    # Create evaluator based on eval model
-    if eval_base_model.__class__.__name__ == "RLHFlowPRM" or \
-       (hasattr(eval_base_model, 'model_name') and "RLHFlow" in eval_base_model.model_name):
+    # Create evaluator based on reward_model_type
+    if reward_model_type == "thinkprm":
+        from lits.components.reward.thinkprm import ThinkPRM
+        evaluator = ThinkPRM(
+            endpoint_name=thinkprm_endpoint,
+            region_name=thinkprm_region,
+            scoring_mode=thinkprm_scoring_mode,
+        )
+    elif reward_model_type == "rlhflow" or \
+         (hasattr(eval_base_model, 'model_name') and "RLHFlow" in eval_base_model.model_name):
         evaluator = RLHFlowPRM(base_model=eval_base_model)
     else:
+        # Default: generative PRM
         evaluator = GenerativePRM(
             base_model=eval_base_model,
             task_prompt_spec=None,
@@ -387,7 +409,11 @@ def create_components(
             think_for_correctness=config.think_for_correctness,
             think_for_usefulness=config.think_for_usefulness,
             n_for_correctness=config.n_for_correctness,
-            n_for_usefulness=config.n_for_usefulness
+            n_for_usefulness=config.n_for_usefulness,
+            reward_model_type=getattr(config, 'reward_model_type', 'generative'),
+            thinkprm_endpoint=getattr(config, 'thinkprm_endpoint', 'thinkprm-14b-endpoint'),
+            thinkprm_region=getattr(config, 'thinkprm_region', 'us-east-1'),
+            thinkprm_scoring_mode=getattr(config, 'thinkprm_scoring_mode', 'last_step')
         )
     
     elif task_type == "tool_use":

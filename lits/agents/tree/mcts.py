@@ -697,7 +697,7 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
                 else:
                     checkpoint_data = _serialize_obj(path)
                     with open(checkpoint_file, 'w') as f:
-                        json.dump(checkpoint_data, f, indent=2)
+                        json.dump(checkpoint_data, f, indent=2, ensure_ascii=False)
                     logger.debug(f"Saved checkpoint: {checkpoint_file}")
             ##### Save trace in this iteration (END) #####
             
