@@ -17,7 +17,7 @@ from ...structures import ToolUseState, ToolUseAction
 from ...lm.base import HfChatModel
 from ...lm.openai_chat import OpenAIChatModel
 from ...lm.bedrock_chat import BedrockChatModel
-from ..utils import extract_existing_steps, create_role
+from ..utils import extract_existing_steps
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +100,10 @@ class ToolUsePRM(RewardModel):
         # Lazy import to avoid circular dependency
         self._policy = None
         self._transition = None
+    
+    def _get_llm_role(self) -> str:
+        """Return the LLM role prefix for tool-use PRM."""
+        return "evaluator_tooluse"
 
     def _get_policy_and_transition(self):
         """Lazy initialization of policy and transition for rollouts."""
@@ -367,12 +371,11 @@ The score must be a valid float parsable by Python's float() function."""
             self.base_model.sys_prompt = self.task_prompt_spec
         
         try:
-            response = self.base_model(
+            response = self._call_model(
                 user_message,
                 temperature=self.temperature,
                 # max_new_tokens=512,
-                max_length=self.max_length,
-                role=create_role("evaluator_tooluse", query_idx, from_phase)
+                max_length=self.max_length
             )
             
             response = response.text

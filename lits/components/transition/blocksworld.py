@@ -13,7 +13,7 @@ from lits.structures.env_grounded import EnvStep
 from lits.lm.base import DETERMINISTIC_TEMPERATURE
 from lits.components.base import LlmTransition
 # Prompts are now loaded via PromptRegistry, not direct import
-from lits.components.utils import verbalize_concat_state, create_role
+from lits.components.utils import verbalize_concat_state
 
 logger = logging.getLogger(__name__)
 
@@ -183,14 +183,12 @@ class BlocksWorldTransition(LlmTransition):
             )
         return EnvState(init_state=state_str)
 
-    def step(self, state: EnvState, step_or_action, query_or_goals:str, query_idx: Optional[int] = None, from_phase: str = "") -> tuple[EnvState, dict]:
+    def _step(self, state: EnvState, step_or_action, query_or_goals: str, **kwargs) -> tuple[EnvState, dict]:
         """Take a step in the world model.
         
         :param state: the current state
         :param step_or_action: EnvStep (from policy) or EnvAction to execute
         :param query_or_goals: the goal statement
-        :param query_idx: optional query index for logging
-        :param from_phase: description of algorithm phase (for logging)
         :return: the next state and additional information cached for reward calculation
         """
         assert isinstance(query_or_goals, str), "query_or_goals must be str"
@@ -205,7 +203,7 @@ class BlocksWorldTransition(LlmTransition):
         new_state = copy.deepcopy(state)
         
         env_state = new_state.env_state
-        env_state = self.update_blocks(env_state, action, query_idx=query_idx, from_phase=from_phase)
+        env_state = self._update_blocks(env_state, action)
 
         # Create new step
         new_step = EnvStep(action=action, next_state=env_state)
@@ -226,11 +224,10 @@ class BlocksWorldTransition(LlmTransition):
             raise ValueError(f"Invalid action: {action}")
         return self.usr_prompt_spec[key]
         
-    def update_blocks(self, env_state: str, action: EnvAction, query_idx: int=None, from_phase: str='') -> str:
+    def _update_blocks(self, env_state: str, action: EnvAction) -> str:
         """Update the block states with the action.
 
-        :param block_states: the current block states. Note that this argument is a string,
-            and it's only a part of 'EnvState'
+        :param env_state: the current block states (string representation)
         :param action: the action to take
         :return: the updated block states
         """
@@ -240,13 +237,14 @@ class BlocksWorldTransition(LlmTransition):
         prompt_template = self._get_prompt_tempate(str(action))
         world_update_prompt = prompt_template.format(env_state, str(action).capitalize() + ".")
         self.base_model.sys_prompt = self.task_prompt_spec
-        world_output = self.base_model(world_update_prompt, new_line_stop=True, role=create_role("dynamics", query_idx, from_phase), temperature=DETERMINISTIC_TEMPERATURE).text.strip()
+        
+        world_output = self._call_model(world_update_prompt, new_line_stop=True, temperature=DETERMINISTIC_TEMPERATURE).text.strip()
         logger.warning("[CHANGE] %s", world_output)
         new_state = apply_change(world_output, env_state)
         logger.warning("[NEW STATE] %s", new_state)
         return new_state    
 
-    def is_terminal(self, state: EnvState, query_or_goals: str, **kwargs) -> bool:
+    def _is_terminal(self, state: EnvState, query_or_goals: str, **kwargs) -> bool:
         if self.goal_check(query_or_goals, state.env_state)[0]:
             return True
         return False

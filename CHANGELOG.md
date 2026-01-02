@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-01-02  v0.2.6 (Hide create_role from subclass implementations)
+### Changed
+- Added `_call_model()` helper to `Policy`, `RewardModel`, `LlmTransition` base classes
+- Added `step()`/`_step()` and `is_terminal()`/`_is_terminal()` wrapper pattern to `LlmTransition`
+- Added `_batch_call_model()` and `_sample_binary_output()` helpers to `LlmTransition`
+- Updated Policy subclasses (`ConcatPolicy`, `RAPPolicy`, `ToolUsePolicy`, `EnvGroundedPolicy`) to use `_call_model()`
+- Updated RewardModel subclasses (`RapPRM`, `GenerativePRM`, `SelfConsistencyRM`) to use `_call_model()` / `_call_model_logits()`
+- Updated LlmTransition subclasses (`BlocksWorldTransition`, `RAPTransition`, `ConcatTransition`) to use `_step()` / `_is_terminal()`
+- `ConcatTransition` now extends `LlmTransition` instead of `Transition`
+
 
 ## 2025-12-24 - 12-25  v0.2.6
 - Memory-MCTS integration: See `.kiro/specs/lits-mem-mcts-integration` 

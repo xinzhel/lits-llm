@@ -3,7 +3,7 @@ import logging
 import re
 from ...lm.base import HfChatModel
 from ...structures import State, Action, ThoughtStep
-from ..utils import verbalize_concat_state, extract_existing_steps, create_role
+from ..utils import verbalize_concat_state, extract_existing_steps
 
 logger = logging.getLogger(__name__)
 
@@ -131,22 +131,22 @@ class ConcatPolicy(Policy):
         
         return False, -1, 0.0
 
-    def _generate_single_output(self, prompt: str, query_idx: int, temperature: float, from_phase: str):
+    def _generate_single_output(self, prompt: str, temperature: float):
         """
         Generate a single output from the LLM.
         
+        Uses the base class _call_model() helper which auto-constructs the role
+        from stored context (_query_idx, _from_phase) set by get_actions().
+        
         Args:
             prompt: The prompt to send to the LLM
-            query_idx: Query index for logging
             temperature: Sampling temperature
-            from_phase: Phase identifier for logging
         
         Returns:
             Tuple of (output_text, embedding) if check_action_sim is True, else (output_text, None)
         """
-        response = self.base_model(
+        response = self._call_model(
             prompt,
-            role=create_role("policy", query_idx, from_phase),
             temperature=temperature,
             max_length=self.max_length,
             max_new_tokens=self.max_new_tokens,
@@ -211,21 +211,19 @@ class ConcatPolicy(Policy):
         self,
         prompt: str,
         query: str,
-        query_idx: int,
         temperature: float,
-        from_phase: str,
         existing_steps: list[str],
         existing_embeddings: list
     ) -> tuple[str, any]:
         """
         Generate a single action with retry logic for validation failures.
         
+        Uses stored context (_query_idx, _from_phase) from get_actions() for LLM calls.
+        
         Args:
             prompt: The prompt to send to LLM
             query: Original query
-            query_idx: Query index for logging
             temperature: Sampling temperature
-            from_phase: Phase identifier
             existing_steps: List of existing step texts
             existing_embeddings: List of existing embeddings (if similarity checking enabled)
         
@@ -235,8 +233,8 @@ class ConcatPolicy(Policy):
         n_retry_repeat = 0
         
         while True:
-            # Generate output
-            output_text, embedding = self._generate_single_output(prompt, query_idx, temperature, from_phase)
+            # Generate output (uses _call_model which auto-constructs role)
+            output_text, embedding = self._generate_single_output(prompt, temperature)
             
             # Check similarity if enabled
             if self.check_action_sim:
@@ -316,9 +314,7 @@ class ConcatPolicy(Policy):
             output_text, embedding = self._generate_action_with_retry(
                 prompt=prompt,
                 query=query,
-                query_idx=query_idx,
                 temperature=temperature,
-                from_phase=from_phase,
                 existing_steps=existing_steps,
                 existing_embeddings=embeddings
             )

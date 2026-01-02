@@ -141,6 +141,10 @@ class LlmTransition(Transition, Generic[StateT, ActionT]):
         # Store prompts
         self.task_prompt_spec = task_prompt_spec
         self.usr_prompt_spec = usr_prompt_spec
+        
+        # Context attributes for _call_model() helper (set by step() or subclass methods)
+        self._query_idx: Optional[int] = None
+        self._from_phase: str = ""
             
     def _get_agent_name(self) -> str:
         """
@@ -156,6 +160,185 @@ class LlmTransition(Transition, Generic[StateT, ActionT]):
             class_name = class_name[:-len('Transition')]
         # Convert to lowercase
         return class_name.lower()
+    
+    def _get_llm_role(self) -> str:
+        """
+        Return the LLM role prefix for this transition.
+        
+        This is used by _call_model() to construct the role string for inference logging.
+        Subclasses can override this to use a different role prefix.
+        
+        Returns:
+            str: The role prefix, default is "dynamics"
+        """
+        return "dynamics"
+    
+    def _call_model(self, prompt: str, **kwargs):
+        """
+        Call the base model with auto-constructed role from stored context.
+        
+        This helper method constructs the role string from `_query_idx` and `_from_phase`
+        (set by `step()`) and calls `self.base_model()`. Subclasses can use this
+        in `_step()` without manually passing query_idx or from_phase.
+        
+        Args:
+            prompt: The prompt to send to the model
+            **kwargs: Additional arguments passed to base_model (e.g., temperature, max_new_tokens)
+        
+        Returns:
+            The model response object
+        
+        Example:
+            ```python
+            def _step(self, state, action, query_or_goals, **kwargs):
+                prompt = self._build_prompt(state, action)
+                response = self._call_model(prompt, temperature=0.0)
+                return self._parse_response(response)
+            ```
+        """
+        from .utils import create_role
+        role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        return self.base_model(prompt, role=role, **kwargs)
+    
+    def _batch_call_model(self, prompts: list, **kwargs):
+        """
+        Call the base model's batch_generate with auto-constructed role from stored context.
+        
+        This helper method constructs the role string from `_query_idx` and `_from_phase`
+        (set by `step()`) and calls `self.base_model.batch_generate()`. Subclasses can use
+        this in `_step()` for batch generation without manually passing query_idx or from_phase.
+        
+        Args:
+            prompts: List of prompts to send to the model
+            **kwargs: Additional arguments passed to batch_generate (e.g., temperature, max_new_tokens)
+        
+        Returns:
+            List of model response strings
+        
+        Example:
+            ```python
+            def _step(self, state, action, query_or_goals, **kwargs):
+                prompts = [self._build_prompt(state, action)] * n_samples
+                outputs = self._batch_call_model(prompts, temperature=0.8)
+                return self._aggregate_outputs(outputs)
+            ```
+        """
+        from .utils import create_role
+        role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        return self.base_model.batch_generate(prompts, role=role, **kwargs)
+    
+    def _sample_binary_output(self, user_message: str, sample_size: int, target: str, contrast: str, role_prefix: Optional[str] = None, **kwargs):
+        """
+        Call the base model's sample_binary_output with auto-constructed role from stored context.
+        
+        This helper method constructs the role string from `_query_idx` and `_from_phase`
+        (set by `step()` or `is_terminal()`) and calls `self.base_model.sample_binary_output()`.
+        
+        Args:
+            user_message: The user message to send to the model
+            sample_size: Number of samples to generate
+            target: Target token (e.g., "yes", "complete")
+            contrast: Contrast token (e.g., "no", "incomplete")
+            role_prefix: Optional custom role prefix. If None, uses `_get_llm_role()`.
+            **kwargs: Additional arguments passed to sample_binary_output
+        
+        Returns:
+            Dict with counts for each token type
+        
+        Example:
+            ```python
+            def _is_terminal(self, state, query_or_goals, **kwargs):
+                user_message = self._build_terminal_prompt(state, query_or_goals)
+                answer_samples = self._sample_binary_output(user_message, sample_size=10, target="yes", contrast="no")
+                return answer_samples['yes'] / 10 > 0.8
+            ```
+        """
+        from .utils import create_role
+        role_name = role_prefix if role_prefix is not None else self._get_llm_role()
+        role = create_role(role_name, self._query_idx, self._from_phase)
+        return self.base_model.sample_binary_output(user_message, sample_size=sample_size, target=target, contrast=contrast, role=role, **kwargs)
+    
+    def step(self, state: StateT, step_or_action, query_or_goals: str, query_idx: Optional[int] = None, from_phase: str = "", **kwargs) -> Union[StateT, Tuple[StateT, dict]]:
+        """
+        Execute a transition step. This is the public interface called by tree search algorithms.
+        
+        This method stores context for `_call_model()` helper and delegates to `_step()`.
+        Subclasses should implement `_step()` instead of overriding this method.
+        
+        Args:
+            state: The current state
+            step_or_action: Step or Action to execute
+            query_or_goals: The problem/question being solved
+            query_idx: Index of the example (for logging)
+            from_phase: Description of algorithm phase (for logging)
+            **kwargs: Additional arguments passed to _step()
+        
+        Returns:
+            The next state and optionally an auxiliary data dict
+        """
+        # Store context for _call_model() helper
+        self._query_idx = query_idx
+        self._from_phase = from_phase
+        
+        return self._step(state, step_or_action, query_or_goals, **kwargs)
+    
+    def _step(self, state: StateT, step_or_action, query_or_goals: str, **kwargs) -> Union[StateT, Tuple[StateT, dict]]:
+        """
+        Internal step implementation. Subclasses should override this method.
+        
+        This method is called by `step()` after context has been stored. Subclasses
+        can use `self._call_model()` without passing query_idx or from_phase.
+        
+        Args:
+            state: The current state
+            step_or_action: Step or Action to execute
+            query_or_goals: The problem/question being solved
+            **kwargs: Additional arguments
+        
+        Returns:
+            The next state and optionally an auxiliary data dict
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} must implement _step()")
+    
+    def is_terminal(self, state: StateT, query_or_goals: str, query_idx: Optional[int] = None, from_phase: str = "", **kwargs) -> bool:
+        """
+        Check if a state is terminal. This is the public interface called by tree search algorithms.
+        
+        This method stores context for `_call_model()` helper and delegates to `_is_terminal()`.
+        Subclasses should implement `_is_terminal()` instead of overriding this method.
+        
+        Args:
+            state: The current state
+            query_or_goals: The problem/question being solved
+            query_idx: Index of the example (for logging)
+            from_phase: Description of algorithm phase (for logging)
+            **kwargs: Additional arguments passed to _is_terminal()
+        
+        Returns:
+            True if the state is terminal, False otherwise
+        """
+        # Store context for _call_model() helper
+        self._query_idx = query_idx
+        self._from_phase = from_phase
+        
+        return self._is_terminal(state, query_or_goals, **kwargs)
+    
+    def _is_terminal(self, state: StateT, query_or_goals: str, **kwargs) -> bool:
+        """
+        Internal terminal check implementation. Subclasses should override this method.
+        
+        This method is called by `is_terminal()` after context has been stored. Subclasses
+        can use `self._call_model()` without passing query_idx or from_phase.
+        
+        Args:
+            state: The current state
+            query_or_goals: The problem/question being solved
+            **kwargs: Additional arguments
+        
+        Returns:
+            True if the state is terminal, False otherwise
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} must implement _is_terminal()")
     
 
     
@@ -219,6 +402,20 @@ class Policy(ABC, Generic[StateT, ActionT]):
             * note1
             * note2
             * note3
+            ```
+    
+    LLM Call Helper:
+        Subclasses can use `_call_model(prompt, **kwargs)` to call the LLM without manually
+        constructing the role string. The helper auto-constructs the role from stored context
+        (`_query_idx`, `_from_phase`) set by `get_actions()`.
+        
+        Usage in subclass `_get_actions()`:
+            ```python
+            def _get_actions(self, state, n_actions, temperature, **kwargs):
+                prompt = self._build_prompt(state)
+                # No need to pass query_idx or from_phase - they're auto-injected
+                response = self._call_model(prompt, temperature=temperature)
+                return self._parse_response(response)
             ```
     
     ## Guide on Subclass Implementation:
@@ -333,6 +530,10 @@ class Policy(ABC, Generic[StateT, ActionT]):
         
         # Current memory context for LiTS-Mem integration (set per get_actions call)
         self._current_memory_context = None
+        
+        # Context attributes for _call_model() helper (set by get_actions())
+        self._query_idx: Optional[int] = None
+        self._from_phase: str = ""
     
     def _get_agent_name(self, first_word: bool = False) -> str:
         """
@@ -353,6 +554,45 @@ class Policy(ABC, Generic[StateT, ActionT]):
         if first_word:
             return name.split('_')[0]
         return name
+    
+    def _get_llm_role(self) -> str:
+        """
+        Return the LLM role prefix for this policy.
+        
+        This is used by _call_model() to construct the role string for inference logging.
+        Subclasses can override this to use a different role prefix.
+        
+        Returns:
+            str: The role prefix, default is "policy"
+        """
+        return "policy"
+    
+    def _call_model(self, prompt: str, **kwargs):
+        """
+        Call the base model with auto-constructed role from stored context.
+        
+        This helper method constructs the role string from `_query_idx` and `_from_phase`
+        (set by `get_actions()`) and calls `self.base_model()`. Subclasses can use this
+        in `_get_actions()` without manually passing query_idx or from_phase.
+        
+        Args:
+            prompt: The prompt to send to the model
+            **kwargs: Additional arguments passed to base_model (e.g., temperature, max_new_tokens)
+        
+        Returns:
+            The model response object
+        
+        Example:
+            ```python
+            def _get_actions(self, state, n_actions, temperature, **kwargs):
+                prompt = self._build_prompt(state)
+                response = self._call_model(prompt, temperature=temperature)
+                return self._parse_response(response)
+            ```
+        """
+        from .utils import create_role
+        role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        return self.base_model(prompt, role=role, **kwargs)
     
     def set_dynamic_notes_fn(self, fn: Callable[[], List[str]]) -> None:
         """
@@ -563,6 +803,10 @@ class Policy(ABC, Generic[StateT, ActionT]):
         # Extract and store memory context for system prompt injection
         self._current_memory_context = kwargs.pop('memory_context', None)
         
+        # Store context attributes for _call_model() helper
+        self._query_idx = query_idx
+        self._from_phase = from_phase
+        
         self.set_system_prompt()
 
         # Determine if we're at the depth limit
@@ -759,6 +1003,21 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         - task_prompt_spec: For system-level instructions (system prompt)
         - usr_prompt_spec: For user-level content (user message)
         - Priority: task_prompt_spec > usr_prompt_spec > registry
+    
+    LLM Call Helpers:
+        Subclasses can use `_call_model(prompt, **kwargs)` or `_call_model_logits(prompt, tokens, **kwargs)`
+        to call the LLM without manually constructing the role string. The helpers auto-construct
+        the role from stored context (`_query_idx`, `_from_phase`) set by `fast_reward()`.
+        
+        Usage in subclass `_fast_reward()`:
+            ```python
+            def _fast_reward(self, state, action, query, query_idx, from_phase=""):
+                prompt = self._build_prompt(state, action, query)
+                # No need to pass query_idx or from_phase - they're auto-injected
+                logits = self._call_model_logits(prompt, ["Yes", "No"])
+                probs = np.exp(logits) / np.sum(np.exp(logits))
+                return float(probs[0])
+            ```
     """
     
     # Interface category for this reward model type (subclasses should override)
@@ -809,6 +1068,10 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         self.reward_alpha = reward_alpha
         self.reward_confidence_default = reward_confidence_default
         
+        # Context attributes for _call_model() helper (set by fast_reward()/reward())
+        self._query_idx: Optional[int] = None
+        self._from_phase: str = ""
+        
     def fast_reward(self, state, action_or_step, query_or_goals, query_idx, from_phase="") -> tuple[float, dict]:
         """
         Generate a reward for an action without executing it.
@@ -839,6 +1102,10 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
         logger.debug("\n>>>>>>>>> + 1 Fast Reward Evaluator Call; Outputs (BEGIN) <<<<<<<<<")
         if self.task_prompt_spec:
             self.base_model.sys_prompt = self.task_prompt_spec
+        
+        # Store context attributes for _call_model() helper
+        self._query_idx = query_idx
+        self._from_phase = from_phase
         
         # Call _fast_reward which may return float or (float, dict)
         result = self._fast_reward(state, action_or_step, query_or_goals, query_idx, from_phase=from_phase)
@@ -880,12 +1147,178 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
             return name.split('_')[0]
         return name
     
+    def _get_llm_role(self) -> str:
+        """
+        Return the LLM role prefix for this reward model.
+        
+        This is used by _call_model() to construct the role string for inference logging.
+        Subclasses can override this to use a different role prefix.
+        
+        Default behavior returns "rm" (reward model) which is the standard role for
+        reward models that evaluate action quality.
+        
+        Common role prefixes for reward models:
+        - "rm": For general reward model evaluation (default)
+        - "prm_language": For language-grounded process reward models
+        - "prm_env": For environment-grounded process reward models
+        - "prm_tool": For tool-use process reward models
+        - "evaluator_correctness": For correctness evaluation
+        - "evaluator_usefulness": For usefulness evaluation
+        - "evaluator_tooluse": For tool-use evaluation
+        
+        Returns:
+            str: The role prefix, default is "rm"
+        """
+        return "rm"
+    
+    def _call_model(self, prompt: str, **kwargs):
+        """
+        Call the base model with auto-constructed role from stored context.
+        
+        This helper method constructs the role string from `_query_idx` and `_from_phase`
+        (set by `fast_reward()`) and calls `self.base_model()`. Subclasses can use this
+        in `_fast_reward()` without manually passing query_idx or from_phase.
+        
+        Args:
+            prompt: The prompt to send to the model
+            **kwargs: Additional arguments passed to base_model (e.g., temperature, max_new_tokens)
+        
+        Returns:
+            The model response object
+        
+        Example:
+            ```python
+            def _fast_reward(self, state, action, query, query_idx, from_phase=""):
+                prompt = self._build_prompt(state, action, query)
+                response = self._call_model(prompt, temperature=0.0)
+                return self._parse_response(response)
+            ```
+        """
+        from .utils import create_role
+        role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        return self.base_model(prompt, role=role, **kwargs)
+    
+    def _call_model_logits(self, prompt: str, candidates: list[str], **kwargs):
+        """
+        Call the base model's get_next_token_logits with auto-constructed role.
+        
+        This helper method constructs the role string from `_query_idx` and `_from_phase`
+        (set by `fast_reward()`) and calls `self.base_model.get_next_token_logits()`.
+        Subclasses can use this in `_fast_reward()` for logit-based evaluation.
+        
+        Args:
+            prompt: The prompt to send to the model
+            candidates: List of candidate tokens to get logits for (e.g., ["Yes", "No"])
+            **kwargs: Additional arguments passed to get_next_token_logits
+        
+        Returns:
+            The logits array for the specified tokens
+        
+        Example:
+            ```python
+            def _fast_reward(self, state, action, query, query_idx, from_phase=""):
+                prompt = self._build_prompt(state, action, query)
+                logits = self._call_model_logits(prompt, ["Yes", "No"])
+                probs = np.exp(logits) / np.sum(np.exp(logits))
+                return float(probs[0])
+            ```
+        """
+        from .utils import create_role
+        role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        return self.base_model.get_next_token_logits(prompt, candidates, role=role, **kwargs)
+    
+    def _call_model_with_role(self, prompt: str, role_prefix: str, **kwargs):
+        """
+        Call the base model with a custom role prefix.
+        
+        This helper is for subclasses that need multiple different role types
+        (e.g., "evaluator_correctness", "evaluator_usefulness") within the same
+        _fast_reward() method. It constructs the role string from the provided
+        role_prefix and stored context (`_query_idx`, `_from_phase`).
+        
+        Args:
+            prompt: The prompt to send to the model
+            role_prefix: Custom role prefix (e.g., "evaluator_correctness")
+            **kwargs: Additional arguments passed to base_model
+        
+        Returns:
+            The model response object
+        
+        Example:
+            ```python
+            def _fast_reward(self, state, action, query, query_idx, from_phase=""):
+                # Use different roles for different evaluation types
+                correctness = self._call_model_with_role(prompt, "evaluator_correctness")
+                usefulness = self._call_model_with_role(prompt, "evaluator_usefulness")
+            ```
+        """
+        from .utils import create_role
+        role = create_role(role_prefix, self._query_idx, self._from_phase)
+        return self.base_model(prompt, role=role, **kwargs)
+    
+    def _call_model_logits_with_role(self, prompt: str, candidates: list[str], role_prefix: str, **kwargs):
+        """
+        Call the base model's get_next_token_logits with a custom role prefix.
+        
+        This helper is for subclasses that need multiple different role types
+        for logit-based evaluation within the same _fast_reward() method.
+        
+        Args:
+            prompt: The prompt to send to the model
+            candidates: List of candidate tokens to get logits for (e.g., ["Yes", "No"])
+            role_prefix: Custom role prefix (e.g., "evaluator_logits")
+            **kwargs: Additional arguments passed to get_next_token_logits
+        
+        Returns:
+            The logits array for the specified tokens
+        
+        Example:
+            ```python
+            def _fast_reward(self, state, action, query, query_idx, from_phase=""):
+                logits = self._call_model_logits_with_role(prompt, ["1", "0"], "evaluator_logits")
+            ```
+        """
+        from .utils import create_role
+        role = create_role(role_prefix, self._query_idx, self._from_phase)
+        return self.base_model.get_next_token_logits(prompt, candidates, role=role, **kwargs)
+    
+    def _sample_binary_output(self, user_message: str, sample_size: int, target: str, contrast: str, unknown: str, **kwargs):
+        """
+        Call the base model's sample_binary_output with auto-constructed role.
+        
+        This helper method constructs the role string from `_query_idx` and `_from_phase`
+        (set by `fast_reward()`) and calls `self.base_model.sample_binary_output()`.
+        
+        Args:
+            user_message: The user message to send to the model
+            sample_size: Number of samples to generate
+            target: Target token (e.g., "good")
+            contrast: Contrast token (e.g., "bad")
+            unknown: Unknown token (e.g., "unknown")
+            **kwargs: Additional arguments passed to sample_binary_output
+        
+        Returns:
+            Dict with counts for each token type
+        """
+        from .utils import create_role
+        role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        return self.base_model.sample_binary_output(
+            user_message=user_message,
+            sample_size=sample_size,
+            target=target,
+            contrast=contrast,
+            unknown=unknown,
+            role=role,
+            **kwargs
+        )
+    
     @abstractmethod
     def _fast_reward(self, state, action, query, query_idx, from_phase="") -> float:
         """Evaluate action quality without executing it. Subclasses must implement this.
         
-        This is the core evaluation logic called by fast_reward(). Implementations should
-        use query_idx and from_phase for inference logging via create_role().
+        This is the core evaluation logic called by fast_reward(). Implementations can
+        use the helper methods `_call_model()` or `_call_model_logits()` which auto-construct
+        the role string from stored context (`_query_idx`, `_from_phase`).
         
         Args:
             state: Current state before action execution
@@ -915,18 +1348,24 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
                The dict is stored in node.fast_reward_details and can be used for analysis,
                logging, or visualization of the search process.
         
-        Example:
-            # Simple return (no additional details needed)
+        Example using _call_model_logits() helper (recommended):
+            ```python
             def _fast_reward(self, state, action, query, query_idx, from_phase=""):
-                score = self.evaluate(state, action)
-                return score
-            
-            # Return with details (for reward() method or tracking)
+                prompt = self._build_prompt(state, action, query)
+                # No need to pass query_idx or from_phase - they're auto-injected
+                logits = self._call_model_logits(prompt, ["Yes", "No"])
+                probs = np.exp(logits) / np.sum(np.exp(logits))
+                return float(probs[0])
+            ```
+        
+        Example using create_role() directly (legacy):
+            ```python
             def _fast_reward(self, state, action, query, query_idx, from_phase=""):
                 from ..utils import create_role
                 output = self.base_model(prompt, role=create_role("evaluator_logits", query_idx, from_phase))
                 score = parse_score(output)
                 return score, {"r_useful": score, "raw_output": output.text}
+            ```
         """
         raise NotImplementedError("_fast_reward is not implemented for RewardModel")
     

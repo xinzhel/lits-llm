@@ -36,6 +36,10 @@ class EnvGroundedPRM(RewardModel):
         self.positive_token = positive_token
         self.negative_token = negative_token
         self.unk_token = unk_token
+    
+    def _get_llm_role(self) -> str:
+        """Return the LLM role prefix for env-grounded PRM."""
+        return "prm_" + self._get_agent_name(first_word=True)
         
         
     def _fast_reward(self, state: EnvState, step: EnvAction, query_or_goals: str, query_idx: int, from_phase: str = "") -> tuple[float, dict]:
@@ -57,17 +61,13 @@ class EnvGroundedPRM(RewardModel):
         self_eval_prompt = self.usr_prompt_spec.replace("<init_state>", current_blocks_state)\
             .replace("<goals>", query_or_goals).replace("<action>", step.action.action_str)
         
-        # Use sample_binary_output to get n_sample evaluations
-        from ..utils import create_role
-        role = create_role("prm_" + self._get_agent_name(first_word=True), query_idx, from_phase)
-        
-        answer_samples = self.base_model.sample_binary_output(
+        # Use sample_binary_output to get n_sample evaluations via base class helper
+        answer_samples = self._sample_binary_output(
             user_message=self_eval_prompt,
             sample_size=self.n_sample,
             target=self.positive_token,
             contrast=self.negative_token,
             unknown=self.unk_token,
-            role=role,
             temperature=0.6
         )
         

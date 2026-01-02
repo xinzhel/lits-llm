@@ -8,7 +8,6 @@ from lits.components.base import Policy
 from ..utils import verb_tools
 from ...structures import ToolUseState, ToolUseStep
 from ...structures.base import ActionT
-from ...components.utils import create_role
 from ...prompts.policy.tool_use import react_chat_tag_template
 from ...prompts.prompt import PromptTemplate
 
@@ -60,7 +59,6 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         n_actions,
         temperature,
         at_depth_limit,
-        query_idx,
         critic: str = None,
         from_phase: str = "",
         **kwargs
@@ -72,9 +70,8 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         logger.debug("Messages sent to model: %s", messages)
         
         for _ in range(n_actions):
-            response = self.base_model(
+            response = self._call_model(
                 messages,
-                role=create_role("policy", query_idx, from_phase),
                 temperature=temperature,
                 max_length=self.max_length,
                 max_new_tokens=self.max_new_tokens,

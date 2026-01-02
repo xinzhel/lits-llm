@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from ..utils import extract_existing_steps, create_role
+from ..utils import extract_existing_steps
 from ..base import RewardModel
 
 logger = logging.getLogger(__name__)
@@ -9,6 +9,10 @@ class RLHFlowPRM(RewardModel):
     def __init__(self, **kwargs):
         super().__init__(base_model=kwargs.pop("base_model", None), task_prompt_spec=kwargs.pop("task_prompt_spec", None), **kwargs)
         self.reward_alpha = 1 # so that reward == r_useful 
+    
+    def _get_llm_role(self) -> str:
+        """Return the LLM role prefix for RLHFlow PRM."""
+        return "evaluator_logits"
         
     def _fast_reward(self, state, action_or_step, query, query_idx, from_phase="") -> tuple[float, dict]:
         # Handle both Step objects and raw action strings
@@ -18,7 +22,7 @@ class RLHFlowPRM(RewardModel):
         else:
             action = action_or_step
             
-        def get_reward(question, existing_steps, next_step, role=None):
+        def get_reward(question, existing_steps, next_step):
             conversation = []
             # question + existing steps
             for k, step in enumerate(existing_steps):
@@ -34,11 +38,11 @@ class RLHFlowPRM(RewardModel):
                 # logits = base_model.model(input_ids).logits[:,-3,candidate_tokens] #simple version, the +/- is predicted by the '-3' position
                 # score = logits.softmax(dim=-1)[:,0] # 0 means the prob of + (1 mean -)
                 # score = score[0].detach().to('cpu', dtype=torch.float32).item()
-            logits = self.base_model.get_next_token_logits( prompt=None, candidates=['+', '-'], role=role, input_ids=input_ids, toekn_idx_for_logit=-3)
+            logits = self._call_model_logits(prompt=None, candidates=['+', '-'], input_ids=input_ids, toekn_idx_for_logit=-3)
             score = np.exp(logits) / np.sum(np.exp(logits))
             score = score[0]
             return score
-        score = get_reward(query, extract_existing_steps(state), action, role=create_role("evaluator_logits", query_idx, from_phase))
+        score = get_reward(query, extract_existing_steps(state), action)
         return score
     
     def calculate_reward(self, fast_reward: float) -> tuple[float, dict]:

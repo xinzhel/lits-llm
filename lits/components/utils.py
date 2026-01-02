@@ -14,26 +14,53 @@ from ..structures import (
 
 logger = logging.getLogger(__name__)
 
-def create_role(llm_role, query_idx=None, from_phase=""):
+def create_role(llm_role: str, query_idx: Optional[int] = None, from_phase: str = "") -> str:
+    """
+    Construct a role string for inference logging.
+    
+    The role string is used to track and categorize LLM calls in logs. It combines
+    the component type (llm_role), example index (query_idx), and algorithm phase
+    (from_phase) into a single identifier.
+    
+    Args:
+        llm_role: Component identifier (e.g., "policy", "rm", "dynamics")
+        query_idx: Index of the current example for tracking
+        from_phase: Algorithm phase (e.g., "expand", "simulate", "continuation")
+    
+    Returns:
+        Role string in format: "{llm_role}_{query_idx}_{from_phase}"
+        Components are omitted if None or empty.
+    
+    Examples:
+        create_role("policy", 3, "expand") -> "policy_3_expand"
+        create_role("rm", 5, "") -> "rm_5"
+        create_role("dynamics", None, "simulate") -> "dynamics_simulate"
+    """
+    # TODO: Remove VALID_LLM_ROLES validation once all subclasses use _call_model() helpers
+    # which manage roles via _get_llm_role() in base classes (Policy, RewardModel, LlmTransition)
     VALID_LLM_ROLES = [
-        "prm_env", "prm_tool", "prm_language", \
-        "evaluator_logits_ORM", "evaluator_logits", \
-        "evaluator_logits", "evaluator_tooluse", "evaluator_correctness", "evaluator_usefulness", \
-        "dynamics", "dynamics_verify", "dynamics_critic", \
-        "policy", "policy_env_grounded", \
-        "bn_entropy_agg", "bn_entropy_remove", "bn_eval", "bn_entropy", \
+        "prm_env", "prm_tool", "prm_language",
+        "evaluator_logits_ORM", "evaluator_logits",
+        "evaluator_tooluse", "evaluator_correctness", "evaluator_usefulness",
+        "dynamics", "dynamics_verify", "dynamics_critic",
+        "policy", "policy_env_grounded",
+        "bn_entropy_agg", "bn_entropy_remove", "bn_eval", "bn_entropy",
+        "rm",
         None, ""
     ]
     VALID_PHASES = [
-        'expand', 'continuation', 'simulate', 'sort', \
-        'expand_prm', 'continuation_prm', 'simulate_prm', 'sort_prm', \
+        'expand', 'continuation', 'simulate', 'sort',
+        'expand_prm', 'continuation_prm', 'simulate_prm', 'sort_prm',
         '', None
     ]
     assert llm_role in VALID_LLM_ROLES, f"Invalid llm_role: {llm_role}"
     assert from_phase in VALID_PHASES, f"Invalid from_phase: {from_phase}"
-    role = llm_role 
-    role += f"_{query_idx}" if query_idx is not None and query_idx != '' else ''
-    role += f"_{from_phase}" if from_phase is not None and from_phase != '' else ''
+    
+    role = llm_role if llm_role else ""
+    if query_idx is not None and query_idx != '':
+        role += f"_{query_idx}"
+    if from_phase:
+        role += f"_{from_phase}"
     return role
     
 def extract_existing_steps(state: StateT) -> list[str]:

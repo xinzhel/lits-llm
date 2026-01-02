@@ -2,7 +2,6 @@ import io
 import numpy as np
 import logging
 from ..base import RewardModel
-from ..utils import create_role
 from ...structures import StateT, ActionT
 from ...lm.base import HfChatModel, HfModel
 
@@ -15,6 +14,10 @@ class RapPRM(RewardModel):
     def __init__(self, **kwargs):
         super().__init__(base_model=kwargs.pop("base_model", None), task_prompt_spec=kwargs.pop("task_prompt_spec", None), **kwargs)
         self.n_shot_eval = 4 # evaluator
+    
+    def _get_llm_role(self) -> str:
+        """Return the LLM role prefix for RAP PRM."""
+        return "evaluator_logits"
         
     # ===== Immediate Reward from glm_eval (BEGIN) =====
     def _fast_reward(self, state: StateT, action_or_step, query, query_idx, from_phase="") -> tuple[float, dict]:
@@ -46,7 +49,7 @@ class RapPRM(RewardModel):
             self.base_model.sys_prompt = sys_message
             model_input = user_message
         
-        logits = self.base_model.get_next_token_logits(model_input, ["Yes", "No"], role=create_role("evaluator_logits", query_idx, from_phase))
+        logits = self._call_model_logits(model_input, ["Yes", "No"])
         
         probs = np.exp(logits) / np.sum(np.exp(logits))
         useful_prob = probs[0]

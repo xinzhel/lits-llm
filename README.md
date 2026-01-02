@@ -6,12 +6,15 @@ A modular toolkit for LLM-based search, planning, and tool-use workflows.
 
 LITS-LLM is a production-ready wrapper around LITS (Language Inference via Tree Search) that implements modular LLM search algorithms including Tree-of-Thoughts and Reasoning via Planning (RAP).
 
-**Key Features:**
-- Modular components for planning, reasoning, and tool orchestration
-- Seamless hand-off between reactive (LLM-as-a-function) and deliberative (tree search) modes
-- Extensible interface for custom tools, memory backends, and evaluation loops
-- Built-in telemetry hooks for observability and benchmarking
-- Unified interface for multiple LLM providers (HuggingFace, AWS Bedrock, OpenAI, etc.)
+**Why LiTS?**
+
+LiTS addresses key challenges in building and optimizing LLM reasoning agents:
+
+| Concern | Challenge | LiTS Solution |
+|---------|-----------|---------------|
+| **Reusability** | Reimplementing search algorithms for each new task | Task-agnostic data structures (`Action → Step → State → Node`) that hide complex search procedures (MCTS, BFS, RAP) from task-specific logic |
+| **Extensibility** | Adding new tasks requires modifying many files | Modular components (`Policy`, `Transition`, `RewardModel`) + `PromptRegistry` with task-type fallback enable adding tasks by registering prompts |
+| **Observability** | Tree search is expensive and hard to debug | Built-in `InferenceLogger` tracks token usage and latency at component, instance, and search-phase levels; incremental checkpointing enables fault-tolerant experiments |
 
 ## Installation
 

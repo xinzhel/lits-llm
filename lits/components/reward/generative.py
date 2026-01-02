@@ -3,7 +3,7 @@ import logging
 import json
 import copy
 import numpy as np
-from ..utils import verbalize_concat_state, create_role, strip_num
+from ..utils import verbalize_concat_state, strip_num
 from ..base import RewardModel
 from ...structures import StateT, ActionT
 from ...lm import HfChatModel, infer_chat_model
@@ -84,18 +84,18 @@ class GenerativePRM(RewardModel):
                 json.dump(save_item, f)
                 f.write("\n")
 
-        def generate_score(role, user_message, enable_thinking = True, max_try=4):
+        def generate_score(call_model_fn, role_prefix, user_message, enable_thinking = True, max_try=4):
             msg = copy.deepcopy(user_message)
             sampled_scores = []
-            score_type = "correctness" if "correctness" in role else "usefulness"
-            n_sample = self.n_for_correctness if "correctness" in role else self.n_for_usefulness
+            score_type = "correctness" if "correctness" in role_prefix else "usefulness"
+            n_sample = self.n_for_correctness if "correctness" in role_prefix else self.n_for_usefulness
 
             logger.debug(f"===== Sample {n_sample} {score_type} scores (Begin) ======")
             for i in range(n_sample):
                 logger.debug(f">>>>> Sample {i+1}/{n_sample} <<<<<")
                 
                 try:
-                    output = self.base_model(msg, role=role, max_new_tokens=500, skip_special_tokens= True, enable_thinking=enable_thinking).text
+                    output = call_model_fn(msg, role_prefix, max_new_tokens=500, skip_special_tokens= True, enable_thinking=enable_thinking).text
                     if enable_thinking:
                         result_dict = parse_reasoning_and_label(output) # to make sure the output is parsed correctly
                         reasoning = result_dict['reasoning'] if result_dict['reasoning'] is not None else ''
@@ -107,10 +107,10 @@ class GenerativePRM(RewardModel):
                         score = float(output)
 
                     # save results or log invalid scores
-                    if "correctness" in role and score in [0, 1]:
+                    if "correctness" in role_prefix and score in [0, 1]:
                         if self.save_dir is not None:
                             save_results(self.file_path_correctness, score, reasoning, full_output)
-                    elif "usefulness" in role and 0 <= score <= 1:
+                    elif "usefulness" in role_prefix and 0 <= score <= 1:
                         if self.save_dir is not None:
                             save_results(self.file_path_usefulness, score, reasoning, full_output)
                     else:
@@ -124,7 +124,7 @@ class GenerativePRM(RewardModel):
                         txt_no_prefix = reasoning if reasoning else full_output
                         msg += f"DONOT follow system message of letting you think, since you have already given some reasoning: {txt_no_prefix}. You MUST STOP reasoning and DIRECTLY output a final score."
                         enable_thinking = False
-                    logits = self.base_model.get_next_token_logits(msg, ["1", "0"], role=create_role("evaluator_logits", query_idx, from_phase))
+                    logits = self._call_model_logits_with_role(msg, ["1", "0"], "evaluator_logits")
                     probs = np.exp(logits) / np.sum(np.exp(logits))
                     score = float(probs[0])
                     if score_type == "correctness":
@@ -135,7 +135,7 @@ class GenerativePRM(RewardModel):
                 logger.debug(f"Parsed {score_type} score: {score}")
                 sampled_scores.append(score)
                     
-                if "correctness" in role and score == 0:
+                if "correctness" in role_prefix and score == 0:
                     logger.debug(f"===== Sample {n_sample} {score_type} scores (END) ======")
                     return 0
             logger.debug(f"Sampled {n_sample} {score_type} scores: {sampled_scores}")
@@ -144,13 +144,13 @@ class GenerativePRM(RewardModel):
             return float(np.mean(sampled_scores))
         
         self.base_model.sys_prompt = self.correctness_instruction
-        correctness_score = generate_score(create_role("evaluator_correctness", query_idx, from_phase), user_message, enable_thinking=self.think_for_correctness)
+        correctness_score = generate_score(self._call_model_with_role, "evaluator_correctness", user_message, enable_thinking=self.think_for_correctness)
         
         if correctness_score == 0:
             return 0
         else:
             self.base_model.sys_prompt = self.usefulness_instruction
-            usefulness_score = generate_score(create_role("evaluator_usefulness", query_idx, from_phase), user_message, enable_thinking=self.think_for_usefulness)
+            usefulness_score = generate_score(self._call_model_with_role, "evaluator_usefulness", user_message, enable_thinking=self.think_for_usefulness)
             return usefulness_score
     
     def calculate_reward(self, fast_reward: float) -> tuple[float, dict]:

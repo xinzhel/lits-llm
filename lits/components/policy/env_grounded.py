@@ -170,8 +170,6 @@ class EnvGroundedPolicy(Policy):
             >>> # LLM might return "unstack A from B" or "2" (index)
             >>> # Returns: [EnvStep(action=StringAction("unstack A from B"), reward=0.0), ...]
         """
-        from ..utils import create_role
-        query_idx = kwargs.get("query_idx", None)
         allow_duplicates = kwargs.get("allow_duplicates", False)
         valid_actions = self.generate_all_actions(state.env_state)
         actions_selected = []
@@ -186,8 +184,7 @@ class EnvGroundedPolicy(Policy):
                 retry_count = 0
                 while not valid_gen and retry_count < max_retries:
                     retry_count += 1
-                    role = create_role("policy", query_idx, from_phase)
-                    gen_action = self.base_model(prompt, temperature=temperature, from_phase=from_phase, role=role).text.strip()
+                    gen_action = self._call_model(prompt, temperature=temperature).text.strip()
                     
                     # Try to parse as index if LLM returns a number
                     if gen_action.isdigit():

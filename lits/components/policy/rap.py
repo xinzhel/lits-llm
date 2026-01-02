@@ -1,7 +1,7 @@
 from typing import Optional, Union, List, Tuple, Dict, Callable, Any
 from ..base import Policy
 from ...structures import State, StateT, ActionT, StepT, SubQAStep
-from ..utils import verbalize_rap_state, create_role
+from ..utils import verbalize_rap_state
 from ...lm.base import HfChatModel, HfModel
 import logging
 import re
@@ -50,7 +50,6 @@ class RAPPolicy(Policy):
         temperature: float, 
         query: str,  
         at_depth_limit: bool, 
-        query_idx: Optional[int], 
         critic: Optional[str] = None, 
         from_phase: str = "",
         **kwargs  
@@ -62,7 +61,7 @@ class RAPPolicy(Policy):
         outputs = []
         model_input = self._generate_prompt(query, state, at_depth_limit)
         for idx in range(0, n_actions):
-            output_text = self.base_model(model_input, role=create_role("policy", query_idx, from_phase), temperature=temperature, max_length=self.max_length, max_new_tokens=self.max_new_tokens, top_p=self.top_p, stop='\n', new_line_stop=True).text.strip()
+            output_text = self._call_model(model_input, temperature=temperature, max_length=self.max_length, max_new_tokens=self.max_new_tokens, top_p=self.top_p, stop='\n', new_line_stop=True).text.strip()
             outputs.append(output_text)
         
         if at_depth_limit:

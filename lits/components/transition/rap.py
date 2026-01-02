@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from ..base import LlmTransition
 from ...structures import StateT, Action, SubQAStep, log_state
-from ..utils import verbalize_rap_state, create_role, retrieve_answer_from_last_step
+from ..utils import verbalize_rap_state, retrieve_answer_from_last_step
 from ...lm.base import HfChatModel, HfModel
 
 logger = logging.getLogger(__name__)
@@ -76,18 +76,19 @@ class RAPTransition(LlmTransition):
         else:
             raise ValueError(f"Unknown model type: {type(self.base_model)}")
 
-    def step(self, state: StateT, step_or_action,  query_or_goals: str, query_idx: int=None, from_phase="") -> tuple[StateT, dict]:
+    def _step(self, state: StateT, step_or_action, query_or_goals: str, **kwargs) -> tuple[StateT, dict]:
         # For RAP, we only use actions (SubQAStep.sub_question), not full steps
         action = step_or_action
-        assert from_phase in ["expand", "continuation", "simulate"]
+        
         model_input = self._generate_prompt(query_or_goals, state, action)
         # logger.debug("\n>>>>>>>>> + 1 Dynamics Call; Output (BEGIN) <<<<<<<<<")
+        
         answer_dict = defaultdict(list)
         for start1 in range(0, self.n_confidence, self.batch_size):
             end1 = min(start1 + self.batch_size, self.n_confidence)
             num = end1 - start1
             
-            outputs = self.base_model.batch_generate([model_input]*num, role=create_role("dynamics", query_idx, from_phase), temperature=self.temperature, max_length=self.max_length, max_new_tokens=self.max_new_tokens, do_sample=True, top_k=self.top_k, top_p=self.top_p, stop='\n', new_line_stop=True)
+            outputs = self._batch_call_model([model_input]*num, temperature=self.temperature, max_length=self.max_length, max_new_tokens=self.max_new_tokens, do_sample=True, top_k=self.top_k, top_p=self.top_p, stop='\n', new_line_stop=True)
                            
             for output in outputs:
                 result = output.strip()
@@ -119,7 +120,7 @@ class RAPTransition(LlmTransition):
         # logger.debug(">>>>>>>>> + 1 Dynamics Call; Output (END) <<<<<<<<<\n")
         return new_state, aux
 
-    def is_terminal(self, state: StateT, query_or_goals=None, fast_reward: float=None, query_idx: int=None, from_phase: str='') -> bool:
+    def _is_terminal(self, state: StateT, query_or_goals: str = None, **kwargs) -> bool:
         if len(state) > 0 and "Now we can answer" in state[-1].sub_question:
             return True
         else:

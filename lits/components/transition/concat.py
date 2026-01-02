@@ -1,7 +1,7 @@
 import logging
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
 from ...structures import ThoughtStep, log_state, StateT
-from ..base import Transition
+from ..base import LlmTransition
 from ...lm.base import DETERMINISTIC_TEMPERATURE
 from ..utils import verbalize_concat_state, create_role, extract_existing_steps
 
@@ -25,13 +25,17 @@ to the problem.
     return terminate_prompt
 
 
-class ConcatTransition(Transition):
+class ConcatTransition(LlmTransition):
     """ World model for ReST 
     State: [Action 1, Action 2, ...]
     Action: Action
     """
-    def __init__(self, base_model, terminate_ORM=None, terminate_constraints=['binary_sampling'], r_terminating=0.9, sample_size_terminate=10, sample_threshold_terminate=0.8, sample_threshold_verify=0.9, max_length=None, max_new_tokens=None):
-        super().__init__()
+    
+    # Interface category for this transition type
+    TASK_TYPE: str = "language_grounded"
+    
+    def __init__(self, base_model, terminate_ORM=None, terminate_constraints=['binary_sampling'], r_terminating=0.9, sample_size_terminate=10, sample_threshold_terminate=0.8, sample_threshold_verify=0.9, max_length=None, max_new_tokens=None, **kwargs):
+        super().__init__(base_model=base_model, **kwargs)
         for constraint in terminate_constraints:
             assert constraint in ['binary_sampling', 'reward_threshold', 'verify'], f"Unknown terminate constraint: {constraint}"
             if constraint == 'reward_threshold':
@@ -42,7 +46,6 @@ class ConcatTransition(Transition):
         self.sample_size_terminate=sample_size_terminate
         self.sample_threshold_verify=sample_threshold_verify
         self.sample_threshold_terminate=sample_threshold_terminate
-        self.base_model = base_model
         self.max_length =  max_length
         self.max_new_tokens = max_new_tokens
         self.terminate_prompt = get_terminal_prompt(from_rest=False)
@@ -58,7 +61,7 @@ Do not explain anything. Do not add extra text.
     def init_state(self, **kwargs) -> list:
         return []
 
-    def step(self, state: StateT, step_or_action, query_or_goals: str=None, query_idx: int=None, from_phase="") -> Union[StateT, Tuple[StateT, dict]]:
+    def _step(self, state: StateT, step_or_action, query_or_goals: str = None, **kwargs) -> Union[StateT, Tuple[StateT, dict]]:
         # Extract the action string if a ThoughtStep is passed
         if isinstance(step_or_action, ThoughtStep):
             action = step_or_action.get_action()
@@ -69,12 +72,11 @@ Do not explain anything. Do not add extra text.
         log_state(logger, new_state, header="ConcatTransition.step")
         return new_state, {"confidence": 1.}
 
-    def is_terminal(self, state: StateT, query_or_goals: str, fast_reward: float=None, query_idx: int=None, from_phase: str='') -> bool:
-        
+    def _is_terminal(self, state: StateT, query_or_goals: str, fast_reward: float = None, **kwargs) -> bool:
         if "reward_threshold" in self.terminate_constraints:
             
             if self.terminate_ORM:
-                outcome_reward = self.get_reward(query_or_goals, extract_existing_steps(state), role=create_role("evaluator_logits_ORM", query_idx, from_phase))
+                outcome_reward = self.get_reward(query_or_goals, extract_existing_steps(state), role=create_role("evaluator_logits_ORM", self._query_idx, self._from_phase))
             else:
                 assert fast_reward is not None, "fast_reward must be provided when using reward_threshold"
                 outcome_reward = fast_reward
@@ -88,7 +90,7 @@ Do not explain anything. Do not add extra text.
             self.base_model.sys_prompt = self.terminate_prompt
             user_message = verbalize_concat_state(query_or_goals, state) + f"Do the above step(s) already provide the final answer to the question: '{query_or_goals}'"
 
-            answer_samples = self.base_model.sample_binary_output(user_message, sample_size = self.sample_size_terminate, target="yes", contrast="no", max_length=self.max_length, max_new_tokens=self.max_new_tokens, role=create_role("dynamics", query_idx, from_phase))
+            answer_samples = self._sample_binary_output(user_message, sample_size=self.sample_size_terminate, target="yes", contrast="no", max_length=self.max_length, max_new_tokens=self.max_new_tokens)
             terminal_score = answer_samples['yes'] / self.sample_size_terminate
         
             if terminal_score < self.sample_threshold_terminate:  
@@ -99,7 +101,7 @@ Do not explain anything. Do not add extra text.
             
             self.base_model.sys_prompt = self.verify_terminate_prompt
             user_message = verbalize_concat_state(query_or_goals, state)
-            answer_samples = self.base_model.sample_binary_output(user_message, sample_size = self.sample_size_terminate, target="complete", contrast="incomplete", max_length=self.max_length, max_new_tokens=self.max_new_tokens, role=create_role("dynamics_verify", query_idx, from_phase))
+            answer_samples = self._sample_binary_output(user_message, sample_size=self.sample_size_terminate, target="complete", contrast="incomplete", role_prefix="dynamics_verify", max_length=self.max_length, max_new_tokens=self.max_new_tokens)
             complete_score = answer_samples['complete'] / self.sample_size_terminate
             logger.debug(f"Rate for completion: {str(complete_score)}")
             if complete_score < self.sample_threshold_verify:  
@@ -113,15 +115,33 @@ Do not explain anything. Do not add extra text.
 
         return True
 
-    def generate_critic(self, state: StateT, query_or_goals: str, query_idx: int=None, from_phrase:str='') -> bool:
-        # usr msg
-        query_idx = f"_{query_idx}" if query_idx is not None else ''
+    def _get_llm_role(self) -> str:
+        """Return the LLM role prefix for critic generation."""
+        return "dynamics_critic"
+    
+    def generate_critic(self, state: StateT, query_or_goals: str, query_idx: int=None, from_phase: str='') -> str:
+        """Generate critic feedback for the current state.
+        
+        Args:
+            state: The current state
+            query_or_goals: The problem/question being solved
+            query_idx: Index of the example (for logging)
+            from_phase: Description of algorithm phase (for logging)
+        
+        Returns:
+            Critic feedback as a string
+        """
+        # Store context for _call_model() helper
+        self._query_idx = query_idx
+        self._from_phase = from_phase
+        
+        # Build user message
         user_message = "Question: " + query_or_goals + "\n"
         for idx, thought in enumerate(state):
             user_message += "Step " + str(idx + 1) + ": " + thought.action + "\n"
         
-        # for critic
+        # Generate critic
         self.base_model.sys_prompt = self.critic
-        output_text = self.base_model(user_message, role=create_role("dynamics_critic", query_idx, from_phrase), temperature=DETERMINISTIC_TEMPERATURE, max_new_tokens=1024).text.strip()
+        output_text = self._call_model(user_message, temperature=DETERMINISTIC_TEMPERATURE, max_new_tokens=1024).text.strip()
         output_text = output_text.lower().strip()
         return output_text    
