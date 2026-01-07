@@ -74,7 +74,7 @@ class EnvChain(ChainAgent[EnvState]):
             state = self.resume_state(checkpoint_path, EnvState)
             
         if state is None:
-            state = self.world_model.init_state(init_state_str)
+            state = self.world_model.init_state(init_state_str=init_state_str)
         else:
             # If we resumed, we might want to check if we are already done or where we are
             pass
@@ -136,7 +136,7 @@ class EnvChain(ChainAgent[EnvState]):
                 logger.debug("\nCheckpoint saved to %s\n", checkpoint_path)
         
         # Final goal check
-        if self.world_model.is_terminal(query_or_goals, state):
+        if self.world_model.is_terminal(state, query_or_goals):
             logger.info("Successfully reached goal!")
         else:
             logger.warning("Max steps reached without achieving goal")

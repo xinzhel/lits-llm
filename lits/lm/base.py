@@ -240,24 +240,129 @@ class InferenceLogger:
         return self._get_metrics(lambda rec: rec.get("role", "").startswith(prefix))
 
     def print_metrics_for_mcts_phases(self, role: str = None):
-        phases = ['expand', "simulate", "continuation"]
-        for phase in phases:
-            if role is not None:
-                kv_d = self.get_metrics_by_subtexts([phase, role], "all")
-            else:
-                kv_d = self.get_metrics_by_subtext(phase)
-            
+        """Print metrics grouped by MCTS phase. Uses single file read."""
+        if role is not None:
+            # Filter by role and group by phase
+            def group_fn(rec):
+                r = rec.get("role", "")
+                if role not in r:
+                    return None
+                _, _, phase = self._parse_role(r)
+                return phase
+            by_phase = self._get_grouped_metrics(group_fn)
+        else:
+            by_phase = self.get_metrics_by_phase()
+        
+        for phase in ['expand', 'simulate', 'continuation']:
+            kv_d = by_phase.get(phase, {"input_tokens": 0, "output_tokens": 0, "num_calls": 0, "running_time": 0})
             kv_d = {k: format_large_number(v) for k, v in kv_d.items()}
-            
             print(phase, ": ", kv_d)
 
-
     def print_metrics_for_all_role_prefixes(self):
-
+        """Print metrics grouped by role prefix. Uses single file read."""
+        # Group by which VALID_ROLES_PREFIX the role starts with
+        def group_fn(rec):
+            role = rec.get("role", "")
+            for prefix in VALID_ROLES_PREFIX:
+                if role.startswith(prefix):
+                    return prefix
+            return None
+        by_prefix = self._get_grouped_metrics(group_fn)
+        
         for role_prefix in VALID_ROLES_PREFIX:
-            kv_d = self.get_metrics_by_prefix(role_prefix)
+            kv_d = by_prefix.get(role_prefix, {"input_tokens": 0, "output_tokens": 0, "num_calls": 0, "running_time": 0})
             kv_d = {k: format_large_number(v) for k, v in kv_d.items()}
             print(role_prefix, ": ", kv_d)
+    
+    # -------------------------------------------------------------------------
+    # Multi-group aggregation methods (for report generation)
+    # -------------------------------------------------------------------------
+    
+    def _parse_role(self, role: str) -> tuple:
+        """
+        Parse role string into (component, query_idx, phase).
+        
+        Role format: {component}_{query_idx}_{phase}
+        Examples:
+            - "policy_0_expand" -> ("policy", 0, "expand")
+            - "prm_env_0_simulate" -> ("prm_env", 0, "simulate")
+        
+        Returns:
+            Tuple of (component, query_idx, phase). query_idx and phase may be None.
+        """
+        parts = role.split("_")
+        query_idx = None
+        idx_position = None
+        for i, part in enumerate(parts):
+            if part.isdigit():
+                query_idx = int(part)
+                idx_position = i
+                break
+        
+        if idx_position is None:
+            return (role, None, None)
+        
+        component = "_".join(parts[:idx_position])
+        phase = "_".join(parts[idx_position + 1:]) if idx_position + 1 < len(parts) else None
+        return (component, query_idx, phase)
+    
+    def _get_grouped_metrics(self, group_fn: Callable[[Dict], any]) -> Dict[any, Dict]:
+        """
+        Core reader for multi-group aggregation.
+        
+        Args:
+            group_fn: Function that takes a record and returns a group key.
+                      Return None to skip the record.
+        
+        Returns:
+            Dict mapping group keys to aggregated metrics.
+        """
+        from collections import defaultdict
+        groups = defaultdict(lambda: {"input_tokens": 0, "output_tokens": 0, "num_calls": 0, "running_time": 0})
+        
+        try:
+            with open(self.filepath, "r") as f:
+                for line in f:
+                    rec = json.loads(line)
+                    key = group_fn(rec)
+                    if key is not None:
+                        groups[key]["input_tokens"] += rec.get("input_tokens", 0)
+                        groups[key]["output_tokens"] += rec.get("output_tokens", 0)
+                        groups[key]["num_calls"] += 1
+                        groups[key]["running_time"] += rec.get("running_time", 0)
+        except FileNotFoundError:
+            pass
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+        
+        return dict(groups)
+    
+    def get_metrics_by_component(self) -> dict:
+        """Aggregate metrics by component (policy, prm, dynamics, etc.)."""
+        return self._get_grouped_metrics(
+            lambda rec: self._parse_role(rec.get("role", ""))[0]
+        )
+    
+    def get_metrics_by_phase(self) -> dict:
+        """Aggregate metrics by search phase (expand, simulate, continuation)."""
+        return self._get_grouped_metrics(
+            lambda rec: self._parse_role(rec.get("role", ""))[2]  # Returns None if no phase
+        )
+    
+    def get_metrics_by_instance(self) -> dict:
+        """Aggregate metrics by instance (query_idx)."""
+        return self._get_grouped_metrics(
+            lambda rec: self._parse_role(rec.get("role", ""))[1]  # Returns None if no idx
+        )
+    
+    def get_metrics_by_component_and_phase(self) -> dict:
+        """Aggregate metrics by component×phase combination."""
+        def group_fn(rec):
+            component, _, phase = self._parse_role(rec.get("role", ""))
+            if phase:
+                return (component, phase)
+            return None
+        return self._get_grouped_metrics(group_fn)
             
 
     def __str__(self):
@@ -270,6 +375,22 @@ def format_large_number(n):
         return f"{n / 1_000_000:.2f}M"
     else:
         return str(n)
+
+
+# Default pricing (Claude 3.5 Sonnet rates per 1M tokens)
+DEFAULT_INPUT_PRICE_PER_M = 3.0
+DEFAULT_OUTPUT_PRICE_PER_M = 15.0
+
+
+def calculate_cost(
+    input_tokens: int, 
+    output_tokens: int,
+    input_price_per_m: float = DEFAULT_INPUT_PRICE_PER_M,
+    output_price_per_m: float = DEFAULT_OUTPUT_PRICE_PER_M
+) -> float:
+    """Calculate estimated cost based on token counts."""
+    return (input_tokens * input_price_per_m / 1_000_000 + 
+            output_tokens * output_price_per_m / 1_000_000)
     
 class StopOnTokens(StoppingCriteria):
     def __init__(self, stop_ids):
@@ -809,32 +930,4 @@ class HfChatModel(HfModel):
         """ Same as HfModel, with additional argument: `sys_prompt` """
         model, tokenizer = cls._cache_from_hf(model_name, device)
         return cls(model_name, model,  tokenizer, sys_prompt, inference_logger, **kwargs)
-
-
-def report_metrics_from_dir(log_dir: str, logger: logging.Logger = None):
-    """
-    Reports token usage metrics from a log directory.
-    """
-    log_path = os.path.join(log_dir, "inferencelogger.log")
-    if not os.path.exists(log_path):
-        if logger:
-            logger.warning(f"No inference log found at {log_path}")
-        return
-
-    inference_logger = InferenceLogger(run_id="", root_dir=log_dir)
-    metrics = inference_logger.get_metrics_by_role()
-    
-    msg = (
-        f"Token Usage:\n"
-        f"  Input Tokens:  {metrics['input_tokens']:,}\n"
-        f"  Output Tokens: {metrics['output_tokens']:,}\n"
-        f"  Total Cost:    ${metrics['input_tokens'] * 3.0 / 1_000_000 + metrics['output_tokens'] * 15.0 / 1_000_000:.4f} (approx based on Claude 3.5 Sonnet)"
-    )
-    
-    if logger:
-        logger.info(msg)
-    else:
-        print(msg)
-    
-    return metrics
 

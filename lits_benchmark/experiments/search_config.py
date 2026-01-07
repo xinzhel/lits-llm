@@ -96,11 +96,13 @@ class ExperimentConfig:
     terminate_on_first_solution: bool = False  # Terminate MCTS when first solution is found (for feasibility checking)
     
     # Evaluation
-    reward_model_type: str = "generative"  # "generative", "thinkprm", "rlhflow"
     think_for_usefulness: Optional[bool] = None
     think_for_correctness: Optional[bool] = None
     n_for_correctness: Optional[int] = None
     n_for_usefulness: Optional[int] = None
+    
+    # (only for language-grounded tasks)
+    reward_model_type: str = "generative"  # "generative", "thinkprm", "rlhflow"
     
     # ThinkPRM configuration (only used when reward_model_type="thinkprm")
     thinkprm_endpoint: str = "thinkprm-14b-endpoint"

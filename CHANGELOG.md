@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-01-04  v0.2.6 (Env-Grounded Task: Main Scripts)
+### Added
+- `lits_llm/examples/main_env_chain.py` - unified env-grounded chain agent runner
+- `lits_llm/examples/eval_env_chain.py` - evaluation script for env-grounded chain results
+
+### Changed
+- Refactored `main_env_chain.py` to use consistent result directory structure (`{model}_results/{benchmark}_chain/run_{version}/`)
+
+### Fixed
+- `EnvChain.run()` now passes `init_state_str` as keyword argument to `world_model.init_state()`
+- `EnvChain.run()` now calls `is_terminal(state, query_or_goals)` with correct argument order
+
+
+## 2026-01-04  v0.2.6 (Inference Report Generation)
+### Added
+- `lits/eval/inference_report.py` with `generate_report()` for formatted inference usage reports
+- `InferenceLogger` multi-group aggregation: `get_metrics_by_component()`, `get_metrics_by_phase()`, `get_metrics_by_instance()`, `get_metrics_by_component_and_phase()`
+- `_get_grouped_metrics()` core reader for efficient single-pass aggregation
+- `calculate_cost()` utility in `lits/lm/base.py`
+- `docs/lm/INFERENCE_LOGGER.md` documentation
+
+### Changed
+- `print_metrics_for_mcts_phases()` and `print_metrics_for_all_role_prefixes()` now use single file read
+- `eval_search.py` uses `generate_report()` instead of `report_metrics_from_dir()`
+
+### Removed
+- `report_metrics_from_dir()` from `lits/lm/base.py`
+
 ## 2026-01-02  v0.2.6 (Hide create_role from subclass implementations)
 ### Changed
 - Added `_call_model()` helper to `Policy`, `RewardModel`, `LlmTransition` base classes
