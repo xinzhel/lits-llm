@@ -474,7 +474,7 @@ def goal_check(query_or_goals, env_state):
     """Check if the goals are met and return the percentage of goals met
 
     :param goals: goals
-    :param blocks_state: current blocks state
+    :param env_state: current env state
     """
     goals = _goals_to_list(query_or_goals)
     meetings = [g in env_state for g in goals]

@@ -4,6 +4,9 @@ TOOL_USE_DATASETS = {"mapeval", "clue", "mapeval-sql"}
 # Language-grounded benchmarks (math reasoning, spatial reasoning, etc.)
 LANGUAGE_GROUNDED_DATASETS = {"gsm8k", "math500", "spart_yn"}
 
+# Environment-grounded benchmarks (planning domains)
+ENV_GROUNDED_DATASETS = {"blocksworld", "crosswords"}
+
 
 def infer_task_type(dataset_name: str) -> str:
     """Infer task type (interface category) from dataset name.
@@ -13,7 +16,7 @@ def infer_task_type(dataset_name: str) -> str:
     """
     if dataset_name in LANGUAGE_GROUNDED_DATASETS:
         return "language_grounded"
-    elif dataset_name in ["blocksworld"]:
+    elif dataset_name in ENV_GROUNDED_DATASETS:
         return "env_grounded"
     elif dataset_name in TOOL_USE_DATASETS:
         return "tool_use"

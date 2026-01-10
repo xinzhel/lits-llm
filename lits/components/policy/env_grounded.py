@@ -99,10 +99,8 @@ class EnvGroundedPolicy(Policy):
         self.generate_all_actions = generate_all_actions
         self.goal_reward_default = goal_reward_default
         self.goal_reached_reward = goal_reached_reward
-        # Verify policy prompts for blocksworld
-        if self.task_name == "blocksworld":
-            assert self.usr_prompt_spec.startswith("I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do\nPick up a block\nUnstack a block"), \
-                f"EnvGroundedPolicy usr_prompt_spec does not match expected BlocksWorld prompt. Got:\n{self.usr_prompt_spec}"
+        # Note: Domain-specific prompt validation removed to enable component reusability
+        # across different env_grounded tasks (BlocksWorld, Crosswords, etc.)
 
 
     def _create_error_steps(self, n_actions: int, error_msg: str) -> List[EnvStep]:

@@ -1,9 +1,7 @@
 import numpy as np
 from typing import List
-from lits.components.base import Policy, RewardModel
+from lits.components.base import RewardModel
 from lits.structures.env_grounded import EnvState, EnvAction
-from lits_benchmark.blocksworld import goal_check, load_blocksworld, text_to_plan_blocksworld, validate_plan, generate_all_actions, extract_goals
-import json
 import logging
 
 logger = logging.getLogger(__name__)
