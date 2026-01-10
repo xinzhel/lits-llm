@@ -13,7 +13,6 @@ from lits.components.policy.concat import ConcatPolicy
 from lits.components.policy.rap import RAPPolicy
 from lits.components.policy.tool_use import ToolUsePolicy
 from lits.components.policy.env_grounded import EnvGroundedPolicy
-from lits.components.transition.blocksworld import BlocksWorldTransition
 from lits.components.reward.env_grounded import EnvGroundedPRM
 from lits.lm.base import HfChatModel
 
@@ -239,6 +238,16 @@ def create_components_env_grounded(
     This is in contrast to QA tasks where RAP requires specific components (completion model,
     RAPPolicy, RAPTransition with sub-question decomposition).
     
+    Uses ComponentRegistry for dynamic component lookup with fallback to defaults:
+    - Transition: Required, must be registered (contains goal_check, generate_actions)
+    - Policy: Optional, falls back to EnvGroundedPolicy
+    - RewardModel: Optional, falls back to EnvGroundedPRM
+    
+    This allows domain experts to:
+    1. Register only a Transition class (simplest case - use generic Policy/RewardModel)
+    2. Optionally register custom Policy for domain-specific action selection
+    3. Optionally register custom RewardModel for domain-specific reward shaping
+    
     Args:
         base_model: LLM for policy (action generation)
         eval_base_model: LLM for reward model (action evaluation)
@@ -251,40 +260,67 @@ def create_components_env_grounded(
         
     Returns:
         Tuple of (world_model, policy, evaluator)
+        
+    Raises:
+        KeyError: If benchmark_name Transition is not found in the ComponentRegistry
     """
-    if benchmark_name == "blocksworld":
-        from lits_benchmark.blocksworld import goal_check, generate_all_actions
-        
-        # Create world model (transition)
-        world_model = BlocksWorldTransition(
-            base_model=base_model,
-            task_name=task_name,
-            goal_check=goal_check
+    from lits.components.registry import ComponentRegistry
+    
+    # Look up Transition class from registry (required)
+    try:
+        TransitionCls = ComponentRegistry.get_transition(benchmark_name)
+    except KeyError:
+        available = ComponentRegistry.list_by_task_type("env_grounded")
+        raise KeyError(
+            f"Benchmark '{benchmark_name}' not found in ComponentRegistry. "
+            f"Available env_grounded benchmarks: {available}. "
+            f"Did you forget to import the module containing @register_transition('{benchmark_name}')?"
         )
-        
-        # Create policy
-        policy = EnvGroundedPolicy(
-            base_model=base_model,
-            task_name=task_name,
-            generate_all_actions=generate_all_actions,
-            n_actions=n_actions,
-            temperature=0.7,
-            force_terminating_on_depth_limit=force_terminating_on_depth_limit,
-            max_steps=max_steps,
-            max_length=max_length,
-        )
-        
-        # Create evaluator (reward model)
-        evaluator = EnvGroundedPRM(
-            base_model=eval_base_model,
-            task_name=task_name,
-            goal_reward_default=0.0,
-            goal_reached_reward=100.0
-        )
-        
-        return world_model, policy, evaluator
-    else:
-        raise ValueError(f"Unknown benchmark for env_grounded task type: {benchmark_name}")
+    
+    # Access goal_check and generate_actions via Transition class static methods
+    goal_check = TransitionCls.goal_check
+    generate_actions = TransitionCls.generate_actions
+    
+    # Create world model (transition)
+    world_model = TransitionCls(
+        base_model=base_model,
+        task_name=task_name,
+        goal_check=goal_check
+    )
+    
+    # Look up Policy class from registry (optional, fallback to EnvGroundedPolicy)
+    try:
+        PolicyCls = ComponentRegistry.get_policy(benchmark_name)
+    except KeyError:
+        PolicyCls = EnvGroundedPolicy  # Default for all env_grounded tasks
+    
+    # Create policy
+    policy = PolicyCls(
+        base_model=base_model,
+        task_name=task_name,
+        generate_all_actions=generate_actions,
+        n_actions=n_actions,
+        temperature=0.7,
+        force_terminating_on_depth_limit=force_terminating_on_depth_limit,
+        max_steps=max_steps,
+        max_length=max_length,
+    )
+    
+    # Look up RewardModel class from registry (optional, fallback to EnvGroundedPRM)
+    try:
+        RewardModelCls = ComponentRegistry.get_reward_model(benchmark_name)
+    except KeyError:
+        RewardModelCls = EnvGroundedPRM  # Default for all env_grounded tasks
+    
+    # Create evaluator (reward model)
+    evaluator = RewardModelCls(
+        base_model=eval_base_model,
+        task_name=task_name,
+        goal_reward_default=0.0,
+        goal_reached_reward=100.0
+    )
+    
+    return world_model, policy, evaluator
 
 
 def create_bn_evaluator(

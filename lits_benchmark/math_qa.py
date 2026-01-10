@@ -6,6 +6,7 @@ import logging
 import datasets
 import re
 from lits.components.utils import retrieve_answer_from_last_step, eval_output
+from lits.benchmarks.registry import register_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,44 @@ def load_qa_dataset(dataset_name, levels: list = None):
         raise ValueError(f"Unknown dataset name: {dataset_name}")
     
     return full_dataset
+
+
+# ============================================================================
+# Registered dataset loaders for BenchmarkRegistry
+# ============================================================================
+
+@register_dataset("gsm8k", task_type="language_grounded")
+def load_gsm8k(**kwargs):
+    """Load GSM8K dataset from HuggingFace hub.
+    
+    Returns:
+        List of examples from the GSM8K test split.
+    """
+    return load_qa_dataset("gsm8k", **kwargs)
+
+
+@register_dataset("math500", task_type="language_grounded")
+def load_math500(levels: list = None, **kwargs):
+    """Load MATH500 dataset from HuggingFace hub.
+    
+    Args:
+        levels: Optional list of difficulty levels (1-5) to filter the dataset.
+                Each element can be str or int.
+    
+    Returns:
+        List of examples from the MATH500 test split.
+    """
+    return load_qa_dataset("math500", levels=levels, **kwargs)
+
+
+@register_dataset("spart_yn", task_type="language_grounded")
+def load_spart_yn(**kwargs):
+    """Load SPART_YN dataset from HuggingFace hub.
+    
+    Returns:
+        List of examples from the SPART_YN test split.
+    """
+    return load_qa_dataset("spart_yn", **kwargs)
           
 def get_accuracy(full_dataset, results_from_file, extract_method="dfs", verbose=False):
     correct_count = 0

@@ -1,6 +1,22 @@
-"""The world model for the Blocksworld."""
+"""The world model for the Blocksworld.
 
-from typing import NamedTuple, Type, Callable, Optional, List, Union
+This module provides the BlocksWorldTransition class for environment-grounded
+planning tasks in the BlocksWorld domain. It demonstrates the registry-based
+extension pattern for env_grounded tasks.
+
+Example:
+    The BlocksWorldTransition is automatically registered when this module is imported:
+    
+    ```python
+    from lits.components.transition.blocksworld import BlocksWorldTransition
+    
+    # Or access via registry
+    from lits.components.registry import ComponentRegistry
+    TransitionCls = ComponentRegistry.get_transition("blocksworld")
+    ```
+"""
+
+from typing import NamedTuple, Type, Callable, Optional, List, Union, Tuple
 import copy
 import re
 import logging
@@ -11,11 +27,28 @@ from lits.structures.env_grounded import EnvState
 from lits.structures.env_grounded import EnvAction 
 from lits.structures.env_grounded import EnvStep 
 from lits.lm.base import DETERMINISTIC_TEMPERATURE
-from lits.components.base import LlmTransition
+from lits.components.transition.env_grounded import EnvGroundedTransition
+from lits.components.registry import register_transition
 # Prompts are now loaded via PromptRegistry, not direct import
 from lits.components.utils import verbalize_concat_state
 
 logger = logging.getLogger(__name__)
+
+
+def _goals_to_list(goal_statement: str) -> List[str]:
+    """Convert goal statement to list of goals.
+    
+    Args:
+        goal_statement: Goal description (e.g., "the blue block is on top of the yellow block").
+    
+    Returns:
+        List of goal strings extracted from the statement.
+    """
+    goals = re.findall("the [a-z]{0,10} block is on top of the [a-z]{0,10} block", goal_statement)
+    assert isinstance(goals, list) and len(goals) > 0, "Goals must be a non-empty list."
+    for goal in goals:
+        assert goal in goal_statement, f"Goal '{goal}' not found in query_or_goals string"
+    return goals
 
 def extract_goals(example, return_raw=False):
     """Extract the goals from the example
@@ -118,15 +151,30 @@ def apply_change(change, state):
             print("Error: unknown state")
             print(s)
             raise Exception("ERROR")
+    # 在 DDP/多进程训练里，如果某个 rank 先抛异常退出、别的 rank 还在跑，容易造成挂起/不同步；
+    # 在抛异常前做 barrier，能更一致地“同时失败”。
+    # 否则，更容易出现某些 rank 先炸、其它 rank 卡住的情况
+    # if torch.distributed.is_initialized():
+    #     torch.distributed.barrier()
+    # raise Exception("ERROR")
+    
     sorted_states = [x.strip() for _, x in sorted(zip(priority_states, states))]
     sorted_states[-1] = "and " + sorted_states[-1]
     return ", ".join(sorted_states) + "."
 
-class BlocksWorldTransition(LlmTransition):
+class BlocksWorldTransition(EnvGroundedTransition):
     """BlocksWorld Transition for environment-grounded planning tasks.
     
     This is a reference implementation for env_grounded task types that demonstrates
     how to implement init_state() with the init_state_kwargs convention.
+    
+    The class is automatically registered with the ComponentRegistry when this module
+    is imported, making it accessible via:
+        ComponentRegistry.get_transition("blocksworld")
+    
+    Static Methods:
+        goal_check: Check if blocks are in target configuration
+        generate_actions: Return valid block movements from current state
     
     State: EnvState containing the current blocks configuration
     Action: Natural language action (e.g., "put the red block on the green block")
@@ -149,10 +197,63 @@ class BlocksWorldTransition(LlmTransition):
     # This ensures prompts are only loaded via task_name='blocksworld', avoiding format mismatches.
     TASK_TYPE: str = None
 
+    @staticmethod
+    def goal_check(query_or_goals: str, env_state: str) -> Tuple[bool, float]:
+        """Check if the goals are met and return the percentage of goals met.
+
+        Args:
+            query_or_goals: Goal statement (e.g., "the blue block is on top of the yellow block")
+            env_state: Current environment state as a string
+        
+        Returns:
+            Tuple of (goal_reached: bool, progress: float 0.0-1.0)
+        """
+        goals = _goals_to_list(query_or_goals)
+        meetings = [g in env_state for g in goals]
+        if sum(meetings) == len(meetings):
+            return True, 1.0
+        return False, sum(meetings) / len(meetings)
+    
+    @staticmethod
+    def generate_actions(env_state: str) -> List[str]:
+        """Generate all possible actions from the current state.
+        假设：
+
+            当 hand is empty 且某个 clear block 不在 table 时，文本里一定存在匹配
+            "the {c} block is on top of the (...) block"
+            否则 re.search(...).group(1) 会直接报错。
+
+            当 hand 非 empty 时，文本里一定存在 "is holding the (...) block"，否则也会报错。
+            
+        Args:
+            env_state: Current environment state as a string
+        
+        Returns:
+            List of valid action strings for the current state
+        """
+        return_list = []
+        if "hand is empty" in env_state:
+            block = re.findall("the [a-z]{0,10} block is clear", env_state)
+            block_color = [re.search("the ([a-z]{0,10}) block is clear", b).group(1) for b in block]
+            for c in block_color:
+                if f"the {c} block is on the table" in env_state:
+                    return_list.append(f"pick up the {c} block")
+                else:
+                    c_ = re.search(f"the {c} block" + " is on top of the ([a-z]{0,10}) block", env_state).group(1)
+                    return_list.append(f"unstack the {c} block from on top of the {c_} block")
+        else:
+            c = re.search("is holding the ([a-z]{0,10}) block", env_state).group(1)
+            block = re.findall("the [a-z]{0,10} block is clear", env_state)
+            clear_color = [re.search("the ([a-z]{0,10}) block is clear", b).group(1) for b in block]
+            for c_ in clear_color:
+                return_list.append(f"stack the {c} block on top of the {c_} block")
+            return_list.append(f"put down the {c} block")
+        return return_list
+
     def __init__(
         self,
         base_model,
-        goal_check: Callable,
+        goal_check: Callable = None,  # Optional: use static method if not provided
         task_prompt_spec: Optional[Union[str, dict]] = None,
         usr_prompt_spec: Optional[Union[str, dict]] = None,
         **kwargs
@@ -163,7 +264,8 @@ class BlocksWorldTransition(LlmTransition):
             usr_prompt_spec=usr_prompt_spec,
             **kwargs
         )
-        self.goal_check = goal_check
+        # Use provided goal_check or fall back to static method
+        self._goal_check_fn = goal_check if goal_check is not None else BlocksWorldTransition.goal_check
         
     def init_state(self, **kwargs) -> EnvState:
         """Initialize the world model.
@@ -209,7 +311,7 @@ class BlocksWorldTransition(LlmTransition):
         new_step = EnvStep(action=action, next_state=env_state)
         new_state.append(new_step)
         
-        return new_state, {"goal_reached": self.goal_check(query_or_goals, env_state)}
+        return new_state, {"goal_reached": self._goal_check_fn(query_or_goals, env_state)}
 
     def _get_prompt_tempate(self, action:str) -> str:
         if "pick" in action:
@@ -245,6 +347,11 @@ class BlocksWorldTransition(LlmTransition):
         return new_state    
 
     def _is_terminal(self, state: EnvState, query_or_goals: str, **kwargs) -> bool:
-        if self.goal_check(query_or_goals, state.env_state)[0]:
+        if self._goal_check_fn(query_or_goals, state.env_state)[0]:
             return True
         return False
+
+
+# Register BlocksWorldTransition with the ComponentRegistry
+# This decorator makes the class accessible via ComponentRegistry.get_transition("blocksworld")
+BlocksWorldTransition = register_transition("blocksworld", task_type="env_grounded")(BlocksWorldTransition)

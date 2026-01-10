@@ -1,4 +1,7 @@
 import re
+from datasets import load_dataset as hf_load_dataset
+from lits.benchmarks.registry import register_dataset
+
 
 def _to_option(value):
     if value is None:
@@ -83,3 +86,53 @@ def make_answer_extractor(primary_extractor, fallback_fn):
         return [str(fallback)]
 
     return extractor
+
+
+# ============================================================================
+# Registered dataset loaders for BenchmarkRegistry
+# Assuming the decorator is “pure registration” and you pass the same args, 
+# the registered functions are effectively just aliases for `load_qa_dataset` 
+# with a fixed `dataset_name`., as long as:
+
+#     * the registered wrapper calls `load_qa_dataset()` with the same `dataset_name`, and
+#     * you pass the same arguments (especially `levels` for `math500`), and
+#     * `register_dataset` / `@register_dataset(...)` doesn’t alter behavior (it usually just registers metadata and stores a callable).
+# ============================================================================
+
+@register_dataset("mapeval", task_type="tool_use")
+def load_mapeval(**kwargs):
+    """Load MapEval dataset from HuggingFace hub.
+    
+    Returns:
+        List of formatted examples with 'question' and 'answer' fields.
+    """
+    raw_examples = list(hf_load_dataset("xinzhel/mapeval_query", split="test"))
+    formatted_examples = []
+    for item in raw_examples:
+        question_prompt = construct_prompt(item)
+        formatted_examples.append({
+            "question": question_prompt, 
+            "answer": _gold_option(item)
+        })
+    return formatted_examples
+
+
+@register_dataset("mapeval-sql", task_type="tool_use")
+def load_mapeval_sql(**kwargs):
+    """Load MapEval-SQL dataset from HuggingFace hub.
+    
+    This is the same dataset as mapeval but with a different task type identifier
+    for SQL-based tool use.
+    
+    Returns:
+        List of formatted examples with 'question' and 'answer' fields.
+    """
+    raw_examples = list(hf_load_dataset("xinzhel/mapeval_query", split="test"))
+    formatted_examples = []
+    for item in raw_examples:
+        question_prompt = construct_prompt(item)
+        formatted_examples.append({
+            "question": question_prompt, 
+            "answer": _gold_option(item)
+        })
+    return formatted_examples
