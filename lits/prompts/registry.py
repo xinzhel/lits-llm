@@ -8,9 +8,13 @@ Lookup priority in get()/get_usr():
 1. task_name (benchmark-specific, e.g., 'blocksworld')
 2. task_type (from component's TASK_TYPE, e.g., 'language_grounded', 'env_grounded', 'tool_use')
 3. 'default'
+
+Decorator API:
+- register_system_prompt(component, agent, task_type): Register system prompts
+- register_user_prompt(component, agent, task_type): Register user prompts
 """
 
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, Callable
 from .prompt import PromptTemplate
 
 
@@ -212,6 +216,84 @@ class PromptRegistry:
             'reward': {},
             'transition': {}
         }
+
+
+# Module-level decorator functions for prompt registration
+
+def register_system_prompt(
+    component: str,
+    agent: str,
+    task_type: Optional[str] = None
+) -> Callable:
+    """Decorator to register a system prompt (task_prompt_spec).
+    
+    The decorated function is called immediately and its return value is
+    registered with PromptRegistry.register().
+    
+    Args:
+        component: Component type ('policy', 'reward', 'transition')
+        agent: Agent name (e.g., 'concat', 'generative', 'rap')
+        task_type: Task type or benchmark name (e.g., 'language_grounded', 'blocksworld')
+    
+    Returns:
+        Decorator function
+    
+    Return Format:
+        The decorated function can return any type. The component that consumes
+        the prompt is responsible for handling the type appropriately.
+        Common patterns:
+        - str: Simple system prompt text
+        - Dict: Structured prompt with multiple fields
+        - Custom objects: For complex prompt configurations
+    
+    Example:
+        @register_system_prompt("policy", "rap", "my_math_task")
+        def my_math_system_prompt():
+            return "You are solving math problems step by step..."
+    """
+    def decorator(func: Callable[[], Any]) -> Callable[[], Any]:
+        prompt_spec = func()
+        PromptRegistry.register(component, agent, task_type, prompt_spec)
+        return func
+    return decorator
+
+
+def register_user_prompt(
+    component: str,
+    agent: str,
+    task_type: Optional[str] = None
+) -> Callable:
+    """Decorator to register a user prompt (usr_prompt_spec).
+    
+    The decorated function is called immediately and its return value is
+    registered with PromptRegistry.register_usr().
+    
+    Args:
+        component: Component type ('policy', 'reward', 'transition')
+        agent: Agent name (e.g., 'concat', 'generative', 'rap')
+        task_type: Task type or benchmark name (e.g., 'language_grounded', 'blocksworld')
+    
+    Returns:
+        Decorator function
+    
+    Return Format:
+        The decorated function can return any type. The component that consumes
+        the prompt is responsible for handling the type appropriately.
+        Common patterns:
+        - Dict[str, str]: Template dictionary with format keys
+        - str: Simple user prompt template
+        - Custom objects: For complex prompt configurations
+    
+    Example:
+        @register_user_prompt("policy", "rap", "my_math_task")
+        def my_math_user_prompt():
+            return {"question_format": "Problem: {question}"}
+    """
+    def decorator(func: Callable[[], Any]) -> Callable[[], Any]:
+        usr_prompt_spec = func()
+        PromptRegistry.register_usr(component, agent, task_type, usr_prompt_spec)
+        return func
+    return decorator
 
 
 def load_default_prompts():
