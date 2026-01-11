@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, List
 from ..base import BaseConfig
 
 @dataclass
@@ -53,4 +53,7 @@ class BaseSearchConfig(BaseConfig):
     think_for_correctness: bool = True
     n_for_correctness: int = 5
     n_for_usefulness: int = 5
+    
+    # Custom module imports (for eval script auto-loading)
+    import_modules: Optional[List[str]] = None
     

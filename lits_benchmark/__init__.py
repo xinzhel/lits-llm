@@ -2,7 +2,6 @@ from lits.utils import make_tag_extractor
 from lits.tools import build_tools
 from lits.structures.tool_use import ToolUseStep
 from datasets import load_dataset
-from .main import infer_task_type
 from .mapeval import _gold_option
 def load_dataset_examples(benchmark_name: str) -> list:
     """Load only the dataset examples without building tools (no database connection needed).

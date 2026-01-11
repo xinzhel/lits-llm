@@ -3,11 +3,11 @@
 import sys
 import os
 
-# Add parent directory to path for lits imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add lits_llm directory to path for lits imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from lits.benchmarks.main import TOOL_USE_DATASETS
-from lits.benchmarks import load_resource
+from lits.benchmarks.registry import TOOL_USE_DATASETS
+from lits_benchmark import load_resource
 
 
 def test_tool_use_datasets_constant():

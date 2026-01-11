@@ -18,8 +18,8 @@ load_dotenv("../../examples/mapeval/.env")
 load_dotenv("../../.env")
 
 from lits.lm import get_lm
-from lits.benchmarks import load_resource, infer_task_type
-from lits.benchmarks.main import TOOL_USE_DATASETS
+from lits_benchmark import load_resource
+from lits.benchmarks.registry import infer_task_type, TOOL_USE_DATASETS
 from lits.agents.tree.mcts import mcts, MCTSConfig
 from lits.log import setup_logging
 import tempfile
