@@ -1,6 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from ..base import Policy
 from ...structures.env_grounded import EnvState, EnvStep, EnvAction
+from ...prompts.prompt import PromptTemplate
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,8 +20,8 @@ class EnvGroundedPolicy(Policy):
     
     Args:
         base_model: Language model for action selection. If None, returns all valid actions.
-        usr_prompt_spec: Dict containing prompt templates. Must include "policy" key with
-            placeholders: <init_state>, <goals>, <action>.
+        usr_prompt_spec: PromptTemplate with placeholders: {init_state}, {goals}, {actions}.
+            Can also be a string template for backward compatibility.
         generate_all_actions: Callable that takes env_state (str) and returns list of
             valid action strings for that state.
         goal_reward_default: Default reward for non-terminal states (default: 0.0).
@@ -28,20 +29,23 @@ class EnvGroundedPolicy(Policy):
         **kwargs: Optional Policy parameters (n_actions, temperature, top_k, top_p, etc.).
     
     Example:
+        >>> from lits.prompts.prompt import PromptTemplate
+        >>> 
         >>> # Define action generator for BlocksWorld
         >>> def generate_all_actions(blocks_state):
         ...     # Parse state and return valid actions like ["unstack A from B", ...]
         ...     return valid_actions
         >>> 
-        >>> # Define prompt template
-        >>> prompts = {
-        ...     "policy": "State: <init_state>\\nGoals: <goals>\\nValid actions:\\n<action>\\nSelect one:"
-        ... }
+        >>> # Define prompt template using PromptTemplate
+        >>> prompt = PromptTemplate(
+        ...     template="State: {init_state}\\nGoals: {goals}\\nValid actions:\\n{actions}\\nSelect one:",
+        ...     input_variables=["init_state", "goals", "actions"]
+        ... )
         >>> 
         >>> # Create policy
         >>> policy = EnvGroundedPolicy(
         ...     base_model=base_model,
-        ...     usr_prompt_spec=None,
+        ...     usr_prompt_spec=prompt,
         ...     generate_all_actions=generate_all_actions,
         ...     goal_reached_reward=100,
         ...     goal_reward_default=0.0
@@ -73,7 +77,7 @@ class EnvGroundedPolicy(Policy):
         self,
         base_model,  # Required parameter from parent
         generate_all_actions,  # Function to generate all valid actions
-        usr_prompt_spec:str = None,  # Required parameter from parent
+        usr_prompt_spec: Union[PromptTemplate, str] = None,  # PromptTemplate or string
         goal_reward_default: float = 0.,  # Subclass-specific parameter
         goal_reached_reward: float = 100,  # Subclass-specific parameter
         **kwargs  # Optional parent parameters (n_actions, temperature, top_k, top_p, etc.)
@@ -83,7 +87,8 @@ class EnvGroundedPolicy(Policy):
         
         Args:
             base_model: Language model for action selection. Pass None to return all valid actions.
-            usr_prompt_spec: prompt template with placeholders: <init_state>, <goals>, <action>.
+            usr_prompt_spec: PromptTemplate with placeholders: {init_state}, {goals}, {actions}.
+                Can also be a string template for backward compatibility (will be converted).
             generate_all_actions: Function(env_state: str) -> List[str] that returns valid
                 action strings for the given environment state.
             goal_reward_default: Reward for non-terminal states (default: 0.0).
@@ -175,8 +180,18 @@ class EnvGroundedPolicy(Policy):
             max_retries = 1  # Prevent infinite loops from bad LLM outputs
             for _ in range(n_actions):
                 options = '\t'+'\n\t'.join(valid_actions)
-                prompt = self.usr_prompt_spec.replace("<init_state>", state.env_state)\
-                            .replace("<goals>", query).replace("<action>", options)
+                
+                # Format prompt using PromptTemplate or string
+                if isinstance(self.usr_prompt_spec, PromptTemplate):
+                    prompt = self.usr_prompt_spec.format(
+                        init_state=state.env_state,
+                        goals=query,
+                        actions=options
+                    )
+                else:
+                    # Backward compatibility: support string templates with <placeholder> syntax
+                    prompt = self.usr_prompt_spec.replace("<init_state>", state.env_state)\
+                                .replace("<goals>", query).replace("<action>", options)
                 
                 valid_gen = False
                 retry_count = 0

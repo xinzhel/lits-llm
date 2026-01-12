@@ -10,8 +10,11 @@ Lookup priority in get()/get_usr():
 3. 'default'
 
 Decorator API:
-- register_system_prompt(component, agent, task_type): Register system prompts
-- register_user_prompt(component, agent, task_type): Register user prompts
+- register_system_prompt(component, agent, prompt_key): Register system prompts
+- register_user_prompt(component, agent, prompt_key): Register user prompts
+
+Note: prompt_key is a lookup key that can be matched by task_name or task_type during retrieval.
+It can be a benchmark name (e.g., 'blocksworld', 'crosswords') or a task type (e.g., 'language_grounded').
 """
 
 from typing import Optional, Dict, Any, Union, Callable
@@ -47,16 +50,19 @@ class PromptRegistry:
         cls,
         component_type: str,
         agent_name: str,
-        task_type: Optional[str],
+        prompt_key: Optional[str],
         prompt_spec: Union[str, Dict, PromptTemplate]
     ):
         """
-        Register a prompt for a specific component, agent, and task type.
+        Register a prompt for a specific component, agent, and prompt key.
         
         Args:
             component_type: 'policy', 'reward', or 'transition'
             agent_name: Name of the agent (e.g., 'rap', 'concat', 'tool_use')
-            task_type: Task type (e.g., 'language_grounded', 'env_grounded', 'tool_use') or None for default
+            prompt_key: Lookup key for the prompt. Can be:
+                - A benchmark name (e.g., 'blocksworld', 'crosswords') for benchmark-specific prompts
+                - A task type (e.g., 'language_grounded', 'env_grounded') for task-type-level prompts
+                - None for default prompts
             prompt_spec: Prompt specification (string, dict, or PromptTemplate)
         """
         if component_type not in cls._registry:
@@ -65,7 +71,7 @@ class PromptRegistry:
         if agent_name not in cls._registry[component_type]:
             cls._registry[component_type][agent_name] = {}
         
-        key = task_type if task_type else 'default'
+        key = prompt_key if prompt_key else 'default'
         cls._registry[component_type][agent_name][key] = prompt_spec
     
     @classmethod
@@ -135,7 +141,7 @@ class PromptRegistry:
         cls,
         component_type: str,
         agent_name: str,
-        task_type: Optional[str],
+        prompt_key: Optional[str],
         usr_prompt_spec: Union[Dict, PromptTemplate]
     ):
         """
@@ -144,7 +150,10 @@ class PromptRegistry:
         Args:
             component_type: 'policy', 'reward', or 'transition'
             agent_name: Agent identifier (e.g., 'rap', 'tool_use')
-            task_type: Task type (e.g., 'language_grounded') or None for default
+            prompt_key: Lookup key for the prompt. Can be:
+                - A benchmark name (e.g., 'blocksworld', 'crosswords') for benchmark-specific prompts
+                - A task type (e.g., 'language_grounded', 'env_grounded') for task-type-level prompts
+                - None for default prompts
             usr_prompt_spec: User prompt specification (dict or PromptTemplate, NOT string)
         """
         if component_type not in cls._usr_registry:
@@ -153,7 +162,7 @@ class PromptRegistry:
         if agent_name not in cls._usr_registry[component_type]:
             cls._usr_registry[component_type][agent_name] = {}
         
-        key = task_type if task_type else 'default'
+        key = prompt_key if prompt_key else 'default'
         cls._usr_registry[component_type][agent_name][key] = usr_prompt_spec
     
     @classmethod
@@ -223,7 +232,7 @@ class PromptRegistry:
 def register_system_prompt(
     component: str,
     agent: str,
-    task_type: Optional[str] = None
+    prompt_key: Optional[str] = None
 ) -> Callable:
     """Decorator to register a system prompt (task_prompt_spec).
     
@@ -233,7 +242,10 @@ def register_system_prompt(
     Args:
         component: Component type ('policy', 'reward', 'transition')
         agent: Agent name (e.g., 'concat', 'generative', 'rap')
-        task_type: Task type or benchmark name (e.g., 'language_grounded', 'blocksworld')
+        prompt_key: Lookup key for the prompt. Can be:
+            - A benchmark name (e.g., 'blocksworld', 'crosswords') for benchmark-specific prompts
+            - A task type (e.g., 'language_grounded', 'env_grounded') for task-type-level prompts
+            - None for default prompts
     
     Returns:
         Decorator function
@@ -253,7 +265,7 @@ def register_system_prompt(
     """
     def decorator(func: Callable[[], Any]) -> Callable[[], Any]:
         prompt_spec = func()
-        PromptRegistry.register(component, agent, task_type, prompt_spec)
+        PromptRegistry.register(component, agent, prompt_key, prompt_spec)
         return func
     return decorator
 
@@ -261,7 +273,7 @@ def register_system_prompt(
 def register_user_prompt(
     component: str,
     agent: str,
-    task_type: Optional[str] = None
+    prompt_key: Optional[str] = None
 ) -> Callable:
     """Decorator to register a user prompt (usr_prompt_spec).
     
@@ -271,7 +283,10 @@ def register_user_prompt(
     Args:
         component: Component type ('policy', 'reward', 'transition')
         agent: Agent name (e.g., 'concat', 'generative', 'rap')
-        task_type: Task type or benchmark name (e.g., 'language_grounded', 'blocksworld')
+        prompt_key: Lookup key for the prompt. Can be:
+            - A benchmark name (e.g., 'blocksworld', 'crosswords') for benchmark-specific prompts
+            - A task type (e.g., 'language_grounded', 'env_grounded') for task-type-level prompts
+            - None for default prompts
     
     Returns:
         Decorator function
@@ -291,7 +306,7 @@ def register_user_prompt(
     """
     def decorator(func: Callable[[], Any]) -> Callable[[], Any]:
         usr_prompt_spec = func()
-        PromptRegistry.register_usr(component, agent, task_type, usr_prompt_spec)
+        PromptRegistry.register_usr(component, agent, prompt_key, usr_prompt_spec)
         return func
     return decorator
 

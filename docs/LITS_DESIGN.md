@@ -470,6 +470,8 @@ def load_my_dataset(split="test", **kwargs):
 ```python
 from lits.registry import register_system_prompt, register_user_prompt
 
+# prompt_key (3rd argument) can be a benchmark name (e.g., 'blocksworld') 
+# or task type (e.g., 'language_grounded')
 @register_system_prompt("policy", "concat", "my_math_task")
 def my_system_prompt():
     return "You are solving math problems step by step..."
@@ -886,6 +888,7 @@ For dynamic registration (e.g., in scripts), use class methods directly:
 ```python
 from lits.prompts.registry import PromptRegistry
 
+# prompt_key can be a benchmark name (e.g., 'blocksworld') or task type (e.g., 'language_grounded')
 PromptRegistry.register('policy', 'rap', 'my_task', 'Custom instructions...')
 PromptRegistry.register_usr('policy', 'rap', 'my_task', {'format': 'custom'})
 
@@ -916,9 +919,10 @@ usr_prompt_spec_language_grounded = {
 def load_default_prompts():
     from .policy import my_agent
     
+    # prompt_key can be a benchmark name or task type
     if hasattr(my_agent, 'task_prompt_spec_language_grounded'):
         PromptRegistry.register(
-            'policy', 'my_agent', 'language_grounded',
+            'policy', 'my_agent', 'language_grounded',  # prompt_key='language_grounded'
             my_agent.task_prompt_spec_language_grounded
         )
 ```
