@@ -113,4 +113,17 @@ class EnvState(TrajectoryState[EnvStep]):
         state_payload = payload.get("state", {})
         state = cls.from_dict(state_payload)
         return payload["query"], state
+
+    def __repr__(self) -> str:
+        """
+        Show step count and truncated current env_state for clearer debugging.
+        
+        Default dataclass __repr__ only shows init_state, which is misleading in logs
+        since it always displays the initial state regardless of trajectory progress.
+        """
+        current = self.env_state
+        truncated = current[:100] + "..." if len(current) > 100 else current
+        # Escape newlines for single-line repr
+        truncated = truncated.replace("\n", "\\n")
+        return f"EnvState(steps={len(self)}, env_state='{truncated}')"
     

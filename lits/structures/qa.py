@@ -2,7 +2,7 @@ from typing import NamedTuple
 from dataclasses import dataclass
 
 from ..type_registry import register_type
-from .base import ActionT, Step, State, TrajectoryState
+from .base import ActionT, Step, State, TrajectoryState, StringAction
 
 
 @register_type
@@ -10,7 +10,7 @@ from .base import ActionT, Step, State, TrajectoryState
 class SubQAStep(Step):
     """RAP-style sub-question step capturing the decomposition state."""
 
-    sub_question: ActionT = ""
+    sub_question: StringAction = ""
     sub_answer: str = ""
     confidence: float = 0.0
 

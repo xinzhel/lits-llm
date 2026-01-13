@@ -98,14 +98,19 @@ class EnvChain(ChainAgent[EnvState]):
             )
             
             if not steps:
-                logger.error("Policy returned no actions")
+                # Should not happen - EnvGroundedPolicy always returns at least one step
+                logger.error("Policy returned no steps (unexpected)")
                 break
             
             step = steps[0]
             
-            # Handle errors
+            # Handle errors - append error step to state for debugging
             if step.error:
-                logger.error("Error in action generation: %s", step.error)
+                logger.error("Error in action generation: %s (action: %s)", step.error, step.action)
+                state.append(step)  # Preserve error step in trajectory
+                if checkpoint_path:
+                    state.save(checkpoint_path, query_or_goals)
+                    logger.debug("Checkpoint saved with error step: %s", checkpoint_path)
                 break
             
             logger.debug("Selected action: %s", step.action)

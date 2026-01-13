@@ -4,7 +4,54 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## 2026-01-04  v0.2.7
+## 2026-01-13  v0.2.8 (Crosswords Domain & Error-Annotated Checkpoints)
+
+### Added
+- `lits_benchmark/crosswords.py` - CrosswordsTransition with `@register_transition("crosswords")`
+- `CrosswordsTransition.validate_action()` for infinite action space validation
+- `load_crosswords()` dataset loader with `@register_dataset("crosswords")`
+- Crosswords-specific prompts registered via `@register_system_prompt`/`@register_user_prompt`
+- `lits/prompts/policy/env_grounded.py` - generic fallback policy prompt
+- `lits/prompts/reward/env_grounded.py` - generic fallback reward prompts
+- `EnvState.__repr__()` showing step count and truncated current state
+- Error-annotated checkpoints: `EnvStep(action=invalid_action, error=error_msg)` preserved in trajectory
+
+### Changed
+- `EnvGroundedPolicy` now always returns a step (error step if validation fails)
+- `EnvGroundedPolicy._get_actions()` refactored into helper methods for readability
+- `env_chain.py` handles `step.error` uniformly: appends error step, saves checkpoint, breaks
+- `EnvGroundedTransition.generate_actions()` now non-abstract, returns `[]` by default
+- `component_factory.py` uses `getattr` for optional `generate_actions` and `validate_action`
+
+### Action Space Contract
+- Finite action space (BlocksWorld): `generate_actions` returns exhaustive list
+- Infinite action space (Crosswords): `validate_action` validates LLM-generated actions
+
+## 2026-01-11  v0.2.7 (Component Registry)
+
+### Added
+- `lits/components/registry.py` - ComponentRegistry with `register_transition`, `register_policy`, `register_reward_model` decorators
+- `lits/benchmarks/registry.py` - BenchmarkRegistry with `register_dataset`, `load_dataset`, `infer_task_type`
+- `lits/prompts/registry.py` - `register_system_prompt`, `register_user_prompt` decorators
+- `lits/components/transition/env_grounded.py` - EnvGroundedTransition base class with abstract `goal_check`, `generate_actions` static methods
+- `lits/registry.py` - unified import entry re-exporting all registry decorators and utilities
+- `import_custom_modules()` and `load_config_from_result_dir()` CLI utilities in `lits/registry.py`
+- `import_modules` field to `BaseSearchConfig` for persisting custom module imports
+
+### Changed
+- `BlocksWorldTransition` now extends `EnvGroundedTransition` with `@register_transition("blocksworld")`
+- `lits_benchmark/blocksworld.py` - `load_blocksworld` registered with `@register_dataset("blocksworld")`
+- `lits_benchmark/math_qa.py` - registered gsm8k, math500, spart_yn datasets
+- `lits_benchmark/mapeval.py` - registered mapeval, mapeval-sql datasets
+- `lits_benchmark/crosswords.py` - registered crosswords dataset (placeholder)
+- `component_factory.py` - uses registry-first with fallback pattern for env_grounded components
+- `main_search.py` - added `--import` arg, saves `import_modules` to config
+- `main_env_chain.py` - added `--import`/`--benchmark` args, uses registry lookup
+- `eval_search.py` - auto-loads `import_modules` from config, uses registry for env_grounded detection
+- `eval_env_chain.py` - auto-loads `import_modules`/`benchmark` from config
+
+### Removed
+- `lits_benchmark/main.py` - consolidated into `lits/benchmarks/registry.py`
 
 ## 2026-01-04  v0.2.6 (Env-Grounded Task: Main Scripts)
 ### Added

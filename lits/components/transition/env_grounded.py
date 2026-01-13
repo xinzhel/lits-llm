@@ -143,7 +143,6 @@ class EnvGroundedTransition(LlmTransition):
         raise NotImplementedError("Subclasses must implement goal_check()")
     
     @staticmethod
-    @abstractmethod
     def generate_actions(*args, **kwargs) -> List[str]:
         """Generate all valid actions from current state.
         
@@ -185,4 +184,4 @@ class EnvGroundedTransition(LlmTransition):
                 return ["move_up", "move_down", "move_left", "move_right"]
             ```
         """
-        raise NotImplementedError("Subclasses must implement generate_actions()")
+        return  []

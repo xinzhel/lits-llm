@@ -55,9 +55,19 @@ Domain experts can add new planning domains by implementing a single Transition 
 | Method | Type | Purpose |
 |--------|------|---------|
 | `goal_check()` | Static | Check if goals are met, return `(bool, float)` |
-| `generate_actions()` | Static | Generate valid actions from state, return `List[str]` |
 | `init_state()` | Instance | Initialize state from dataset example kwargs |
 | `_step()` | Instance | Execute action and return new state |
+
+#### Optional Methods
+
+| Method | Type | Purpose |
+|--------|------|---------|
+| `generate_actions()` | Static | Generate valid actions from state (for finite action spaces) |
+| `validate_action()` | Static | Validate LLM-generated action (for infinite action spaces) |
+
+**Action Space Contract:**
+- **Finite action space** (e.g., BlocksWorld): Implement `generate_actions()` to return all valid actions
+- **Infinite action space** (e.g., Crosswords): Implement `validate_action()` to validate LLM output
 
 #### Minimal Example
 
@@ -841,21 +851,27 @@ Components use two types of prompts:
 When a component is instantiated, prompts are loaded with the following priority:
 
 1. **Explicit parameter** - If `task_prompt_spec` or `usr_prompt_spec` is passed directly
-2. **task_name lookup** - Registry lookup by `task_name` (e.g., `'blocksworld'`)
-3. **TASK_TYPE lookup** - Registry lookup by component's `TASK_TYPE` (e.g., `'language_grounded'`) - **skipped if TASK_TYPE is None**
+2. **task_name lookup** - Registry lookup by `task_name` (e.g., `'blocksworld'`, `'crosswords'`)
+3. **TASK_TYPE lookup** - Registry lookup by component's `TASK_TYPE` (e.g., `'env_grounded'`, `'language_grounded'`) - **skipped if TASK_TYPE is None**
 4. **Default** - Registry lookup with key `'default'`
 
+**Fallback Prompts for env_grounded Tasks:**
+
+Generic fallback prompts are registered under `prompt_key='env_grounded'` for both `EnvGroundedPolicy` and `EnvGroundedPRM`. This means:
+- If a benchmark (e.g., `'crosswords'`) doesn't register its own prompts, the generic `env_grounded` prompts are used
+- Benchmark-specific prompts (e.g., `'blocksworld'`) take priority when registered
+
 ```python
-# Example: GenerativePRM with TASK_TYPE = "language_grounded"
-evaluator = GenerativePRM(
+# Example: EnvGroundedPolicy with TASK_TYPE = "env_grounded"
+policy = EnvGroundedPolicy(
     base_model=model,
-    task_name='gsm8k'  # Lookup order: 'gsm8k' → 'language_grounded' → 'default'
+    task_name='crosswords'  # Lookup: 'crosswords' → 'env_grounded' (fallback) → 'default'
 )
 
 # Example: BlocksWorldTransition with TASK_TYPE = None
 transition = BlocksWorldTransition(
     base_model=model,
-    task_name='blocksworld'  # Lookup order: 'blocksworld' → 'default' (no TASK_TYPE fallback)
+    task_name='blocksworld'  # Lookup: 'blocksworld' → 'default' (no TASK_TYPE fallback)
 )
 ```
 
@@ -888,7 +904,8 @@ For dynamic registration (e.g., in scripts), use class methods directly:
 ```python
 from lits.prompts.registry import PromptRegistry
 
-# prompt_key can be a benchmark name (e.g., 'blocksworld') or task type (e.g., 'language_grounded')
+# prompt_key can be a benchmark name (e.g., 'blocksworld', 'crosswords') 
+# or task type (e.g., 'language_grounded', 'env_grounded')
 PromptRegistry.register('policy', 'rap', 'my_task', 'Custom instructions...')
 PromptRegistry.register_usr('policy', 'rap', 'my_task', {'format': 'custom'})
 
@@ -919,7 +936,7 @@ usr_prompt_spec_language_grounded = {
 def load_default_prompts():
     from .policy import my_agent
     
-    # prompt_key can be a benchmark name or task type
+    # prompt_key can be a benchmark name (e.g., 'blocksworld') or task type (e.g., 'language_grounded')
     if hasattr(my_agent, 'task_prompt_spec_language_grounded'):
         PromptRegistry.register(
             'policy', 'my_agent', 'language_grounded',  # prompt_key='language_grounded'
@@ -946,23 +963,25 @@ class MyAgentPolicy(Policy):
 ### Section 7.6: Registered Prompts Reference
 
 #### Policy Prompts
-| Agent | Task Type | System Prompt | User Template |
-|-------|-----------|---------------|---------------|
+| Agent | Prompt Key | System Prompt | User Template |
+|-------|------------|---------------|---------------|
 | `rap` | `language_grounded` | ✓ | ✓ |
 | `concat` | `language_grounded` | ✓ | — |
+| `env_grounded` | `env_grounded` (fallback) | — | ✓ |
 | `env_grounded` | `blocksworld` | — | ✓ |
 | `tool_use` | `default` | ✓ | — |
 
 #### Reward Prompts
-| Agent | Task Type | System Prompt | User Template |
-|-------|-----------|---------------|---------------|
+| Agent | Prompt Key | System Prompt | User Template |
+|-------|------------|---------------|---------------|
 | `rap` | `language_grounded` | ✓ | — |
 | `generative` | `language_grounded` | ✓ | — |
+| `env_grounded` | `env_grounded` (fallback) | ✓ | ✓ |
 | `env_grounded` | `blocksworld` | ✓ | ✓ |
 
 #### Transition Prompts
-| Agent | Task Type | System Prompt | User Template |
-|-------|-----------|---------------|---------------|
+| Agent | Prompt Key | System Prompt | User Template |
+|-------|------------|---------------|---------------|
 | `rap` | `language_grounded` | ✓ | ✓ |
 | `rap` | `default` | ✓ | — |
 | `blocksworld` | `default` | ✓ | ✓ |

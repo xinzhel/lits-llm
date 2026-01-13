@@ -150,6 +150,7 @@ def create_env_chain_agent(
     verbose_model: bool = False,
     override_logger: bool = False,
     base_model: LanguageModel = None,
+    validate_action: Callable = None,
     **kwargs
 ):
     """
@@ -160,8 +161,8 @@ def create_env_chain_agent(
     goal is reached or max steps are exceeded.
     
     Args:
-        generate_all_actions: Function(env_state: str) -> List[str] that returns
-            valid action strings for the given environment state.
+        generate_all_actions: Optional function(env_state: str) -> List[str] that returns
+            valid action strings for the given environment state. For finite action spaces.
         world_model: Transition instance for executing actions and updating state.
         task_name: Task name identifier (e.g., 'blocksworld') for loading prompts.
         usr_prompt_spec: Optional user prompt specification.
@@ -177,6 +178,8 @@ def create_env_chain_agent(
         verbose_model: Whether to enable verbose logging for the model.
         override_logger: Whether to override existing loggers.
         base_model: Optional pre-initialized language model instance.
+        validate_action: Optional function(env_state: str, action: str) -> bool that
+            validates LLM-generated actions. For infinite action spaces (e.g., crosswords).
         **kwargs: Additional arguments passed to the language model.
     
     Returns:
@@ -214,6 +217,7 @@ def create_env_chain_agent(
         task_name=task_name,
         usr_prompt_spec=usr_prompt_spec,
         generate_all_actions=generate_all_actions,
+        validate_action=validate_action,
         goal_reward_default=goal_reward_default,
         goal_reached_reward=goal_reached_reward,
         temperature=temperature,

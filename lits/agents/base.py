@@ -28,13 +28,14 @@ class BaseConfig:
         """Convert configuration to dictionary using dataclass asdict for consistency."""
         return asdict(self)
 
-    def save_config(self, root_dir: str) -> None:
+    def save_config(self, root_dir: str, filename: str = "config.json") -> None:
         """
         Save configuration to JSON file.
         
         Args:
             root_dir: Directory where the config file will be saved
+            filename: Name of the config file (default: "config.json")
         """
-        save_config_path = os.path.join(root_dir, f"{self.reasoning_method}_config.json")
+        save_config_path = os.path.join(root_dir, filename)
         with open(save_config_path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=4)

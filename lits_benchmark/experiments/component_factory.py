@@ -277,9 +277,12 @@ def create_components_env_grounded(
             f"Did you forget to import the module containing @register_transition('{benchmark_name}')?"
         )
     
-    # Access goal_check and generate_actions via Transition class static methods
+    # Access goal_check via Transition class static method (required)
     goal_check = TransitionCls.goal_check
-    generate_actions = TransitionCls.generate_actions
+    # generate_actions is optional - for finite action spaces (e.g., BlocksWorld)
+    generate_actions = getattr(TransitionCls, 'generate_actions', None)
+    # validate_action is optional - for infinite action spaces (e.g., crosswords)
+    validate_action = getattr(TransitionCls, 'validate_action', None)
     
     # Create world model (transition)
     world_model = TransitionCls(
@@ -299,6 +302,7 @@ def create_components_env_grounded(
         base_model=base_model,
         task_name=task_name,
         generate_all_actions=generate_actions,
+        validate_action=validate_action,
         n_actions=n_actions,
         temperature=0.7,
         force_terminating_on_depth_limit=force_terminating_on_depth_limit,

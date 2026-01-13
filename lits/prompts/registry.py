@@ -326,9 +326,11 @@ def load_default_prompts():
         from .policy import concat as concat_policy
         from .policy import tool_use as tool_use_policy
         from .policy import blocksworld as blocksworld_policy
+        from .policy import env_grounded as env_grounded_policy  # Fallback prompts
         from .reward import rap as rap_reward
         from .reward import generative as generative_reward
         from .reward import blocksworld as blocksworld_reward
+        from .reward import env_grounded as env_grounded_reward  # Fallback prompts
         from .transition import rap as rap_transition
         from .transition import blocksworld as blocksworld_transition
         

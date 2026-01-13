@@ -253,7 +253,6 @@ class BlocksWorldTransition(EnvGroundedTransition):
     def __init__(
         self,
         base_model,
-        goal_check: Callable = None,  # Optional: use static method if not provided
         task_prompt_spec: Optional[Union[str, dict]] = None,
         usr_prompt_spec: Optional[Union[str, dict]] = None,
         **kwargs
@@ -264,8 +263,7 @@ class BlocksWorldTransition(EnvGroundedTransition):
             usr_prompt_spec=usr_prompt_spec,
             **kwargs
         )
-        # Use provided goal_check or fall back to static method
-        self._goal_check_fn = goal_check if goal_check is not None else BlocksWorldTransition.goal_check
+     
         
     def init_state(self, **kwargs) -> EnvState:
         """Initialize the world model.
@@ -304,14 +302,14 @@ class BlocksWorldTransition(EnvGroundedTransition):
         # Create a copy of the state (which is a list)
         new_state = copy.deepcopy(state)
         
-        env_state = new_state.env_state
-        env_state = self._update_blocks(env_state, action)
+        env_snapshot = new_state.env_state
+        env_snapshot = self._update_blocks(env_snapshot, action)
 
         # Create new step
-        new_step = EnvStep(action=action, next_state=env_state)
+        new_step = EnvStep(action=action, next_state=env_snapshot)
         new_state.append(new_step)
         
-        return new_state, {"goal_reached": self._goal_check_fn(query_or_goals, env_state)}
+        return new_state, {"goal_reached": self.goal_check(query_or_goals, env_snapshot)}
 
     def _get_prompt_tempate(self, action:str) -> str:
         if "pick" in action:
@@ -347,7 +345,7 @@ class BlocksWorldTransition(EnvGroundedTransition):
         return new_state    
 
     def _is_terminal(self, state: EnvState, query_or_goals: str, **kwargs) -> bool:
-        if self._goal_check_fn(query_or_goals, state.env_state)[0]:
+        if self.goal_check(query_or_goals, state.env_state)[0]:
             return True
         return False
 
