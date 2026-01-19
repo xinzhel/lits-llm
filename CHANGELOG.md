@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-01-19  v0.2.8
+## Fixed
+- `goal_check` was incorrectly parsing answers from Filled/Changed sections
+      - Now extracts board from "Current Board:" section and computes 10 answers
+
+## 2026-01-18  v0.2.8 (Config & CLI Refactoring)
+
+### Added
+- `BaseConfig`: `benchmark`, `import_modules`, `dataset_kwargs` fields for experiment metadata
+- `ChainConfig`: `temperature` field (0.0 = deterministic)
+- `lits/cli/args.py`: `parse_script_vars()` for `--var` arguments
+
+### Changed
+- CLI arguments refactored: `--cfg` for config fields, `--var` for script variables
+- `apply_config_overrides()` uses `--cfg` args (field names match config exactly)
+- `EnvChainConfig` simplified: removed `offset`, `limit`, `override`, `temperature` (moved to parents)
+- `main_env_chain.py` uses new CLI pattern with `--cfg`/`--var`/`--dataset-arg`
+
+### Removed
+- `offset`, `limit`, `override` from config classes (now script-local variables)
+
 ## 2026-01-13  v0.2.8 (Crosswords Domain & Error-Annotated Checkpoints)
 
 ### Added

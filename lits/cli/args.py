@@ -4,9 +4,9 @@ This module provides reusable argument parsing for experiment scripts,
 supporting config overrides without exposing every hyperparameter as a flag.
 
 Design principles:
-- Common flags (--benchmark, --import, --dry-run) as top-level arguments
-- --set key=value for arbitrary config overrides (avoids flag explosion)
-- Type inference from existing config values
+- --cfg KEY=VALUE for config fields (matches dataclass field names exactly)
+- --set KEY=VALUE for script-level variables (offset, limit)
+- Type inference from existing config/default values
 """
 
 import argparse
@@ -19,17 +19,14 @@ class CLIArgs:
     """Parsed CLI arguments container."""
     import_modules: Optional[List[str]] = None
     dry_run: bool = False
-    benchmark: Optional[str] = None
-    config_overrides: Optional[List[str]] = None
+    cfg_args: Optional[List[str]] = None  # --cfg KEY=VALUE for config fields
+    var_args: Optional[List[str]] = None  # --var KEY=VALUE for script variables
     override: bool = False  # Override existing results
-    dataset_args: Optional[List[str]] = None  # Dataset loader kwargs (key=value pairs)
+    dataset_args: Optional[List[str]] = None  # --dataset-arg KEY=VALUE
 
 
 def create_experiment_parser(description: str = "Run LiTS experiment") -> argparse.ArgumentParser:
     """Create argument parser for LiTS experiment scripts.
-    
-    This parser provides common arguments used by both main_search.py and 
-    main_env_chain.py, enabling consistent CLI interface across experiment types.
     
     Args:
         description: Description shown in --help
@@ -41,21 +38,36 @@ def create_experiment_parser(description: str = "Run LiTS experiment") -> argpar
         description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Config Fields (--cfg):
+  Common config fields that can be set via --cfg KEY=VALUE:
+    benchmark           Benchmark name (blocksworld, crosswords, gsm8k, ...)
+    policy_model_name   LLM model identifier (bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0)
+    max_steps           Maximum reasoning steps (default: 10-30 depending on agent)
+    temperature         Sampling temperature (0.0 = deterministic)
+    
+Script Variables (--var):
+  Execution settings (not saved to config):
+    offset              Start index for dataset slicing (default: 0)
+    limit               Number of examples to run (default: None = all)
+
 Examples:
   # Run with default config
-  python main_search.py
+  python main_env_chain.py
   
-  # Test dataset loading without running experiment
-  python main_search.py --dry-run
+  # Test dataset loading
+  python main_env_chain.py --dry-run
   
-  # Switch benchmark
-  python main_search.py --benchmark crosswords --import lits_benchmark.crosswords
+  # Switch benchmark and model
+  python main_env_chain.py --cfg benchmark=crosswords policy_model_name=gpt-4
   
-  # Override config values
-  python main_search.py --set offset=10 limit=5 n_actions=5
+  # Run subset of examples
+  python main_env_chain.py --var offset=10 limit=5
   
-  # Combine options
-  python main_search.py --benchmark crosswords --import lits_benchmark.crosswords --set limit=10 --dry-run
+  # Full example with custom module
+  python main_env_chain.py --import lits_benchmark.crosswords \\
+      --cfg benchmark=crosswords max_steps=20 \\
+      --dataset-arg data_file=crosswords/data/mini0505.json \\
+      --var offset=0 limit=10
 """
     )
     
@@ -72,24 +84,25 @@ Examples:
         "--dry-run",
         dest="dry_run",
         action="store_true",
-        help="Print first dataset element and exit (for testing dataset loading)"
+        help="Print first dataset element and exit (for testing)"
     )
     
     parser.add_argument(
-        "--benchmark",
-        dest="benchmark",
-        type=str,
-        default=None,
-        help="Override benchmark_name in config (e.g., crosswords, blocksworld)"
-    )
-    
-    parser.add_argument(
-        "--set",
-        dest="config_overrides",
+        "--cfg",
+        dest="cfg_args",
         type=str,
         nargs="+",
         metavar="KEY=VALUE",
-        help="Override config values (e.g., --set offset=10 limit=5)"
+        help="Set config fields (e.g., --cfg benchmark=crosswords policy_model_name=gpt-4)"
+    )
+    
+    parser.add_argument(
+        "--var",
+        dest="var_args",
+        type=str,
+        nargs="+",
+        metavar="KEY=VALUE",
+        help="Set script variables (e.g., --var offset=10 limit=5)"
     )
     
     parser.add_argument(
@@ -105,7 +118,7 @@ Examples:
         type=str,
         nargs="+",
         metavar="KEY=VALUE",
-        help="Dataset loader kwargs (e.g., --dataset-arg data_file=path/to/data.json split=test)"
+        help="Dataset loader kwargs (e.g., --dataset-arg data_file=path/to/data.json)"
     )
     
     return parser
@@ -127,8 +140,8 @@ def parse_experiment_args(args: List[str] = None, description: str = "Run LiTS e
     return CLIArgs(
         import_modules=parsed.import_modules,
         dry_run=parsed.dry_run,
-        benchmark=parsed.benchmark,
-        config_overrides=parsed.config_overrides,
+        cfg_args=parsed.cfg_args,
+        var_args=parsed.var_args,
         override=parsed.override,
         dataset_args=parsed.dataset_args,
     )
@@ -164,7 +177,7 @@ def _parse_value(value_str: str, old_value: Any) -> Any:
     elif isinstance(old_value, float):
         return float(value_str)
     elif isinstance(old_value, list):
-        # Parse as comma-separated values, infer element type from first element
+        # Parse as comma-separated values
         items = [v.strip() for v in value_str.split(',')]
         if old_value and isinstance(old_value[0], int):
             return [int(v) for v in items]
@@ -176,59 +189,87 @@ def _parse_value(value_str: str, old_value: Any) -> Any:
 
 
 def apply_config_overrides(config: Any, cli_args: CLIArgs, verbose: bool = True) -> Any:
-    """Apply CLI overrides to config object.
+    """Apply --cfg arguments to config object.
+    
+    Field names in --cfg must match config dataclass field names exactly.
+    Unknown fields are warned but not set.
     
     Args:
-        config: Config object (e.g., ExperimentConfig)
+        config: Config dataclass instance
         cli_args: Parsed CLI arguments
-        verbose: Print override messages
+        verbose: Print applied settings
     
     Returns:
         Modified config object (same instance)
     """
-    # Apply benchmark override
-    if cli_args.benchmark:
-        config.benchmark_name = cli_args.benchmark
-        if verbose:
-            print(f"Config override: benchmark_name={cli_args.benchmark}")
+    if not cli_args.cfg_args:
+        return config
     
-    # Apply key=value overrides
-    if cli_args.config_overrides:
-        for override in cli_args.config_overrides:
-            if '=' not in override:
-                print(f"Warning: Invalid override format '{override}', expected KEY=VALUE")
-                continue
-            
-            key, value_str = override.split('=', 1)
-            
-            if hasattr(config, key):
-                old_value = getattr(config, key)
-                new_value = _parse_value(value_str, old_value)
-                setattr(config, key, new_value)
-                if verbose:
-                    print(f"Config override: {key}={new_value}")
-            else:
-                print(f"Warning: Unknown config key '{key}'")
+    for arg in cli_args.cfg_args:
+        if '=' not in arg:
+            print(f"Warning: Invalid format '{arg}', expected KEY=VALUE")
+            continue
+        
+        key, value_str = arg.split('=', 1)
+        
+        if hasattr(config, key):
+            old_value = getattr(config, key)
+            new_value = _parse_value(value_str, old_value)
+            setattr(config, key, new_value)
+            if verbose:
+                print(f"Config: {key}={new_value}")
+        else:
+            print(f"Warning: Unknown config field '{key}'")
     
     return config
 
 
-def parse_dataset_kwargs(cli_args: CLIArgs, verbose: bool = True) -> Dict[str, Any]:
-    """Parse dataset kwargs from CLI --dataset-arg arguments.
+def parse_script_vars(cli_args: CLIArgs, defaults: Dict[str, Any], verbose: bool = True) -> Dict[str, Any]:
+    """Parse --var arguments for script-level variables.
     
-    Converts --dataset-arg key=value pairs into a dict that can be passed
-    to load_dataset(**kwargs). Values are parsed with type inference.
+    These are execution settings not saved to config (offset, limit, etc).
     
     Args:
-        cli_args: Parsed CLI arguments containing dataset_args
+        cli_args: Parsed CLI arguments
+        defaults: Dict of {name: default_value} for type inference
+        verbose: Print applied settings
+    
+    Returns:
+        Dict with parsed values (defaults for unspecified keys)
+    """
+    result = dict(defaults)
+    
+    if not cli_args.var_args:
+        return result
+    
+    for arg in cli_args.var_args:
+        if '=' not in arg:
+            print(f"Warning: Invalid format '{arg}', expected KEY=VALUE")
+            continue
+        
+        key, value_str = arg.split('=', 1)
+        
+        if key in defaults:
+            old_value = defaults[key]
+            new_value = _parse_value(value_str, old_value)
+            result[key] = new_value
+            if verbose:
+                print(f"Var: {key}={new_value}")
+        else:
+            print(f"Warning: Unknown script variable '{key}'")
+    
+    return result
+
+
+def parse_dataset_kwargs(cli_args: CLIArgs, verbose: bool = True) -> Dict[str, Any]:
+    """Parse --dataset-arg arguments for dataset loader.
+    
+    Args:
+        cli_args: Parsed CLI arguments
         verbose: Print parsed kwargs
     
     Returns:
-        Dict of dataset kwargs (empty dict if no --dataset-arg provided)
-    
-    Example:
-        # CLI: --dataset-arg data_file=path/to/data.json split=test limit=100
-        # Returns: {'data_file': 'path/to/data.json', 'split': 'test', 'limit': 100}
+        Dict of dataset kwargs
     """
     kwargs = {}
     
@@ -237,15 +278,14 @@ def parse_dataset_kwargs(cli_args: CLIArgs, verbose: bool = True) -> Dict[str, A
     
     for arg in cli_args.dataset_args:
         if '=' not in arg:
-            print(f"Warning: Invalid dataset-arg format '{arg}', expected KEY=VALUE")
+            print(f"Warning: Invalid format '{arg}', expected KEY=VALUE")
             continue
         
         key, value_str = arg.split('=', 1)
-        # Parse value with type inference (no old_value, so infer from string)
         value = _parse_value(value_str, None)
         kwargs[key] = value
         
         if verbose:
-            print(f"Dataset kwarg: {key}={value}")
+            print(f"Dataset: {key}={value}")
     
     return kwargs

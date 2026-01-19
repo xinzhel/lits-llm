@@ -1,5 +1,5 @@
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, Optional
+from dataclasses import dataclass, asdict, field
+from typing import Any, Dict, Optional, List
 import os
 import json
 
@@ -15,6 +15,9 @@ class BaseConfig:
         gpu_device: GPU device identifier (e.g., "cuda:0", "cpu")
         max_length: Maximum token length for model generation
         max_steps: Maximum number of reasoning/action steps before termination
+        benchmark: Benchmark/task name (e.g., "blocksworld", "crosswords", "gsm8k")
+        import_modules: List of custom modules to import for component registration
+        dataset_kwargs: Dataset-specific kwargs for load_dataset()
     """
 
     reasoning_method: str  # "rest", "rap", "bfs", "react", "env_chain"
@@ -23,6 +26,10 @@ class BaseConfig:
     gpu_device: Optional[str] = None
     max_length: Optional[int] = None
     max_steps: int = 10
+    # Experiment metadata (for reproducibility)
+    benchmark: str = ""
+    import_modules: Optional[List[str]] = None
+    dataset_kwargs: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary using dataclass asdict for consistency."""

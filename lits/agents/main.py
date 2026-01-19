@@ -160,6 +160,9 @@ def create_env_chain_agent(
     environment-grounded policy and executes them via a world model until the
     goal is reached or max steps are exceeded.
     
+    Note: This function does NOT save config. The caller (e.g., main_env_chain.py)
+    should create and save EnvChainConfig with all experiment-specific fields.
+    
     Args:
         generate_all_actions: Optional function(env_state: str) -> List[str] that returns
             valid action strings for the given environment state. For finite action spaces.
@@ -200,16 +203,8 @@ def create_env_chain_agent(
         inference_logger = InferenceLogger(run_id="", root_dir=root_dir, override=override_logger)
         base_model.inference_logger = inference_logger
 
-    # Save configuration
-    EnvChainConfig(
-        reasoning_method="env_chain",
-        package_version=PACKAGE_VERSION,
-        policy_model_name=base_model.model_name,
-        gpu_device=device,
-        max_length=max_length,
-        temperature=temperature,
-        max_steps=max_steps,
-    ).save_config(root_dir)
+    # Note: Config saving is handled by the caller (main_env_chain.py)
+    # This allows the caller to include experiment-specific fields like benchmark, import_modules, etc.
     
     # Construct policy
     policy = EnvGroundedPolicy(

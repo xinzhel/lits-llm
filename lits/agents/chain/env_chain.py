@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
-from typing import Optional, Callable, Optional, List
-from dataclasses import dataclass, asdict
+from typing import Optional, Callable, Optional, List, Dict, Any
+from dataclasses import dataclass, field, asdict
 from ..base import BaseConfig
 from .base import ChainAgent, ChainConfig
 from ...components.policy.env_grounded import EnvGroundedPolicy
@@ -14,9 +14,25 @@ logger = logging.getLogger(__name__)
 class EnvChainConfig(ChainConfig):
     """
     Configuration for environment-grounded chain agent.
+    
+    Inherits from ChainConfig (which inherits from BaseConfig):
+        - reasoning_method: The reasoning method identifier
+        - package_version: Version of the LiTS package
+        - policy_model_name: Name of the language model
+        - gpu_device: GPU device identifier
+        - max_length: Maximum token length
+        - max_steps: Maximum number of steps (default: 30 for env_chain)
+        - temperature: Sampling temperature (default: 0.0 for deterministic)
+        - benchmark, import_modules, dataset_kwargs: Experiment metadata
+    
+    EnvChain-specific fields:
+        - goal_reached_reward: Reward when goal is reached
+        - goal_reward_default: Default reward for non-terminal states
     """
-    max_steps: int = 30  # Override default
-    temperature: float = 0.0
+    max_steps: int = 30  # Override default for env_chain
+    # EnvChain-specific reward settings
+    goal_reached_reward: float = 100.0
+    goal_reward_default: float = 0.0
 
 class EnvChain(ChainAgent[EnvState]):
     """

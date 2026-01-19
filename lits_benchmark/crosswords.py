@@ -174,29 +174,42 @@ class CrosswordsTransition(EnvGroundedTransition):
         
         Args:
             query_or_goals: Ground truth answers (newline-separated, 10 words uppercase)
+                Format: h1, h2, h3, h4, h5, v1, v2, v3, v4, v5
             env_state: Current grid state string (from render())
         
         Returns:
             (is_solved, r_word) tuple where r_word = correct_words / 10
         """
-        # Parse ground truth answers
+        # Parse ground truth answers (10 words: 5 horizontal + 5 vertical)
         answers_gt = [a.strip().upper() for a in query_or_goals.strip().split('\n') if a.strip()]
         
-        # Extract current answers from env_state
-        # Look for patterns like "h1. clue: WORD" or "v1. clue: WORD"
-        filled = re.findall(r'[hv]\d\. .+?: ([A-Z_]{5})', env_state)
+        if len(answers_gt) != 10:
+            return False, 0.0
         
-        if len(filled) != 10 or len(answers_gt) != 10:
-            # Try alternative parsing - extract from all sections
-            filled = re.findall(r': ([A-Z_]{5})', env_state)
-            if len(filled) != 10:
-                return False, 0.0
+        # Extract board from "Current Board:" section
+        board_match = re.search(r'Current Board:\n((?:[A-Z_]{5}\n){5})', env_state)
+        if not board_match:
+            return False, 0.0
         
-        # Compare answers (ignore underscores in comparison)
+        board_lines = board_match.group(1).strip().split('\n')
+        board = list(''.join(board_lines))  # 25 characters
+        
+        if len(board) != 25:
+            return False, 0.0
+        
+        # Extract 10 answers from board (5 horizontal + 5 vertical)
+        current_ans = []
+        # Horizontal (h1-h5): rows
+        for i in range(5):
+            current_ans.append(''.join(board[i*5:(i+1)*5]))
+        # Vertical (v1-v5): columns
+        for i in range(5):
+            current_ans.append(''.join(board[i::5]))
+        
+        # Compare answers
         correct = sum(
-            f.upper() == a.upper() 
-            for f, a in zip(filled, answers_gt) 
-            if '_' not in f
+            curr.upper() == gt.upper() 
+            for curr, gt in zip(current_ans, answers_gt)
         )
         r_word = correct / 10
         return r_word == 1.0, r_word

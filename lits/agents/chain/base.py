@@ -11,15 +11,20 @@ StateT = TypeVar("StateT")
 @dataclass
 class ChainConfig(BaseConfig):
     """
-    Base configuration for chain agents.
+    Base configuration for chain agents (ReAct, EnvChain, etc.).
     
     Inherits common attributes from BaseConfig:
-        - model_name: Language model name
+        - policy_model_name: Language model name
         - gpu_device: GPU device identifier
         - max_length: Maximum token length for generation
         - max_steps: Maximum number of steps (default: 10)
+        - benchmark, import_modules, dataset_kwargs: Experiment metadata
+    
+    Chain-specific attributes:
+        - temperature: Sampling temperature (0 = deterministic/greedy)
     """
     max_steps: int = 10
+    temperature: float = 0.0  # Chain agents default to deterministic generation
 
 class ChainAgent(Generic[StateT]):
     """
