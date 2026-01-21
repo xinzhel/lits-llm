@@ -572,3 +572,59 @@ print(f"Search took {time.time() - start:.2f}s")
 - `BFSResult` - BFS search result
 
 For detailed API documentation, see the source code docstrings.
+
+## FAQ
+
+### Q: Why do I only see one checkpoint file per example even with n_iters=30?
+
+This typically happens due to **mode collapse** in action generation. When the LLM generates the same actions repeatedly:
+
+1. The tree degenerates to a single path (no branching diversity)
+2. UCT selection always picks the same terminal node
+3. When `terminate_on_terminal_node=false`, selecting a terminal node triggers `continue` which skips checkpoint saving
+4. Only iteration 0 saves a checkpoint (during initial tree construction)
+
+**Solutions:**
+- Increase temperature in policy to encourage diverse action generation
+- Check if your prompt encourages varied responses
+- Verify the LLM isn't deterministically producing identical outputs
+
+### Q: What's the difference between `terminate_on_terminal_node` and `terminate_on_first_solution`?
+
+These control different aspects of MCTS termination:
+
+| Parameter | Triggers On | Effect |
+|-----------|-------------|--------|
+| `terminate_on_terminal_node=true` | Selecting ANY terminal node (depth-limited OR goal-reached) | Breaks out of current iteration, moves to next iteration |
+| `terminate_on_first_solution=true` | `node.is_terminal=True` from state itself (goal achieved) | Immediately stops entire MCTS search |
+
+**Key distinction:**
+- `terminate_on_terminal_node` checks if the **selected node** during UCT selection is terminal (either from reaching max_steps or from goal achievement)
+- `terminate_on_first_solution` only triggers when a node's state indicates the **actual goal is achieved** (via `Transition.is_terminal()`)
+
+**Example scenarios:**
+
+```python
+# Scenario 1: Feasibility checking (BlocksWorld)
+# Stop as soon as any valid plan is found
+config = BaseSearchConfig(
+    terminate_on_first_solution=True,  # Stop when goal achieved
+    terminate_on_terminal_node=True,   # Default
+)
+
+# Scenario 2: Finding best solution (Crosswords)
+# Explore all iterations to find highest-reward solution
+config = BaseSearchConfig(
+    terminate_on_first_solution=False,  # Run all iterations
+    terminate_on_terminal_node=False,   # Continue exploring even when selecting terminal nodes
+)
+```
+
+### Q: Why does my MCTS stop after iteration 0 even with `terminate_on_first_solution=false`?
+
+Check if `terminate_on_terminal_node=true` (the default). When this is enabled:
+- If UCT selection picks a terminal node, the iteration breaks immediately
+- If all paths lead to terminal nodes, every iteration breaks after selection
+- This can make it appear that only iteration 0 ran
+
+Set `terminate_on_terminal_node=false` to continue exploring other branches when a terminal node is selected.
