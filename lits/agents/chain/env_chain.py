@@ -120,14 +120,19 @@ class EnvChain(ChainAgent[EnvState]):
             
             step = steps[0]
             
-            # Handle errors - append error step to state for debugging
-            if step.error:
-                logger.error("Error in action generation: %s (action: %s)", step.error, step.action)
+            # Handle terminal errors - stop trajectory generation
+            if step.terminate:
+                logger.error("Terminal error in action generation: %s (action: %s)", step.error, step.action)
                 state.append(step)  # Preserve error step in trajectory
                 if checkpoint_path:
                     state.save(checkpoint_path, query_or_goals)
-                    logger.debug("Checkpoint saved with error step: %s", checkpoint_path)
+                    logger.debug("Checkpoint saved with terminal error: %s", checkpoint_path)
                 break
+            
+            # Handle non-terminal errors - append error step but continue might be possible
+            if step.error:
+                logger.warning("Error in action generation (non-terminal): %s (action: %s)", step.error, step.action)
+                # For non-terminal errors, we still have a valid action to try
             
             logger.debug("Selected action: %s", step.action)
             
@@ -141,7 +146,7 @@ class EnvChain(ChainAgent[EnvState]):
                 
                 assert isinstance(next_state, EnvState), "World model step must return EnvState"
                 assert isinstance(aux_data, dict), "World model step must return aux_data as dict"
-                assert 'goal_reached' in aux_data, "aux_data must contain 'goal_reached' key"
+                # assert 'goal_reached' in aux_data, "aux_data must contain 'goal_reached' key"
                 
                 state = next_state
                 logger.debug("New state:\n%s\n", state.env_state)

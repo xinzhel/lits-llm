@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, List, Union, Tuple, Optional, Callable
+from typing import Any, Generic, TypeVar, List, Union, Tuple, Optional, Callable
 from ..structures import StateT, ActionT, StepT, Step
 from ..lm.base import DETERMINISTIC_TEMPERATURE
 from ..lm import OpenAIChatModel, BedrockChatModel, HfChatModel, HfModel, LanguageModel
@@ -528,6 +528,9 @@ class Policy(ABC, Generic[StateT, ActionT]):
         # Post-generation callback for action validation/processing
         self._post_generation_fn: Optional[Callable[[List[StepT], dict], None]] = None
         
+        # LLM call callback for intercepting/logging/modifying LLM calls
+        self._llm_call_fn: Optional[Callable[..., Any]] = None
+        
         # Current memory context for LiTS-Mem integration (set per get_actions call)
         self._current_memory_context = None
         
@@ -575,12 +578,15 @@ class Policy(ABC, Generic[StateT, ActionT]):
         (set by `get_actions()`) and calls `self.base_model()`. Subclasses can use this
         in `_get_actions()` without manually passing query_idx or from_phase.
         
+        If `_llm_call_fn` is set, it's called with (prompt, response, **call_context).
+        The callback can return a modified response or None to keep the original.
+        
         Args:
             prompt: The prompt to send to the model
             **kwargs: Additional arguments passed to base_model (e.g., temperature, max_new_tokens)
         
         Returns:
-            The model response object
+            The model response object (possibly modified by hook)
         
         Example:
             ```python
@@ -592,7 +598,22 @@ class Policy(ABC, Generic[StateT, ActionT]):
         """
         from .utils import create_role
         role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
-        return self.base_model(prompt, role=role, **kwargs)
+        response = self.base_model(prompt, role=role, **kwargs)
+        
+        # Invoke callback if set
+        if self._llm_call_fn is not None:
+            fn_result = self._llm_call_fn(
+                prompt=prompt,
+                response=response,
+                query_idx=self._query_idx,
+                from_phase=self._from_phase,
+                **kwargs
+            )
+            # If callback returns something, use it as the new response
+            if fn_result is not None:
+                response = fn_result
+        
+        return response
     
     def set_dynamic_notes_fn(self, fn: Callable[[], List[str]]) -> None:
         """
@@ -650,6 +671,64 @@ class Policy(ABC, Generic[StateT, ActionT]):
         """
         self._post_generation_fn = fn
         logger.debug(f"Post-generation function set for {self.__class__.__name__}")
+    
+    def set_llm_call_fn(self, fn: Callable[..., Any]) -> None:
+        """
+        Set a callback to intercept LLM calls for logging, caching, or response modification.
+        
+        The callback is invoked after each `_call_model()` with full context:
+            fn(prompt=str, response=obj, query_idx=int, from_phase=str, **kwargs)
+        
+        The callback can:
+        - Return None: Keep original response (use for logging/side effects)
+        - Return a value: Replace the response (use for mocking/caching/modification)
+        
+        Args:
+            fn: Callable that receives (prompt, response, query_idx, from_phase, **kwargs)
+        
+        Example - Logging with prompt hash:
+            ```python
+            import hashlib
+            records = []
+            
+            def log_calls(prompt, response, **kwargs):
+                records.append({
+                    "prompt_hash": hashlib.md5(prompt.encode()).hexdigest()[:12],
+                    "output": response.text,
+                    "temperature": kwargs.get('temperature'),
+                })
+                return None  # Keep original response
+            
+            policy.set_llm_call_fn(log_calls)
+            ```
+        
+        Example - Response caching:
+            ```python
+            cache = {}
+            
+            def cache_fn(prompt, response, **kwargs):
+                key = hashlib.md5(prompt.encode()).hexdigest()
+                if key not in cache:
+                    cache[key] = response
+                return cache[key]  # Return cached response
+            
+            policy.set_llm_call_fn(cache_fn)
+            ```
+        
+        Example - Mock responses for testing:
+            ```python
+            from unittest.mock import MagicMock
+            
+            def mock_fn(prompt, response, **kwargs):
+                mock = MagicMock()
+                mock.text = "mocked action"
+                return mock
+            
+            policy.set_llm_call_fn(mock_fn)
+            ```
+        """
+        self._llm_call_fn = fn
+        logger.debug(f"LLM call function set for {self.__class__.__name__}")
     
     def _get_dynamic_notes(self) -> str:
         """

@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 class Step(ABC):
     # error attribute to capture any errors during step generation
     error: Union[None, str] = None
+    # terminate flag: if True, this error should stop trajectory generation
+    terminate: bool = False
     
     def to_dict(self) -> dict:
         """Serialize the step for checkpointing."""
@@ -15,6 +17,8 @@ class Step(ABC):
 
         if self.error is not None:
             data["error"] = self.error
+        if self.terminate:
+            data["terminate"] = self.terminate
         return data
     
     def verb_step(self) -> str:

@@ -32,6 +32,7 @@ class EnvStep(Step):
             action=EnvAction(action_str) if action_str else None,
             next_state=payload.get("next_state"),
             error=payload.get("error"),
+            terminate=payload.get("terminate", False),
         )
 
     def verb_step(self) -> str:

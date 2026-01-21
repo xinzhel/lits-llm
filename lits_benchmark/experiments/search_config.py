@@ -381,6 +381,7 @@ class ExperimentConfig:
         Uses dataclasses.asdict() and filters out fields that are not part of the
         search configuration (e.g., logging settings, local execution parameters).
         Adds gpu_device dynamically based on available hardware.
+        Maps benchmark_name to benchmark for BaseConfig compatibility.
         
         Returns:
             Dictionary with all search-relevant configuration parameters
@@ -394,6 +395,9 @@ class ExperimentConfig:
         
         # Add dynamic gpu_device field
         config_dict["gpu_device"] = torch.cuda.get_device_name(0).lower() if torch.cuda.is_available() else "cpu"
+        
+        # Map benchmark_name to benchmark for BaseConfig compatibility
+        config_dict["benchmark"] = self.benchmark_name
         
         return config_dict
     

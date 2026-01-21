@@ -105,7 +105,6 @@ class EnvGroundedPolicy(Policy):
         # Note: Domain-specific prompt validation removed to enable component reusability
         # across different env_grounded tasks (BlocksWorld, Crosswords, etc.)
 
-
     def _create_error_steps(self, n_actions: int, error_msg: str) -> List[EnvStep]:
         """Create EnvStep error steps for EnvGroundedPolicy."""
         return [EnvStep(action=EnvAction(""), error=error_msg) for _ in range(n_actions)]
@@ -215,37 +214,85 @@ class EnvGroundedPolicy(Policy):
         
         return action
 
-    def _create_fallback_step(
-        self, 
-        selected_actions: List[str], 
-        valid_actions: List[str], 
-        last_invalid_action: Optional[str],
-        max_retries: int,
-        allow_duplicates: bool
+    def _generate_action_with_retry(
+        self,
+        env_state: str,
+        query: str,
+        valid_actions: List[str],
+        selected_actions: List[str],
+        base_temperature: float,
+        allow_duplicates: bool,
+        max_retries: int = 3,
+        temperature_increment: float = 0.2
     ) -> EnvStep:
-        """Create a fallback or error step when validation fails.
+        """Generate a single valid action with retry and temperature escalation on duplicates.
+        
+        When a duplicate action is detected (and allow_duplicates=False), this method
+        retries with progressively higher temperature to encourage diverse generation.
+        This is particularly useful for infinite action spaces (e.g., Crosswords) where
+        there's no valid_actions list to fall back to.
+        
+        Fallback behavior when max_retries exhausted:
+        - Finite action space (valid_actions non-empty): Returns first unselected valid action
+        - Infinite action space (valid_actions empty): Returns last attempted action with error
         
         Args:
-            selected_actions: Actions already selected
-            valid_actions: All valid actions (empty for infinite action spaces)
-            last_invalid_action: The last invalid action attempted
-            max_retries: Number of retries attempted
-            allow_duplicates: Whether duplicates are allowed
+            env_state: Current environment state string
+            query: Goal description or query context
+            valid_actions: List of valid actions (may be empty for infinite action spaces)
+            selected_actions: Actions already selected (for duplicate detection)
+            base_temperature: Initial sampling temperature
+            allow_duplicates: Whether to allow duplicate actions
+            max_retries: Maximum retry attempts for duplicates (default: 3)
+            temperature_increment: Temperature increase per retry (default: 0.2)
         
         Returns:
-            EnvStep with fallback action or error
+            EnvStep with valid action, or error step if all retries exhausted
         """
-        if valid_actions:
-            # Finite action space: fall back to first available valid action
-            fallback_actions = [a for a in valid_actions if a not in selected_actions] if not allow_duplicates else valid_actions
-            if fallback_actions:
-                return EnvStep(action=EnvAction(fallback_actions[0]))
-            return EnvStep(action=EnvAction(valid_actions[0]))
+        prompt = self._build_prompt(env_state, query, valid_actions)
+        temperature = base_temperature
+        last_action = None  # Track last action (invalid or duplicate)
         
-        # Infinite action space: no fallback, return error step with invalid action
+        for attempt in range(1, max_retries + 1):
+            response = self._call_model(prompt, temperature=temperature).text
+            action = self._parse_llm_response(response, valid_actions)
+            last_action = action  # Always track the last attempted action
+            
+            # Check validity first
+            if not self._is_valid_action(env_state, action, valid_actions):
+                logger.warning(f"Invalid action (attempt {attempt}/{max_retries}): '{action}'")
+                temperature = min(temperature + temperature_increment, 1.0)
+                continue
+            
+            # Check for duplicates (only if not allowing duplicates)
+            if not allow_duplicates and action in selected_actions:
+                logger.warning(
+                    f"Duplicate action detected (attempt {attempt}/{max_retries}): '{action}'. "
+                    f"Retrying with temperature={temperature + temperature_increment:.2f}"
+                )
+                temperature = min(temperature + temperature_increment, 1.0)
+                continue
+            
+            # Valid and non-duplicate action found
+            return EnvStep(action=EnvAction(action))
+        
+        # All retries exhausted - create fallback step with error
+        logger.error(f"Max retries ({max_retries}) exceeded for action generation.")
+        
+        # Finite action space: fall back to first unselected valid action
+        if valid_actions:
+            unselected = [a for a in valid_actions if a not in selected_actions]
+            fallback_action = unselected[0] if unselected else valid_actions[0]
+            return EnvStep(
+                action=EnvAction(fallback_action),
+                error=f"LLM failed after {max_retries} retries; using fallback action"
+            )
+        
+        # Infinite action space: return last attempted action with terminal error
         return EnvStep(
-            action=EnvAction(last_invalid_action) if last_invalid_action else None,
-            error=f"Validation failed after {max_retries} retries"
+            action=EnvAction(last_action) if last_action else EnvAction(""),
+            error=f"Validation failed after {max_retries} retries",
+            terminate=True  # Signal agent to stop this trajectory
         )
 
     def _generate_single_action(
@@ -256,9 +303,13 @@ class EnvGroundedPolicy(Policy):
         selected_actions: List[str],
         temperature: float,
         allow_duplicates: bool,
-        max_retries: int = 1
+        max_retries: int = 3,
+        temperature_increment: float = 0.2
     ) -> EnvStep:
         """Generate a single valid action using the LLM.
+        
+        This is a convenience wrapper around _generate_action_with_retry.
+        For infinite action spaces, uses temperature escalation to avoid duplicates.
         
         Args:
             env_state: Current environment state string
@@ -267,30 +318,21 @@ class EnvGroundedPolicy(Policy):
             selected_actions: Actions already selected (for duplicate handling)
             temperature: Sampling temperature
             allow_duplicates: Whether to allow duplicate actions
-            max_retries: Maximum retry attempts for invalid actions
+            max_retries: Maximum retry attempts for invalid/duplicate actions
+            temperature_increment: Temperature increase per retry (default: 0.2)
         
         Returns:
             EnvStep with valid action or error
         """
-        prompt = self._build_prompt(env_state, query, valid_actions)
-        last_invalid_action = None
-        
-        for attempt in range(1, max_retries + 1):
-            response = self._call_model(prompt, temperature=temperature).text
-            action = self._parse_llm_response(response, valid_actions)
-            last_invalid_action = action
-            
-            if self._is_valid_action(env_state, action, valid_actions):
-                if not allow_duplicates:
-                    action = self._handle_duplicate(action, selected_actions, valid_actions)
-                return EnvStep(action=EnvAction(action))
-            
-            logger.warning(f"Invalid action (attempt {attempt}/{max_retries}): '{action}'")
-        
-        # All retries exhausted
-        logger.error(f"Max retries ({max_retries}) exceeded for action generation.")
-        return self._create_fallback_step(
-            selected_actions, valid_actions, last_invalid_action, max_retries, allow_duplicates
+        return self._generate_action_with_retry(
+            env_state=env_state,
+            query=query,
+            valid_actions=valid_actions,
+            selected_actions=selected_actions,
+            base_temperature=temperature,
+            allow_duplicates=allow_duplicates,
+            max_retries=max_retries,
+            temperature_increment=temperature_increment
         )
 
     def _get_actions(

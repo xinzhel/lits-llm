@@ -88,7 +88,20 @@ class EnvGroundedPRM(RewardModel):
     
     def reward(self, state: EnvState, action: EnvAction,
                fast_reward: float = None,
-               goal_reached: tuple[bool, float] = None) -> float:
+               goal_reached: tuple[bool, float] = None,
+               **kwargs) -> float:
+        """Calculate final reward for an action.
+        
+        Args:
+            state: Current environment state
+            action: Action taken
+            fast_reward: Pre-computed fast reward score
+            goal_reached: Tuple of (is_goal_reached, partial_score) from transition
+            **kwargs: Additional info from transition (e.g., r_word, message) - ignored
+        
+        Returns:
+            Final reward score
+        """
         # intuition is not used in this generative model
         assert fast_reward is not None, "fast_reward is required to calculate reward in this search config, consider passing it in fast_reward"
         assert goal_reached is not None, "goal_reached is required to calculate reward in this search config, consider passing it in world model's step"

@@ -61,7 +61,9 @@ def _expand(
     is_terminal_for_repeats = []
     for step in steps:
         action = step.get_action()  # Extract action from Step object
-        is_terminal_for_repeats.append(True if action == "ALWAY REPEAT. TERMINATE" else False)
+        # Mark as terminal if action is repeat sentinel OR step has terminate flag
+        is_terminal = (action == "ALWAY REPEAT. TERMINATE") or getattr(step, 'terminate', False)
+        is_terminal_for_repeats.append(is_terminal)
 
     # Determine the starting index for new children (to handle existing children)
     existing_children_count = len(node.children)
@@ -136,8 +138,8 @@ def _expand_with_existing(
             child_index=child_idx
         )
 
-        # Assign terminal-for-repeat
-        child.is_terminal_for_repeat = (action == "ALWAY REPEAT. TERMINATE")
+        # Assign terminal-for-repeat: check both repeat sentinel and step.terminate flag
+        child.is_terminal_for_repeat = (action == "ALWAY REPEAT. TERMINATE") or getattr(step, 'terminate', False)
 
         # Assign fast_reward using common helper
         if assign_rewards and (child.fast_reward == -1):

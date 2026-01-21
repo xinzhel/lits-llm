@@ -1,37 +1,28 @@
-# Dynamic Notes Injection via Callbacks
+# Policy Callback Functions
 
 ## Overview
 
-The Policy component supports injecting dynamic notes from external sources (memory systems, databases, files) into the system prompt at runtime. This enables context-aware action generation by incorporating relevant information that changes during agent execution.
+The Policy component provides three callback mechanisms for extending behavior at different stages of action generation:
 
-## Use Cases
-
-- **Cross-trajectory Memory**: Inject learnings from previous problem-solving attempts
-- **User Preferences**: Include user-specific preferences or constraints
-- **Error Context**: Add information about past errors to avoid repeating mistakes
-- **Task-specific Hints**: Dynamically provide relevant hints based on current state
-- **Adaptive Guidance**: Adjust agent behavior based on performance metrics
-
-## How It Works
-
-1. Define a callback function that returns `List[str]` of notes
-2. Register the callback with `policy.set_dynamic_notes_fn(callback)`
-3. Notes are automatically retrieved and appended to the system prompt during each `get_actions()` call
-4. Notes are formatted as bullet points at the end of the system prompt
+| Callback | When Invoked | Purpose |
+|----------|--------------|---------|
+| `set_dynamic_notes_fn` | Before LLM call (prompt construction) | Inject dynamic context into system prompt |
+| `set_llm_call_fn` | After each LLM call | Intercept, log, cache, or modify LLM responses |
+| `set_post_generation_fn` | After all actions generated | Validate or process generated actions |
 
 ## API Reference
 
 ### `Policy.set_dynamic_notes_fn(fn: Callable[[], List[str]])`
 
-Register a callback function to provide dynamic notes for system prompt injection.
+Register a callback to provide dynamic notes for system prompt injection.
 
 **Parameters:**
-- `fn`: A callable that takes no arguments and returns `List[str]` of note strings
+- `fn`: Callable that returns `List[str]` of note strings
 
 **Example:**
 ```python
 def get_notes() -> List[str]:
-    return ["Note 1", "Note 2", "Note 3"]
+    return ["User prefers step-by-step explanations", "Avoid division by zero"]
 
 policy.set_dynamic_notes_fn(get_notes)
 ```
@@ -48,9 +39,98 @@ Additional Notes:
 * note3
 ```
 
-## Basic Usage
+### `Policy.set_llm_call_fn(fn: Callable[..., Any])`
 
-### Simple Static Notes
+Register a callback to intercept LLM calls for logging, caching, or response modification.
+
+**Parameters:**
+- `fn`: Callable that receives `(prompt, response, query_idx, from_phase, **kwargs)`
+
+**Return behavior:**
+- Return `None`: Keep original response (use for logging/side effects)
+- Return a value: Replace the response (use for mocking/caching/modification)
+
+**Example - Logging:**
+```python
+import hashlib
+records = []
+
+def log_calls(prompt, response, **kwargs):
+    records.append({
+        "prompt_hash": hashlib.md5(prompt.encode()).hexdigest()[:12],
+        "output": response.text,
+        "temperature": kwargs.get('temperature'),
+    })
+    return None  # Keep original response
+
+policy.set_llm_call_fn(log_calls)
+```
+
+**Example - Caching:**
+```python
+cache = {}
+
+def cache_fn(prompt, response, **kwargs):
+    key = hashlib.md5(prompt.encode()).hexdigest()
+    if key not in cache:
+        cache[key] = response
+    return cache[key]  # Return cached response
+
+policy.set_llm_call_fn(cache_fn)
+```
+
+**Example - Mock for testing:**
+```python
+from unittest.mock import MagicMock
+
+def mock_fn(prompt, response, **kwargs):
+    mock = MagicMock()
+    mock.text = "mocked action"
+    return mock
+
+policy.set_llm_call_fn(mock_fn)
+```
+
+### `Policy.set_post_generation_fn(fn: Callable[[List[StepT], dict], None])`
+
+Register a callback to process/validate actions after generation.
+
+**Parameters:**
+- `fn`: Callable that receives `(steps, context)` where:
+  - `steps`: List of generated Step objects
+  - `context`: dict with `query`, `query_idx`, `state`, `policy_model_name`, `task_name`
+
+**Example:**
+```python
+def validate_sql(steps, context):
+    for step in steps:
+        result = validator.validate(step, query_idx=context.get('query_idx'))
+        if result and not result['is_valid']:
+            logger.warning(f"Invalid SQL: {result['issue']}")
+
+policy.set_post_generation_fn(validate_sql)
+```
+
+---
+
+## Dynamic Notes Injection
+
+### Use Cases
+
+- **Cross-trajectory Memory**: Inject learnings from previous problem-solving attempts
+- **User Preferences**: Include user-specific preferences or constraints
+- **Error Context**: Add information about past errors to avoid repeating mistakes
+- **Task-specific Hints**: Dynamically provide relevant hints based on current state
+- **Adaptive Guidance**: Adjust agent behavior based on performance metrics
+
+### How It Works
+
+1. Define a callback function that returns `List[str]` of notes
+2. Register the callback with `policy.set_dynamic_notes_fn(callback)`
+3. Notes are automatically retrieved and appended to the system prompt during each `get_actions()` call
+4. Notes are formatted as bullet points at the end of the system prompt
+
+### Basic Usage
 
 ```python
 from lits.components.policy.concat import ConcatPolicy
@@ -89,9 +169,9 @@ Additional Notes:
 * Verify answers when possible
 ```
 
-## Integration with Memory Systems
+### Integration with Memory Systems
 
-### Using mem0 Backend
+#### Using mem0 Backend
 
 ```python
 from lits.memory.manager import MemoryManager
@@ -126,7 +206,7 @@ def get_memory_notes() -> List[str]:
 policy.set_dynamic_notes_fn(get_memory_notes)
 ```
 
-### Custom Memory Backend
+#### Custom Memory Backend
 
 ```python
 class CustomMemoryBackend:
@@ -154,9 +234,9 @@ def get_db_notes() -> List[str]:
 policy.set_dynamic_notes_fn(get_db_notes)
 ```
 
-## Advanced Patterns
+### Advanced Patterns
 
-### State-dependent Notes
+#### State-dependent Notes
 
 ```python
 def get_state_dependent_notes(state, query) -> Callable[[], List[str]]:
@@ -187,7 +267,7 @@ for step in range(max_steps):
     # ... process actions
 ```
 
-### Multi-source Notes Aggregation
+#### Multi-source Notes Aggregation
 
 ```python
 class NotesAggregator:
@@ -224,7 +304,7 @@ aggregator.add_source("errors", lambda: error_tracker.get_recent_errors(limit=1)
 policy.set_dynamic_notes_fn(aggregator.get_all_notes)
 ```
 
-### Conditional Notes with Caching
+#### Conditional Notes with Caching
 
 ```python
 class CachedNotesProvider:
@@ -259,9 +339,58 @@ provider = CachedNotesProvider(ttl_seconds=30)
 policy.set_dynamic_notes_fn(provider.get_notes)
 ```
 
+---
+
+## LLM Call Interception
+
+### Use Cases
+
+- **Logging**: Record all LLM calls for analysis (prompt hash, output, temperature)
+- **Caching**: Return cached responses for identical prompts
+- **Mocking**: Replace LLM responses for testing without API calls
+- **Response Modification**: Filter or sanitize LLM outputs
+- **Diversity Analysis**: Analyze duplicate generation patterns in tree search
+
+### Diversity Analysis Example
+
+```python
+import hashlib
+from collections import defaultdict
+
+records = []
+
+def log_calls(prompt, response, **kwargs):
+    records.append({
+        "prompt_hash": hashlib.md5(prompt.encode()).hexdigest()[:12],
+        "output": response.text,
+        "temperature": kwargs.get('temperature'),
+        "query_idx": kwargs.get('query_idx'),
+        "from_phase": kwargs.get('from_phase'),
+    })
+    return None
+
+policy.set_llm_call_fn(log_calls)
+
+# Run search...
+# mcts(...) or bfs_topk(...)
+
+# Analysis: find duplicates under same prompt
+by_prompt = defaultdict(list)
+for r in records:
+    by_prompt[r['prompt_hash']].append(r['output'])
+
+for prompt_hash, outputs in by_prompt.items():
+    unique = len(set(outputs))
+    total = len(outputs)
+    dup_rate = (total - unique) / total if total > 0 else 0
+    print(f"Prompt {prompt_hash}: {unique}/{total} unique ({dup_rate:.1%} duplicates)")
+```
+
+---
+
 ## Error Handling
 
-The framework handles errors gracefully:
+All callbacks handle errors gracefully:
 
 ```python
 def failing_notes_fn() -> List[str]:
@@ -279,6 +408,8 @@ actions = policy.get_actions(state, query=query)  # Works fine
 - Empty string is returned (no notes appended)
 - Agent execution continues normally
 - Full traceback is logged for debugging
+
+---
 
 ## Best Practices
 
@@ -346,6 +477,8 @@ def test_notes_callback():
     assert all(len(note) < 200 for note in notes)  # Not too long
 ```
 
+---
+
 ## Implementation Details
 
 ### System Prompt Construction Flow
@@ -386,6 +519,8 @@ class MyCustomPolicy(Policy):
         return self.task_prompt_spec
 ```
 
+---
+
 ## Testing
 
 See `lits_llm/unit_test/components/test_dynamic_notes.py` for comprehensive test examples:
@@ -402,6 +537,8 @@ python unit_test/components/test_dynamic_notes.py
 - Memory backend integration
 - Error handling and recovery
 - Multiple sources aggregation
+
+---
 
 ## Related Components
 

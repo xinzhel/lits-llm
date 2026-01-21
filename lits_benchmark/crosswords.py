@@ -497,7 +497,7 @@ class CrosswordsTransition(EnvGroundedTransition):
         Returns:
             (new_state, info) tuple where:
             - new_state: EnvState with updated env_state string
-            - info: Dict with 'r_word' (word accuracy), 'message' (error if any)
+            - info: Dict with 'goal_reached' (tuple), 'message' (error if any)
         """
         # Extract action string from step_or_action
         # - EnvStep (from tree search): has .action attribute -> EnvAction
@@ -525,8 +525,7 @@ class CrosswordsTransition(EnvGroundedTransition):
         is_solved, r_word = self.goal_check(query_or_goals, new_env_state)
         
         info = {
-            'r_word': r_word,
-            'goal_reached': is_solved,  # Required by env_chain.py and tree search
+            'goal_reached': (is_solved, r_word),  # Tuple format required by EnvGroundedPRM.reward()
             'message': message,
         }
         
@@ -597,12 +596,15 @@ class CrosswordsTransition(EnvGroundedTransition):
             'clues': clues,
         }
     
-    def _is_terminal(self, state: EnvState, query_or_goals: str) -> bool:
-        """Check if state is terminal (puzzle solved or max steps reached).
+    def _is_terminal(self, state: EnvState, query_or_goals: str, **kwargs) -> bool:
+        """Check if state is terminal (all positions filled or max steps reached).
+        
+        Note: We do NOT check correctness here to avoid leaking ground truth.
+        Terminal = all cells filled OR max steps reached.
         
         Args:
             state: Current EnvState
-            query_or_goals: Ground truth answers
+            query_or_goals: Ground truth answers (unused, kept for interface compatibility)
         
         Returns:
             True if terminal state
@@ -611,9 +613,11 @@ class CrosswordsTransition(EnvGroundedTransition):
         if len(state) >= 20:
             return True
         
-        # Check if solved
-        is_solved, _ = self.goal_check(query_or_goals, state.env_state)
-        return is_solved
+        # Check if all positions are filled (no underscores in board)
+        state_data = self._parse_state(state.env_state)
+        board = state_data.get('board', ['_'] * 25)
+        all_filled = '_' not in board
+        return all_filled
 
 
 # =============================================================================

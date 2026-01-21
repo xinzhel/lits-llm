@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-01-21  v0.2.8
+
+### Added
+- `create_llm_call_logger()` factory for incremental LLM call logging (`lits/eval/llm_call_logger.py`)
+- `load_llm_calls()`, `get_diversity_stats()`, `print_diversity_report()` analysis functions
+- `normalize_crosswords_action()`, `parse_crosswords_correct_actions()` for crosswords analysis
+- LLM call logging integration in `main_search.py`
+
+## 2026-01-20  v0.2.8
+
+### Added
+- `Step.terminate` field to signal fatal errors that should stop trajectory generation (`lits/structures/base.py`)
+- `EnvGroundedPolicy._generate_action_with_retry()` with temperature escalation for duplicate action avoidance (`lits/components/policy/env_grounded.py`)
+  - Note: BlocksWorld MCTS results were generated with `max_retries=1` without temperature-incremented re-generation
+- `Policy.set_llm_call_fn()` callback for intercepting LLM calls (`lits/components/base.py`)
+
+### Changed
+- `EnvStep.from_dict()` deserializes `terminate` field (`lits/structures/env_grounded.py`)
+- `EnvGroundedPolicy` fallback behavior: finite action space uses unselected valid action; infinite action space sets `terminate=True`
+- `EnvChain.run()` now checks `step.terminate` to stop trajectory on fatal errors (`lits/agents/chain/env_chain.py`)
+- `bfs._expand()` and `bfs._expand_with_existing()` check `step.terminate` to mark nodes as terminal (`lits/agents/tree/bfs.py`)
+- `mcts._expand()` checks `step.terminate` to mark nodes as terminal (`lits/agents/tree/mcts.py`)
+
 ## 2026-01-19  v0.2.8
 ## Fixed
 - `goal_check` was incorrectly parsing answers from Filled/Changed sections

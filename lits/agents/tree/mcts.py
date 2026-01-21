@@ -273,8 +273,8 @@ def _expand(
             child_index=child_idx
         )
         
-        # Assign terminal-for-repeat
-        child.is_terminal_for_repeat = (action == "ALWAY REPEAT. TERMINATE")
+        # Assign terminal-for-repeat: check both repeat sentinel and step.terminate flag
+        child.is_terminal_for_repeat = (action == "ALWAY REPEAT. TERMINATE") or getattr(step, 'terminate', False)
 
         # assign rewards
         if assign_rewards:
