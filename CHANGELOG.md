@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-01-22 v0.2.8
+
+### Added
+- `docs/agents/TREE_SEARCH_GUIDE.md`: FAQ section explaining MCTS termination behavior
+
 ## 2026-01-21  v0.2.8
 
 ### Added
@@ -11,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `load_llm_calls()`, `get_diversity_stats()`, `print_diversity_report()` analysis functions
 - `normalize_crosswords_action()`, `parse_crosswords_correct_actions()` for crosswords analysis
 - LLM call logging integration in `main_search.py`
+
+### Fixed
+- `eval_search.py`: Sort terminal nodes by cumulative reward before selecting best for env_grounded tasks
+- `main_search.py`: Map `--override` CLI flag to `config.override_log_result`
 
 ## 2026-01-20  v0.2.8
 
