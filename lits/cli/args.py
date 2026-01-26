@@ -23,10 +23,19 @@ class CLIArgs:
     var_args: Optional[List[str]] = None  # --var KEY=VALUE for script variables
     override: bool = False  # Override existing results
     dataset_args: Optional[List[str]] = None  # --dataset-arg KEY=VALUE
+    # New explicit flags (Task 5.1)
+    dataset: Optional[str] = None  # --dataset (replaces --cfg benchmark_name=...)
+    search_framework: Optional[str] = None  # --search_framework (e.g., rest, rap)
+    policy: Optional[str] = None  # --policy (override framework default)
+    transition: Optional[str] = None  # --transition (override framework default)
+    reward: Optional[str] = None  # --reward (override framework default)
 
 
 def create_experiment_parser(description: str = "Run LiTS experiment") -> argparse.ArgumentParser:
     """Create argument parser for LiTS experiment scripts.
+    
+    This parser is shared by both tree search (main_search.py) and chain agents
+    (main_env_chain.py). Tree-search specific flags are ignored by chain agents.
     
     Args:
         description: Description shown in --help
@@ -38,36 +47,54 @@ def create_experiment_parser(description: str = "Run LiTS experiment") -> argpar
         description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Dataset Selection:
+  --dataset             Dataset/benchmark name (e.g., math500, crosswords, blocksworld)
+                        Takes precedence over --cfg benchmark_name=...
+
+Tree Search Flags (main_search.py only, ignored by chain agents):
+  --search_framework    Search framework (e.g., rest, rap). Custom via --import
+  --policy              Policy component override (e.g., concat, rap)
+  --transition          Transition component override (e.g., concat, rap)
+  --reward              Reward model override (e.g., generative, thinkprm)
+
 Config Fields (--cfg):
-  Common config fields that can be set via --cfg KEY=VALUE:
-    benchmark           Benchmark name (blocksworld, crosswords, gsm8k, ...)
-    policy_model_name   LLM model identifier (bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0)
-    max_steps           Maximum reasoning steps (default: 10-30 depending on agent)
-    temperature         Sampling temperature (0.0 = deterministic)
+  Override any config field via --cfg KEY=VALUE:
+    n_actions           Number of actions per step (default: 3)
+    max_steps           Maximum reasoning steps (default: 10)
+    n_iters             MCTS iterations (default: 50)
+    policy_model_name   LLM model identifier
+    eval_model_name     Evaluation model identifier
     
 Script Variables (--var):
   Execution settings (not saved to config):
     offset              Start index for dataset slicing (default: 0)
     limit               Number of examples to run (default: None = all)
 
-Examples:
-  # Run with default config
-  python main_env_chain.py
+Examples (Tree Search - main_search.py):
+  # env_grounded task
+  python main_search.py --dataset crosswords --import lits_benchmark.crosswords
   
-  # Test dataset loading
-  python main_env_chain.py --dry-run
+  # language_grounded with built-in framework
+  python main_search.py --dataset math500 --search_framework rest
   
-  # Switch benchmark and model
-  python main_env_chain.py --cfg benchmark=crosswords policy_model_name=gpt-4
+  # Custom framework with reward override
+  python main_search.py --dataset math500 --search_framework rap \\
+      --import lits_benchmark.formulations.rap --reward thinkprm
+
+Examples (Chain Agent - main_env_chain.py):
+  # Run chain agent on blocksworld
+  python main_env_chain.py --dataset blocksworld
   
-  # Run subset of examples
-  python main_env_chain.py --var offset=10 limit=5
+  # Run on crosswords with custom data file
+  python main_env_chain.py --dataset crosswords --import lits_benchmark.crosswords \\
+      --dataset-arg data_file=crosswords/data/mini0505.json
+
+Common Options:
+  # Test dataset loading without running
+  python main_search.py --dataset math500 --dry-run
   
-  # Full example with custom module
-  python main_env_chain.py --import lits_benchmark.crosswords \\
-      --cfg benchmark=crosswords max_steps=20 \\
-      --dataset-arg data_file=crosswords/data/mini0505.json \\
-      --var offset=0 limit=10
+  # Run subset with config overrides
+  python main_search.py --dataset math500 --cfg n_actions=5 --var offset=0 limit=50
 """
     )
     
@@ -121,6 +148,42 @@ Examples:
         help="Dataset loader kwargs (e.g., --dataset-arg data_file=path/to/data.json)"
     )
     
+    # New explicit flags (Task 5.1)
+    parser.add_argument(
+        "--dataset",
+        dest="dataset",
+        type=str,
+        help="Dataset/benchmark name (e.g., math500, crosswords). Takes precedence over --cfg benchmark_name=..."
+    )
+    
+    parser.add_argument(
+        "--search_framework",
+        dest="search_framework",
+        type=str,
+        help="Search framework (e.g., rest, rap, tot_bfs). Custom frameworks via --import"
+    )
+    
+    parser.add_argument(
+        "--policy",
+        dest="policy",
+        type=str,
+        help="Policy component name (override framework default)"
+    )
+    
+    parser.add_argument(
+        "--transition",
+        dest="transition",
+        type=str,
+        help="Transition component name (override framework default)"
+    )
+    
+    parser.add_argument(
+        "--reward",
+        dest="reward",
+        type=str,
+        help="Reward model name (override framework default)"
+    )
+    
     return parser
 
 
@@ -144,6 +207,12 @@ def parse_experiment_args(args: List[str] = None, description: str = "Run LiTS e
         var_args=parsed.var_args,
         override=parsed.override,
         dataset_args=parsed.dataset_args,
+        # New explicit flags
+        dataset=parsed.dataset,
+        search_framework=parsed.search_framework,
+        policy=parsed.policy,
+        transition=parsed.transition,
+        reward=parsed.reward,
     )
 
 

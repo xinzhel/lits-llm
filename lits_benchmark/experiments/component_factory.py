@@ -228,7 +228,7 @@ def create_components_env_grounded(
     max_steps: int,
     force_terminating_on_depth_limit: bool,
     max_length: int,
-    benchmark_name: str = "blocksworld"
+    dataset: str = "blocksworld"
 ) -> Tuple:
     """
     Create components for environment-grounded tasks (e.g., BlocksWorld) with tree search.
@@ -251,30 +251,30 @@ def create_components_env_grounded(
     Args:
         base_model: LLM for policy (action generation)
         eval_base_model: LLM for reward model (action evaluation)
-        task_name: Task name for prompt lookup (uses benchmark_name)
+        task_name: Task name for prompt lookup
         n_actions: Number of actions to generate per step
         max_steps: Maximum steps in trajectory
         force_terminating_on_depth_limit: Whether to force termination at depth limit
         max_length: Maximum token length for generation
-        benchmark_name: Benchmark name (e.g., 'blocksworld')
+        dataset: Dataset name (e.g., 'blocksworld')
         
     Returns:
         Tuple of (world_model, policy, evaluator)
         
     Raises:
-        KeyError: If benchmark_name Transition is not found in the ComponentRegistry
+        KeyError: If dataset Transition is not found in the ComponentRegistry
     """
     from lits.components.registry import ComponentRegistry
     
     # Look up Transition class from registry (required)
     try:
-        TransitionCls = ComponentRegistry.get_transition(benchmark_name)
+        TransitionCls = ComponentRegistry.get_transition(dataset)
     except KeyError:
         available = ComponentRegistry.list_by_task_type("env_grounded")
         raise KeyError(
-            f"Benchmark '{benchmark_name}' not found in ComponentRegistry. "
-            f"Available env_grounded benchmarks: {available}. "
-            f"Did you forget to import the module containing @register_transition('{benchmark_name}')?"
+            f"Dataset '{dataset}' not found in ComponentRegistry. "
+            f"Available env_grounded datasets: {available}. "
+            f"Did you forget to import the module containing @register_transition('{dataset}')?"
         )
     
     # Access goal_check via Transition class static method (required)
@@ -293,7 +293,7 @@ def create_components_env_grounded(
     
     # Look up Policy class from registry (optional, fallback to EnvGroundedPolicy)
     try:
-        PolicyCls = ComponentRegistry.get_policy(benchmark_name)
+        PolicyCls = ComponentRegistry.get_policy(dataset)
     except KeyError:
         PolicyCls = EnvGroundedPolicy  # Default for all env_grounded tasks
     
@@ -312,7 +312,7 @@ def create_components_env_grounded(
     
     # Look up RewardModel class from registry (optional, fallback to EnvGroundedPRM)
     try:
-        RewardModelCls = ComponentRegistry.get_reward_model(benchmark_name)
+        RewardModelCls = ComponentRegistry.get_reward_model(dataset)
     except KeyError:
         RewardModelCls = EnvGroundedPRM  # Default for all env_grounded tasks
     
@@ -428,7 +428,7 @@ def create_components(
             max_steps=config.max_steps,
             force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,
             max_length=config.max_length,
-            benchmark_name=config.benchmark_name
+            dataset=config.dataset
         )
     
     elif reasoning_method in ["rest", "bfs"] and task_type == "language_grounded":

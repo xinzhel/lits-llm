@@ -23,7 +23,7 @@ class EnvChainConfig(ChainConfig):
         - max_length: Maximum token length
         - max_steps: Maximum number of steps (default: 30 for env_chain)
         - temperature: Sampling temperature (default: 0.0 for deterministic)
-        - benchmark, import_modules, dataset_kwargs: Experiment metadata
+        - dataset, import_modules, dataset_kwargs: Experiment metadata
     
     EnvChain-specific fields:
         - goal_reached_reward: Reward when goal is reached

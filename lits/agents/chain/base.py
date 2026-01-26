@@ -18,7 +18,7 @@ class ChainConfig(BaseConfig):
         - gpu_device: GPU device identifier
         - max_length: Maximum token length for generation
         - max_steps: Maximum number of steps (default: 10)
-        - benchmark, import_modules, dataset_kwargs: Experiment metadata
+        - dataset, import_modules, dataset_kwargs: Experiment metadata
     
     Chain-specific attributes:
         - temperature: Sampling temperature (0 = deterministic/greedy)

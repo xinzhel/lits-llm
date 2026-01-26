@@ -27,8 +27,8 @@ from lits.components.registry import ComponentRegistry
 class MockConfig:
     """Mock configuration object for testing component_factory."""
     
-    def __init__(self, benchmark_name: str = "blocksworld"):
-        self.benchmark_name = benchmark_name
+    def __init__(self, dataset: str = "blocksworld"):
+        self.dataset = dataset
         self.n_actions = 5
         self.max_steps = 10
         self.force_terminating_on_depth_limit = True
@@ -58,7 +58,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
         base_model = MagicMock()
         eval_base_model = MagicMock()
         
-        config = MockConfig(benchmark_name="blocksworld")
+        config = MockConfig(dataset="blocksworld")
         
         # Create components - should use registry
         world_model, policy, evaluator = create_components_env_grounded(
@@ -69,7 +69,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
             max_steps=config.max_steps,
             force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,
             max_length=config.max_length,
-            benchmark_name=config.benchmark_name
+            dataset=config.dataset
         )
         
         # Verify components were created
@@ -93,7 +93,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
         base_model = MagicMock()
         eval_base_model = MagicMock()
         
-        config = MockConfig(benchmark_name="blocksworld")
+        config = MockConfig(dataset="blocksworld")
         
         # Create components
         world_model, policy, evaluator = create_components_env_grounded(
@@ -104,7 +104,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
             max_steps=config.max_steps,
             force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,
             max_length=config.max_length,
-            benchmark_name=config.benchmark_name
+            dataset=config.dataset
         )
         
         # Verify world_model has goal_check from Transition class
@@ -126,7 +126,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
         base_model = MagicMock()
         eval_base_model = MagicMock()
         
-        config = MockConfig(benchmark_name="nonexistent_benchmark")
+        config = MockConfig(dataset="nonexistent_benchmark")
         
         # Should raise KeyError with helpful message
         with self.assertRaises(KeyError) as ctx:
@@ -138,7 +138,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
                 max_steps=config.max_steps,
                 force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,
                 max_length=config.max_length,
-                benchmark_name=config.benchmark_name
+                dataset=config.dataset
             )
         
         # Verify error message contains helpful information
@@ -157,7 +157,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
         base_model = MagicMock()
         eval_base_model = MagicMock()
         
-        config = MockConfig(benchmark_name="unknown_task")
+        config = MockConfig(dataset="unknown_task")
         
         # Should raise KeyError with available benchmarks listed
         with self.assertRaises(KeyError) as ctx:
@@ -169,7 +169,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
                 max_steps=config.max_steps,
                 force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,
                 max_length=config.max_length,
-                benchmark_name=config.benchmark_name
+                dataset=config.dataset
             )
         
         # Verify error message mentions available benchmarks
@@ -188,7 +188,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
         base_model = MagicMock()
         eval_base_model = MagicMock()
         
-        config = MockConfig(benchmark_name="blocksworld")
+        config = MockConfig(dataset="blocksworld")
         
         # Create components
         world_model, policy, evaluator = create_components_env_grounded(
@@ -199,7 +199,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
             max_steps=config.max_steps,
             force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,
             max_length=config.max_length,
-            benchmark_name=config.benchmark_name
+            dataset=config.dataset
         )
         
         # Verify policy is EnvGroundedPolicy (default fallback)
@@ -217,7 +217,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
         base_model = MagicMock()
         eval_base_model = MagicMock()
         
-        config = MockConfig(benchmark_name="blocksworld")
+        config = MockConfig(dataset="blocksworld")
         
         # Create components
         world_model, policy, evaluator = create_components_env_grounded(
@@ -228,7 +228,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
             max_steps=config.max_steps,
             force_terminating_on_depth_limit=config.force_terminating_on_depth_limit,
             max_length=config.max_length,
-            benchmark_name=config.benchmark_name
+            dataset=config.dataset
         )
         
         # Verify evaluator is EnvGroundedPRM (default fallback)

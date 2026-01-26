@@ -12,7 +12,7 @@ from lits.framework_config import PACKAGE_VERSION
 
 # Fields that should NOT be included in search config dict
 _EXCLUDE_FROM_SEARCH_CONFIG: Set[str] = {
-    "benchmark_name",
+    "dataset",
     "max_length", "device", "num_shot", "offset", "limit", "eval_idx", "levels",
     "check_action_sim", "use_critic", "model_verbose", "verbose",
     "print_answer_for_each_example", "override_log_result",
@@ -58,7 +58,7 @@ class ExperimentConfig:
         2. policy_model_short: Last part of policy_model_name (e.g., "Qwen3-32B-AWQ")
         3. _results: Suffix indicating results directory
         4. eval_model_short: (Optional) Added if eval model differs from policy model
-        5. run_id: Combination of benchmark_name + reasoning_method + continuation flags
+        5. run_id: Combination of dataset + reasoning_method + continuation flags
         6. run_{version}: Package version (e.g., run_v0.2.3)
         7. _bn_qwen: (Optional) Added if using Qwen for BN eval with different policy model
         8. _eval{start}-{end}: (Optional) Added if evaluating specific example indices
@@ -73,7 +73,7 @@ class ExperimentConfig:
     """
     
     # Dataset and models
-    benchmark_name: str
+    dataset: str  # Dataset/benchmark name (e.g., "math500", "crosswords", "blocksworld")
     policy_model_name: str  # Model for policy (action/thought generation)
     eval_model_name: str    # Model for evaluation (reward/scoring)
     reasoning_method: str
@@ -175,7 +175,7 @@ class ExperimentConfig:
             self.n_iters = 50
             self.force_terminating_on_depth_limit = False
         
-        if self.benchmark_name == "blocksworld":
+        if self.dataset == "blocksworld":
             self.max_steps = 6
             self.roll_out_steps = 6
             self.terminate_on_first_solution =True
@@ -208,7 +208,7 @@ class ExperimentConfig:
                 self.max_new_tokens_for_bn_eval = 1000
                 self.n_actions_for_bne = 3
             elif self.bn_method == "sc":
-                self.reward_gamma = 0.99 if self.benchmark_name == "blocksworld" else 0.49
+                self.reward_gamma = 0.99 if self.dataset == "blocksworld" else 0.49
                 self.n_actions_for_bne = 3
             elif self.bn_method == "direct":
                 self.reward_gamma = 0.7
@@ -247,7 +247,7 @@ class ExperimentConfig:
         Examples:
             >>> # Basic BFS on GSM8K
             >>> config = ExperimentConfig(
-            ...     benchmark_name="gsm8k",
+            ...     dataset="gsm8k",
             ...     policy_model_name="Qwen/Qwen3-32B-AWQ",
             ...     eval_model_name="Qwen/Qwen3-32B-AWQ",
             ...     reasoning_method="bfs",
@@ -258,14 +258,14 @@ class ExperimentConfig:
             
             >>> # ReST with continuation on Math500
             >>> config.reasoning_method = "rest"
-            >>> config.benchmark_name = "math500"
+            >>> config.dataset = "math500"
             >>> config.add_continuation = True
             >>> config.get_run_id()
             'math500_rest_continuous'
             
             >>> # BFS with direct BN method
             >>> config.reasoning_method = "bfs"
-            >>> config.benchmark_name = "gsm8k"
+            >>> config.dataset = "gsm8k"
             >>> config.add_continuation = True
             >>> config.bn_method = "direct"
             >>> config.get_run_id()
@@ -284,7 +284,7 @@ class ExperimentConfig:
             
             >>> # RAP on spatial QA
             >>> config = ExperimentConfig(
-            ...     benchmark_name="spart_yn",
+            ...     dataset="spart_yn",
             ...     policy_model_name="meta-llama/Meta-Llama-3-8B",
             ...     eval_model_name="meta-llama/Meta-Llama-3-8B",
             ...     reasoning_method="rap"
@@ -302,7 +302,7 @@ class ExperimentConfig:
             - test_gsm8k_bfs: Test run in Jupyter
         """
         prefix = "test_" if is_jupyter else ""
-        run_id = f"{prefix}{self.benchmark_name}_{self.reasoning_method}"
+        run_id = f"{prefix}{self.dataset}_{self.reasoning_method}"
         
         if self.add_continuation:
             run_id += "_continuous"
@@ -381,7 +381,6 @@ class ExperimentConfig:
         Uses dataclasses.asdict() and filters out fields that are not part of the
         search configuration (e.g., logging settings, local execution parameters).
         Adds gpu_device dynamically based on available hardware.
-        Maps benchmark_name to benchmark for BaseConfig compatibility.
         
         Returns:
             Dictionary with all search-relevant configuration parameters
@@ -395,9 +394,6 @@ class ExperimentConfig:
         
         # Add dynamic gpu_device field
         config_dict["gpu_device"] = torch.cuda.get_device_name(0).lower() if torch.cuda.is_available() else "cpu"
-        
-        # Map benchmark_name to benchmark for BaseConfig compatibility
-        config_dict["benchmark"] = self.benchmark_name
         
         return config_dict
     
@@ -422,7 +418,7 @@ class ExperimentConfig:
         
         Example:
             >>> config = ExperimentConfig(
-            ...     benchmark_name="gsm8k",
+            ...     dataset="gsm8k",
             ...     policy_model_name="Qwen/Qwen3-32B-AWQ",
             ...     eval_model_name="Qwen/Qwen3-32B-AWQ",
             ...     reasoning_method="bfs"

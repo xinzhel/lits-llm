@@ -15,7 +15,7 @@ class BaseConfig:
         gpu_device: GPU device identifier (e.g., "cuda:0", "cpu")
         max_length: Maximum token length for model generation
         max_steps: Maximum number of reasoning/action steps before termination
-        benchmark: Benchmark/task name (e.g., "blocksworld", "crosswords", "gsm8k")
+        dataset: Dataset/benchmark name (e.g., "blocksworld", "crosswords", "gsm8k", "math500")
         import_modules: List of custom modules to import for component registration
         dataset_kwargs: Dataset-specific kwargs for load_dataset()
     """
@@ -27,7 +27,7 @@ class BaseConfig:
     max_length: Optional[int] = None
     max_steps: int = 10
     # Experiment metadata (for reproducibility)
-    benchmark: str = ""
+    dataset: str = ""  # Dataset/benchmark name
     import_modules: Optional[List[str]] = None
     dataset_kwargs: Dict[str, Any] = field(default_factory=dict)
 
