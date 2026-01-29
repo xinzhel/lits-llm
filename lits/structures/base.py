@@ -28,6 +28,32 @@ class Step(ABC):
     def to_messages(self) -> list[dict]:
         """Convert the step into a list of chat messages."""
         raise NotImplementedError("Subclasses must implement to_messages method.")
+    
+    @classmethod
+    def verbalize_state(cls, question: str, state: List["Step"]) -> str:
+        """Verbalize a state (list of steps) into a prompt string for answer extraction.
+        
+        Subclasses can override this to provide custom verbalization logic.
+        Default implementation uses verb_step() for each step.
+        
+        Args:
+            question: The original question
+            state: List of Step objects representing the current state
+        
+        Returns:
+            Formatted string suitable for LLM prompt
+        """
+        question = question + '?' if not question.endswith('?') else question
+        verbalized = f"Problem: {question}\n"
+        
+        if len(state) > 0:
+            verbalized += "Existing Steps:\n"
+            for idx, step in enumerate(state):
+                verbalized += f"Step {idx + 1}: {step.get_action() if hasattr(step, 'get_action') else step.verb_step()}\n"
+        else:
+            verbalized += "Existing Steps: None\n"
+        
+        return verbalized
 
 @dataclass
 class State:

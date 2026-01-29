@@ -15,8 +15,10 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class BFSConfig(BaseSearchConfig):
-    """
-    BFS-specific search configuration
+    """BFS-specific search configuration.
+    
+    Config Args (via --search-arg):
+        beam_size: Number of top candidates to keep at each depth level (default: 5)
     """
     beam_size: int = 5
     

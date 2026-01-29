@@ -1097,10 +1097,55 @@ class RewardModel(ABC, Generic[StateT, ActionT]):
                 probs = np.exp(logits) / np.sum(np.exp(logits))
                 return float(probs[0])
             ```
+    
+    from_config() Pattern:
+        RewardModels with divergent signatures (e.g., ThinkPRM has no base_model) should
+        implement `from_config()` to enable factory-based instantiation:
+        
+            ```python
+            @classmethod
+            def from_config(cls, base_model, search_args, component_args, **kwargs):
+                return cls(
+                    base_model=base_model,
+                    think_for_correctness=component_args.get('think_for_correctness', False),
+                    ...
+                )
+            ```
     """
     
     # Interface category for this reward model type (subclasses should override)
     TASK_TYPE: str = None
+    
+    @classmethod
+    def from_config(cls, base_model, search_args: dict, component_args: dict, **kwargs):
+        """Create a RewardModel instance from configuration dicts.
+        
+        This factory method enables uniform instantiation of RewardModels with
+        divergent signatures. Subclasses with custom parameters should override
+        this method to extract their specific parameters from the config dicts.
+        
+        Args:
+            base_model: LLM for reward evaluation (may be ignored by some subclasses)
+            search_args: Search algorithm parameters (n_actions, max_steps, etc.)
+            component_args: Component-specific parameters (think_for_correctness, etc.)
+            **kwargs: Additional arguments (task_name, inference_logger, etc.)
+        
+        Returns:
+            RewardModel instance
+        
+        Example override for ThinkPRM (no base_model):
+            ```python
+            @classmethod
+            def from_config(cls, base_model, search_args, component_args, **kwargs):
+                return cls(
+                    endpoint_name=component_args.get('thinkprm_endpoint', 'thinkprm-14b-endpoint'),
+                    region_name=component_args.get('thinkprm_region', 'us-east-1'),
+                    scoring_mode=component_args.get('thinkprm_scoring_mode', 'last_step'),
+                )
+            ```
+        """
+        task_name = kwargs.get('task_name')
+        return cls(base_model=base_model, task_name=task_name)
     
     def __init__(
         self,

@@ -26,13 +26,50 @@ to the problem.
 
 
 class ConcatTransition(LlmTransition):
-    """ World model for ReST 
+    """World model for ReST-style reasoning that concatenates steps.
+    
     State: [Action 1, Action 2, ...]
-    Action: Action
+    Action: Action string
+    
+    Handles state transitions and terminal detection for step-by-step reasoning.
+    
+    Config Args (via --search-arg):
+        terminate_constraints: List of termination methods: 'binary_sampling', 'reward_threshold', 'verify' (default: ['binary_sampling'])
+        r_terminating: Reward threshold for termination when using 'reward_threshold' (default: 0.9)
+        sample_size_terminate: Number of samples for binary termination check (default: 10)
+        sample_threshold_terminate: Threshold ratio for termination (default: 0.8)
+        max_length: Maximum sequence length for LLM (default: 32768)
     """
     
     # Interface category for this transition type
     TASK_TYPE: str = "language_grounded"
+    
+    @classmethod
+    def from_config(cls, base_model, search_args: dict, component_args: dict, **kwargs):
+        """Create ConcatTransition from configuration dicts.
+        
+        Args:
+            base_model: LLM for terminal evaluation
+            search_args: Search algorithm parameters:
+                - terminate_constraints: List of termination constraints (default: ["binary_sampling"])
+                - r_terminating: Reward threshold for termination (default: 0.9)
+                - sample_size_terminate: Number of samples for termination check (default: 10)
+                - sample_threshold_terminate: Threshold for termination (default: 0.8)
+                - max_length: Maximum sequence length (default: 32768)
+            component_args: Component parameters (not used for ConcatTransition)
+            **kwargs: Additional arguments (ignored)
+        
+        Returns:
+            ConcatTransition instance
+        """
+        return cls(
+            base_model=base_model,
+            terminate_constraints=search_args.get('terminate_constraints', ['binary_sampling']),
+            r_terminating=search_args.get('r_terminating', 0.9),
+            sample_size_terminate=search_args.get('sample_size_terminate', 10),
+            sample_threshold_terminate=search_args.get('sample_threshold_terminate', 0.8),
+            max_length=component_args.get('max_length', 32768),
+        )
     
     def __init__(self, base_model, terminate_ORM=None, terminate_constraints=['binary_sampling'], r_terminating=0.9, sample_size_terminate=10, sample_threshold_terminate=0.8, sample_threshold_verify=0.9, max_length=None, max_new_tokens=None, **kwargs):
         super().__init__(base_model=base_model, **kwargs)

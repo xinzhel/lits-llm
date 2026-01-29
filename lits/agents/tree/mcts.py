@@ -94,8 +94,18 @@ def _name_to_func(name: str) -> Callable:
 
 @dataclass
 class MCTSConfig(BaseSearchConfig):
-    """
-    MCTS-specific search configuration
+    """MCTS-specific search configuration.
+    
+    Config Args (via --search-arg):
+        n_iters: Number of MCTS iterations (default: 10)
+        roll_out_steps: Maximum rollout depth per iteration (default: 10000)
+        w_exp: UCT exploration weight for balancing exploration vs exploitation (default: 1.0)
+        n_action_for_simulate: Number of actions to sample during simulation phase (default: 1)
+        n_confidence: Number of confidence samples for action selection (default: 1)
+        simulate_strategy: Strategy for simulation action selection: 'max', 'sample', 'random' (default: 'max')
+        output_strategy: Strategy for selecting final output: 'max_reward', 'follow_max', 'max_visit', 'max_iter', 'last_iter', 'last_terminal_iter' (default: 'max_reward')
+        output_trace_in_each_iter: Whether to output trace at each iteration (default: True)
+        use_critic: Whether to use critic for action evaluation (default: False)
     """
     # selection
     w_exp: float = 1.

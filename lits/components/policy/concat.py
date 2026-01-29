@@ -40,14 +40,20 @@ def count_tokens(text: str, model) -> int:
 
 
 class ConcatPolicy(Policy):
-    """
-    Policy that generates reasoning actions by concatenating new steps to the existing trace.
+    """Policy that generates reasoning actions by concatenating new steps to the existing trace.
     
     This policy generates step-by-step reasoning by:
     1. Building a prompt with existing steps
     2. Generating new actions from the LLM
     3. Validating outputs (similarity, length, repetition)
     4. Retrying if validation fails
+    
+    Config Args (via --search-arg):
+        n_actions: Number of actions to generate per expansion (default: 3)
+        max_steps: Maximum reasoning depth (default: 10)
+        max_length: Maximum sequence length for LLM (default: 32768)
+        force_terminating_on_depth_limit: Force termination at max_steps (default: False)
+        check_action_sim: Enable embedding-based action similarity checking (default: False)
     """
     
     # Interface category for this policy type
@@ -58,6 +64,36 @@ class ConcatPolicy(Policy):
     MAX_TOKEN_LENGTH = 1000
     MAX_RETRY_REPEAT = 2
     STEP_PREFIX_PATTERN = r"Step \d+:"
+    
+    @classmethod
+    def from_config(cls, base_model, search_args: dict, component_args: dict, **kwargs):
+        """Create ConcatPolicy from configuration dicts.
+        
+        Args:
+            base_model: LLM for action generation
+            search_args: Search algorithm parameters:
+                - n_actions: Number of actions to generate (default: 3)
+                - max_steps: Maximum depth (default: 10)
+                - force_terminating_on_depth_limit: Force termination at max_steps (default: False)
+                - max_length: Maximum sequence length (default: 32768)
+                - check_action_sim: Enable action similarity checking (default: False)
+            component_args: Component parameters (not used for ConcatPolicy)
+            **kwargs: Additional arguments (task_name, task_prompt_spec)
+        
+        Returns:
+            ConcatPolicy instance
+        """
+        return cls(
+            base_model=base_model,
+            task_prompt_spec=kwargs.get('task_prompt_spec'),
+            task_name=kwargs.get('task_name'),
+            n_actions=search_args.get('n_actions', 3),
+            temperature=0.7,
+            force_terminating_on_depth_limit=search_args.get('force_terminating_on_depth_limit', False),
+            max_steps=search_args.get('max_steps', 10),
+            max_length=component_args.get('max_length', 32768),
+            check_action_sim=search_args.get('check_action_sim', False),
+        )
     
     def __init__(self, **kwargs):
         """Initialize ConcatPolicy with action similarity checking option."""

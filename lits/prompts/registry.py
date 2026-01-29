@@ -319,45 +319,35 @@ def load_default_prompts():
     
     Note: Prompts are registered under task_type (e.g., 'language_grounded', 'env_grounded')
     not benchmark names. The component's TASK_TYPE is used for lookup.
+    
+    Note: RAP prompts are no longer in core - they're in lits_benchmark.formulations.rap.
+    Import that module to register RAP prompts.
     """
     # Import prompt modules
     try:
-        from .policy import rap as rap_policy
         from .policy import concat as concat_policy
         from .policy import tool_use as tool_use_policy
         from .policy import blocksworld as blocksworld_policy
         from .policy import env_grounded as env_grounded_policy  # Fallback prompts
-        from .reward import rap as rap_reward
         from .reward import generative as generative_reward
         from .reward import blocksworld as blocksworld_reward
         from .reward import env_grounded as env_grounded_reward  # Fallback prompts
-        from .transition import rap as rap_transition
         from .transition import blocksworld as blocksworld_transition
         
         # Register policy prompts
-        # RAP policy for language_grounded tasks (gsm8k, math500, spart_yn)
-        if hasattr(rap_policy, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('policy', 'rap', 'language_grounded', rap_policy.task_prompt_spec_math_qa)
-        if hasattr(rap_policy, 'usr_prompt_spec_math_qa'):
-            PromptRegistry.register_usr('policy', 'rap', 'language_grounded', rap_policy.usr_prompt_spec_math_qa)
+        # Concat policy for language_grounded tasks
+        if hasattr(concat_policy, 'task_prompt_spec_math_qa'):
+            PromptRegistry.register('policy', 'concat', 'language_grounded', concat_policy.task_prompt_spec_math_qa)
         
         # EnvGrounded policy for blocksworld (benchmark-specific)
         if hasattr(blocksworld_policy, 'usr_prompt_spec'):
             PromptRegistry.register_usr('policy', 'env_grounded', 'blocksworld', blocksworld_policy.usr_prompt_spec)
-        
-        # Concat policy for language_grounded tasks
-        if hasattr(concat_policy, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('policy', 'concat', 'language_grounded', concat_policy.task_prompt_spec_math_qa)
         
         # ToolUse policy (default for all tool_use tasks)
         if hasattr(tool_use_policy, 'task_prompt_spec'):
             PromptRegistry.register('policy', 'tool_use', None, tool_use_policy.task_prompt_spec)
 
         # Register reward prompts
-        # RAP reward for language_grounded tasks
-        if hasattr(rap_reward, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('reward', 'rap', 'language_grounded', rap_reward.task_prompt_spec_math_qa)
-        
         # Generative reward for language_grounded tasks
         if hasattr(generative_reward, 'task_prompt_spec_math_qa'):
             PromptRegistry.register('reward', 'generative', 'language_grounded', generative_reward.task_prompt_spec_math_qa)
@@ -369,14 +359,6 @@ def load_default_prompts():
             PromptRegistry.register_usr('reward', 'env_grounded', 'blocksworld', blocksworld_reward.usr_prompt_spec_blocksworld)
                 
         # Register transition prompts
-        # RAP transition (default and language_grounded)
-        if hasattr(rap_transition, 'task_prompt_spec'):
-            PromptRegistry.register('transition', 'rap', None, rap_transition.task_prompt_spec)
-        if hasattr(rap_transition, 'task_prompt_spec_math_qa'):
-            PromptRegistry.register('transition', 'rap', 'language_grounded', rap_transition.task_prompt_spec_math_qa)
-        if hasattr(rap_transition, 'usr_prompt_spec_math_qa'):
-            PromptRegistry.register_usr('transition', 'rap', 'language_grounded', rap_transition.usr_prompt_spec_math_qa)
-        
         # BlocksWorld transition (benchmark-specific)
         if hasattr(blocksworld_transition, 'task_prompt_spec'):
             PromptRegistry.register('transition', 'blocksworld', None, blocksworld_transition.task_prompt_spec)

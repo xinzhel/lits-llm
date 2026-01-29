@@ -1,15 +1,60 @@
 import io
 import numpy as np
 import logging
-from ..base import RewardModel
-from ...structures import StateT, ActionT
-from ...lm.base import HfChatModel, HfModel
+from typing import Dict, Any
+from lits.components.base import RewardModel
+from lits.structures import StateT, ActionT
+from lits.structures.base import Step
+from lits.lm.base import HfChatModel, HfModel
+from lits.components.registry import register_reward_model
+from .structures import SubQAStep
 
 logger = logging.getLogger(__name__)
 
+
+@register_reward_model("rap", task_type="language_grounded")
 class RapPRM(RewardModel):
+    """RAP (Reasoning via Planning) process reward model.
+    
+    Evaluates sub-question usefulness using logit-based scoring.
+    Combines usefulness probability with answer confidence for final reward.
+    
+    Config Args (via --component-arg):
+        reward_alpha: Weight for usefulness vs confidence (default: 0.5)
+        reward_confidence_default: Default confidence when not provided (default: 0.8)
+    
+    Config Args (via --search-arg):
+        max_length: Maximum context length for evaluation (default: 32768)
+    """
+    
     # Interface category for language-grounded tasks
     TASK_TYPE: str = "language_grounded"
+    
+    @classmethod
+    def from_config(cls, base_model, search_args: Dict[str, Any], component_args: Dict[str, Any], **kwargs):
+        """Create RapPRM from config dicts.
+        
+        Args:
+            base_model: Language model for evaluation (requires logit access)
+            search_args: Search algorithm parameters (max_length)
+            component_args: Component-specific parameters (reward_alpha, reward_confidence_default)
+            **kwargs: Additional args passed to constructor (task_name, task_prompt_spec)
+        
+        Returns:
+            RapPRM instance
+        """
+        reward_alpha = component_args.get('reward_alpha', 0.5)
+        reward_confidence_default = component_args.get('reward_confidence_default', 0.8)
+        max_length = component_args.get('max_length', 32768)
+        
+        return cls(
+            base_model=base_model,
+            reward_alpha=reward_alpha,
+            reward_confidence_default=reward_confidence_default,
+            max_length=max_length,
+            temperature=0.8,
+            **kwargs
+        )
     
     def __init__(self, **kwargs):
         super().__init__(base_model=kwargs.pop("base_model", None), task_prompt_spec=kwargs.pop("task_prompt_spec", None), **kwargs)
@@ -22,7 +67,6 @@ class RapPRM(RewardModel):
     # ===== Immediate Reward from glm_eval (BEGIN) =====
     def _fast_reward(self, state: StateT, action_or_step, query, query_idx, from_phase="") -> tuple[float, dict]:
         # Handle both Step objects and raw action strings
-        from ...structures.base import Step
         if isinstance(action_or_step, Step):
             action = action_or_step.get_action()
         else:

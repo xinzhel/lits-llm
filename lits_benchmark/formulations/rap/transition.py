@@ -1,21 +1,62 @@
 import logging
+from typing import Dict, Any
 from collections import defaultdict
-from ..base import LlmTransition
-from ...structures import StateT, Action, SubQAStep, log_state
-from ..utils import verbalize_rap_state, retrieve_answer_from_last_step
-from ...lm.base import HfChatModel, HfModel
+from lits.components.base import LlmTransition
+from lits.structures import StateT, Action, log_state
+from lits.lm.base import HfChatModel, HfModel
+from lits.components.registry import register_transition
+from .structures import SubQAStep
+from .utils import verbalize_rap_state, retrieve_answer_from_last_step
 
 logger = logging.getLogger(__name__)
 
+
+@register_transition("rap", task_type="language_grounded")
 class RAPTransition(LlmTransition):
-    """
-    GSM8k World Model
-    State: [[sub_question_1, sub_answer_1, confidence_1], [sub_question_2, sub_answer_2, confidence_2], ...]
-    Action: sub_question
+    """RAP (Reasoning via Planning) transition for sub-question answering.
+    
+    Executes sub-questions by generating answers with confidence estimation.
+    Uses self-consistency (multiple samples) to compute answer confidence.
+    
+    State: List of SubQAStep [(sub_question, sub_answer, confidence), ...]
+    Action: sub_question string
+    
+    Config Args (via --search-arg):
+        n_confidence: Number of samples for confidence estimation (default: 8)
+        max_length: Maximum context length for generation (default: 32768)
+        num_shot: Number of few-shot examples in prompt (default: 4)
     """
     
     # Interface category for this transition type
     TASK_TYPE: str = "language_grounded"
+    
+    @classmethod
+    def from_config(cls, base_model, search_args: Dict[str, Any], component_args: Dict[str, Any], **kwargs):
+        """Create RAPTransition from config dicts.
+        
+        Args:
+            base_model: Language model for generation
+            search_args: Search algorithm parameters (n_confidence, max_length, etc.)
+            component_args: Component-specific parameters (unused for RAPTransition)
+            **kwargs: Additional args passed to constructor (task_name, task_prompt_spec,
+                     usr_prompt_spec)
+        
+        Returns:
+            RAPTransition instance
+        """
+        n_confidence = search_args.get('n_confidence', 8)
+        max_length = component_args.get('max_length', 32768)
+        num_shot = component_args.get('num_shot', 4)
+        
+        transition = cls(
+            base_model=base_model,
+            n_confidence=n_confidence,
+            max_length=max_length,
+            batch_size=1,
+            **kwargs
+        )
+        transition.n_shots = num_shot
+        return transition
 
     def __init__(
         self,

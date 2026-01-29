@@ -55,6 +55,54 @@ result = bfs_topk(
 
 ## Configuration
 
+### Command Line Interface (CLI)
+
+The recommended way to run tree search experiments is via `main_search.py` with CLI arguments:
+
+```bash
+# Basic usage
+python main_search.py --dataset math500 --search_framework rest
+
+# With custom search parameters
+python main_search.py --dataset gsm8k --search_framework rest \
+    --search-arg n_iters=100 n_actions=5 max_steps=10
+
+# With component parameters (e.g., ThinkPRM reward model)
+python main_search.py --dataset math500 \
+    --component-arg reward_model_type=thinkprm thinkprm_endpoint=my-endpoint
+
+# Environment-grounded tasks with custom modules
+python main_search.py --dataset crosswords --import lits_benchmark.crosswords \
+    --search-arg n_actions=3 max_steps=10 n_iters=30 \
+    --dataset-arg data_file=crosswords/data/mini0505.json
+
+# Show all available parameters
+python main_search.py --help-config
+```
+
+#### CLI Flag Reference
+
+| Flag | Purpose | Example |
+|------|---------|---------|
+| `--dataset` | Dataset name | `--dataset math500` |
+| `--search_framework` | Framework (rest, rap, tot_bfs) | `--search_framework rest` |
+| `--search-arg` | Search algorithm params | `--search-arg n_iters=50 n_actions=3` |
+| `--component-arg` | Component params | `--component-arg think_for_correctness=true` |
+| `--dataset-arg` | Dataset loader kwargs | `--dataset-arg levels=1,2,3` |
+| `--var` | Execution vars (not saved) | `--var offset=0 limit=50` |
+| `--import` | Custom module import | `--import lits_benchmark.crosswords` |
+| `--override` | Override existing results | `--override` |
+| `--dry-run` | Test dataset loading | `--dry-run` |
+| `--help-config` | Show all parameters | `--help-config` |
+
+Note: CLI flags use singular form (`--search-arg`, `--component-arg`) while internal Python variables use plural (`search_args`, `component_args`). This follows standard argparse convention where each flag invocation adds one argument to the collection.
+
+See `examples/run_configs.sh` for complete CLI examples.
+
+### ExperimentConfig (Programmatic)
+
+For programmatic configuration in Python:
+
 ### Common Configuration (BaseSearchConfig)
 
 All search methods inherit from `BaseSearchConfig`:
@@ -85,51 +133,59 @@ config = BaseSearchConfig(
 )
 ```
 
-### ExperimentConfig for Full Experiments
+### ExperimentConfig (Programmatic)
 
-For running complete experiments with dataset slicing and result management:
+For programmatic configuration in Python:
 
 ```python
-from examples.search_config import ExperimentConfig
+from lits.config import ExperimentConfig
 
 config = ExperimentConfig(
     # Dataset and models
-    dataset_name="gsm8k",
+    dataset="gsm8k",
     policy_model_name="meta-llama/Llama-3.1-8B-Instruct",
     eval_model_name="meta-llama/Llama-3.1-8B-Instruct",
-    reasoning_method="bfs",
+    search_framework="rest",  # "rest", "rap", "tot_bfs"
+    search_algorithm="mcts",  # "mcts" or "bfs"
     
-    # Search parameters
-    n_actions=3,
-    max_steps=10,
+    # Search parameters (passed to algorithm)
+    search_args={
+        "n_actions": 3,
+        "max_steps": 10,
+        "n_iters": 50,
+        "roll_out_steps": 2,
+    },
     
-    # Dataset slicing (v0.2.5+)
-    offset=0,                     # Starting index for dataset slicing
-    limit=100,                    # Number of examples to evaluate (None = all from offset)
-    eval_idx=[],                  # Specific indices to evaluate (overrides offset/limit)
+    # Component parameters (passed to from_config())
+    component_args={
+        "think_for_correctness": True,
+        "n_for_correctness": 2,
+    },
     
-    # Continuation (optional)
-    add_continuation=False,
-    bn_method=None,               # "entropy", "sc", or "direct"
-    
-    # Logging
-    verbose=True,
-    package_version="v0.2.5"
+    # Dataset slicing
+    offset=0,
+    limit=100,
+    eval_idx=[],  # Specific indices (overrides offset/limit)
 )
 
-# Dataset slicing examples:
-# Evaluate first 100 examples:
-config = ExperimentConfig(..., offset=0, limit=100)
+# Get merged parameters with defaults
+search_args = config.get_search_args()
+component_args = config.get_component_args()
 
-# Evaluate examples 100-200:
-config = ExperimentConfig(..., offset=100, limit=100)
-
-# Evaluate all examples from index 50 onwards:
-config = ExperimentConfig(..., offset=50, limit=None)
-
-# Evaluate specific indices (overrides offset/limit):
-config = ExperimentConfig(..., eval_idx=[0, 5, 10, 15])
+# Create search config for algorithm
+search_config = config.create_search_config()
 ```
+
+#### Parameter Categories
+
+Parameters are organized into categories:
+
+| Category | CLI Flag | Description |
+|----------|----------|-------------|
+| Search Args | `--search-arg` | Algorithm params: n_iters, n_actions, max_steps, termination |
+| Component Args | `--component-arg` | Component params: reward_model_type, think_for_correctness |
+| Dataset Args | `--dataset-arg` | Dataset loader kwargs: data_file, levels |
+| Execution Vars | `--var` | Script-level: offset, limit (not saved to config) |
 
 ### BFS-Specific Configuration
 
@@ -497,6 +553,156 @@ class MyRewardModel(RewardModel):
         return fast_reward
 ```
 
+## External Formulations
+
+LITS supports external formulations via the `--import` flag. This allows custom search frameworks to be developed outside the core package while still integrating seamlessly with the CLI and component factory.
+
+### Using External Formulations
+
+External formulations are imported at runtime before component creation:
+
+```bash
+python main_search.py \
+    --import lits_benchmark.formulations.rap \
+    --search_framework rap \
+    --dataset gsm8k \
+    --policy_model_name "meta-llama/Llama-3-8B-Instruct" \
+    --search-arg n_actions=3 \
+    --search-arg max_steps=10
+```
+
+The `--import` flag triggers Python's import mechanism, which executes the module's `__init__.py` and registers components with `ComponentRegistry`.
+
+### Example: RAP Formulation
+
+RAP (Reasoning via Planning) is provided as an external formulation in `lits_benchmark/formulations/rap/`:
+
+```
+lits_benchmark/formulations/rap/
+├── __init__.py       # Registration + exports
+├── policy.py         # RAPPolicy with @register_policy("rap")
+├── transition.py     # RAPTransition with @register_transition("rap")
+├── reward.py         # RapPRM with @register_reward_model("rap")
+├── structures.py     # SubQAStep (RAP-specific Step subclass)
+├── utils.py          # verbalize_rap_state(), retrieve_answer_from_last_step()
+└── prompts.py        # RAP prompts (policy + reward)
+```
+
+### Creating Custom Formulations
+
+To create your own formulation:
+
+1. **Register components with matching names**: Use the same name for all three decorators, matching your `--search_framework` value:
+
+```python
+# my_formulation/__init__.py
+from lits.components.registry import (
+    register_policy, register_transition, register_reward_model
+)
+from lits.components.base import Policy, Transition, RewardModel
+
+@register_policy("my_formulation")
+class MyPolicy(Policy):
+    """My custom policy.
+    
+    Config Args (via --search-arg):
+        n_actions: Number of actions to generate (default: 3)
+        my_param: Custom parameter (default: 10)
+    """
+    
+    @classmethod
+    def from_config(cls, base_model, search_args, component_args, **kwargs):
+        return cls(
+            base_model=base_model,
+            n_actions=search_args.get("n_actions", 3),
+            my_param=search_args.get("my_param", 10),
+            **kwargs
+        )
+    
+    # ... implement _get_actions(), _create_error_steps()
+
+@register_transition("my_formulation")
+class MyTransition(Transition):
+    """My custom transition."""
+    
+    @classmethod
+    def from_config(cls, base_model, search_args, component_args, **kwargs):
+        return cls(base_model=base_model, **kwargs)
+    
+    # ... implement step(), is_terminal()
+
+@register_reward_model("my_formulation")
+class MyRewardModel(RewardModel):
+    """My custom reward model.
+    
+    Config Args (via --component-arg):
+        reward_weight: Weight for reward calculation (default: 1.0)
+    """
+    
+    @classmethod
+    def from_config(cls, base_model, search_args, component_args, **kwargs):
+        return cls(
+            base_model=base_model,
+            reward_weight=component_args.get("reward_weight", 1.0),
+        )
+    
+    # ... implement _fast_reward(), reward()
+```
+
+2. **Implement `from_config()` for each component**: The factory calls `from_config()` with `search_args` and `component_args` dicts. Components extract their own parameters.
+
+3. **Add "Config Args" docstrings**: Parameters documented in "Config Args" sections appear in `--help-config` output.
+
+4. **Use via CLI**:
+
+```bash
+python main_search.py \
+    --import my_formulation \
+    --search_framework my_formulation \
+    --dataset my_dataset \
+    --search-arg my_param=20 \
+    --component-arg reward_weight=0.5
+```
+
+### Custom Step Types
+
+If your formulation needs a custom state representation, define a Step subclass:
+
+```python
+from lits.structures.base import Step
+from lits.type_registry import register_type
+
+@register_type
+class MyStep(Step):
+    """Custom step for my formulation."""
+    
+    my_field: str = ""
+    
+    @classmethod
+    def verbalize_state(cls, question: str, state: list) -> str:
+        """Convert state to string for answer extraction."""
+        # Custom verbalization logic
+        return "\n".join(step.my_field for step in state)
+    
+    def get_answer(self) -> str:
+        """Extract answer from this step."""
+        return self.my_field
+```
+
+The `verbalize_state()` classmethod is used by `get_fn_retrieve_answer()` for answer extraction from terminal nodes.
+
+### How Component Lookup Works
+
+When `create_components_language_grounded()` is called:
+
+1. It normalizes the framework name (`tot_bfs` → `bfs`)
+2. Looks up all three components in `ComponentRegistry` by name
+3. If found, calls `from_config()` on each
+4. If not found, falls back to built-in Concat components (only for `rest`/`tot_bfs`/`bfs`)
+5. For unknown frameworks not in registry, raises a helpful error
+
+This means custom formulations are first-class citizens - they use the same code path as built-in frameworks.
+
 ## Best Practices
 
 1. **Start with small max_steps**: Begin with `max_steps=5` and increase gradually
@@ -551,9 +757,82 @@ print(f"Search took {time.time() - start:.2f}s")
 ## Related Documentation
 
 - [Tree Visualization Guide](../TREE_VISUALIZATION.md) - Visualizing search trees
-- [Config Refactoring](../../unit_test/test_config_refactoring.py) - Configuration system tests
 - [Main Search Example](../../examples/main_search.py) - Complete working example
+- [CLI Examples](../../examples/run_configs.sh) - CLI command examples for different settings
 - [CHANGELOG](../../CHANGELOG.md) - Version history and breaking changes
+
+## Adding Custom Components to CLI Help
+
+When you create custom components (Policy, Transition, RewardModel), you can make their parameters appear in `--help-config` by:
+
+1. **Register with ComponentRegistry** (optional but recommended)
+2. **Add a "Config Args" section to the class docstring**
+
+### Docstring Format
+
+The `--help-config` flag parses "Config Args" sections from class docstrings. Use this format:
+
+```python
+class MyCustomRewardModel(RewardModel):
+    """My custom reward model description.
+    
+    Config Args (via --component-arg):
+        my_param: Description of the parameter (default: value)
+        another_param: Another parameter description (default: 10)
+        complex_param: Multi-line descriptions are supported
+            by indenting continuation lines with 8+ spaces
+    
+    Other docstring sections (Args, Returns, etc.) are ignored.
+    """
+    
+    @classmethod
+    def from_config(cls, base_model, search_args: dict, component_args: dict, **kwargs):
+        return cls(
+            base_model=base_model,
+            my_param=component_args.get('my_param', 'default_value'),
+            another_param=component_args.get('another_param', 10),
+        )
+```
+
+### Key Requirements
+
+1. **Section header**: Must start with `Config Args` (case-sensitive)
+2. **Parameter format**: `param_name: description (default: value)`
+3. **Indentation**: Parameters must be indented (4 spaces recommended)
+4. **Continuation lines**: Use 8+ spaces for multi-line descriptions
+
+### For Search Configs
+
+Search algorithm parameters use the same format but with `--search-arg`:
+
+```python
+@dataclass
+class MySearchConfig(BaseSearchConfig):
+    """My custom search configuration.
+    
+    Config Args (via --search-arg):
+        my_search_param: Description (default: 5)
+        exploration_weight: UCT exploration weight (default: 1.0)
+    """
+    my_search_param: int = 5
+    exploration_weight: float = 1.0
+```
+
+### Automatic Discovery
+
+Components are discovered via:
+1. **ComponentRegistry**: Registered policies, transitions, and reward models
+2. **Built-in fallback**: Core components (GenerativePRM, ThinkPRM, ConcatPolicy, ConcatTransition)
+
+To register a custom component:
+
+```python
+from lits.components.registry import register_reward_model
+
+@register_reward_model("my_task", task_type="language_grounded")
+class MyCustomRewardModel(RewardModel):
+    """..."""
+```
 
 ## API Reference
 
@@ -574,6 +853,40 @@ print(f"Search took {time.time() - start:.2f}s")
 For detailed API documentation, see the source code docstrings.
 
 ## FAQ
+
+### Q: Can I use my own LLM implementation instead of LITS's built-in models?
+
+Yes. Components receive `base_model` as a parameter and only require it to be callable with signature `base_model(prompt, **kwargs) -> Output`. You have two options:
+
+**Option 1: Write a Python script (recommended)**
+```python
+from lits.lm.base import Output
+
+def my_custom_llm(prompt, **kwargs):
+    # Your custom logic - call any API, local model, etc.
+    response = my_api_call(prompt)
+    return Output(text=response)
+
+# Pass to components
+policy = RAPPolicy(base_model=my_custom_llm, ...)
+```
+
+**Option 2: Subclass LanguageModel**
+```python
+from lits.lm.base import LanguageModel, Output
+
+class MyCustomLM(LanguageModel):
+    def __call__(self, prompt, **kwargs):
+        response = self.my_api.generate(prompt)
+        return Output(text=response)
+
+model = MyCustomLM()
+policy = RAPPolicy(base_model=model, ...)
+```
+
+**Note:** The CLI (`main_search.py`) uses `get_lm()` which supports built-in providers (HuggingFace, Bedrock, OpenAI, TGI). For custom LLM logic not covered by these, write a Python script instead of using CLI.
+
+**Future:** A registry pattern for custom LLM providers (similar to ComponentRegistry) may be added to enable CLI usage without modifying source code.
 
 ### Q: Why do I only see one checkpoint file per example even with n_iters=30?
 

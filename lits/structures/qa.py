@@ -7,33 +7,6 @@ from .base import ActionT, Step, State, TrajectoryState, StringAction
 
 @register_type
 @dataclass
-class SubQAStep(Step):
-    """RAP-style sub-question step capturing the decomposition state."""
-
-    sub_question: StringAction = ""
-    sub_answer: str = ""
-    confidence: float = 0.0
-
-    def get_action(self) -> ActionT:
-        return self.sub_question
-
-    def get_answer(self) -> str:
-        return self.sub_answer
-
-    def verb_step(self) -> str:
-        """Return a string representation of the sub-question and answer."""
-        return f"Sub-question: {self.sub_question}\nSub-answer: {self.sub_answer}"
-
-    def to_messages(self) -> list[dict]:
-        """Convert the step into chat messages (assistant asks, then answers)."""
-        return [
-            {"role": "assistant", "content": f"Sub-question: {self.sub_question}"},
-            {"role": "assistant", "content": f"Sub-answer: {self.sub_answer}"}
-        ]
-
-
-@register_type
-@dataclass
 class ThoughtStep(Step):
     """General reasoning step used by concatenation-style policies."""
 
@@ -52,4 +25,20 @@ class ThoughtStep(Step):
     def to_messages(self) -> list[dict]:
         """Convert the step into a chat message."""
         return [{"role": "assistant", "content": str(self.action)}]
+    
+    @classmethod
+    def verbalize_state(cls, question: str, state: list["ThoughtStep"]) -> str:
+        """Verbalize ThoughtStep state into a prompt string.
+        
+        Delegates to verbalize_concat_state for consistency with existing code.
+        
+        Args:
+            question: The original question
+            state: List of ThoughtStep objects
+        
+        Returns:
+            Formatted string for LLM prompt
+        """
+        from lits.components.utils import verbalize_concat_state
+        return verbalize_concat_state(question, state)
     

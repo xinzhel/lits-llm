@@ -9,7 +9,6 @@ class BaseConfig:
     Shared configuration base used by different LiTS components.
     
     Common attributes across all agent configurations:
-        reasoning_method: The reasoning method identifier (e.g., "rest", "rap", "bfs", "react", "env_chain")
         package_version: Version of the LiTS package
         policy_model_name: Name of the language model to use
         gpu_device: GPU device identifier (e.g., "cuda:0", "cpu")
@@ -20,7 +19,6 @@ class BaseConfig:
         dataset_kwargs: Dataset-specific kwargs for load_dataset()
     """
 
-    reasoning_method: str  # "rest", "rap", "bfs", "react", "env_chain"
     package_version: str = "v0.2.5"
     policy_model_name: Optional[str] = None
     gpu_device: Optional[str] = None

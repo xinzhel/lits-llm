@@ -1,8 +1,8 @@
 import re
 import ast
 from typing import Optional, List, Dict, Tuple, Any
-from ...structures import Action, TrajectoryState, SubQAStep
-from ..utils import verbalize_concat_state,verbalize_rap_state, extract_existing_steps, create_role
+from ...structures import Action, TrajectoryState
+from ..utils import verbalize_concat_state, extract_existing_steps, create_role
 from ...lm.base import DETERMINISTIC_TEMPERATURE, HfChatModel, DEFAULT_MAX_LENGTH
 from ...prompts.prompt import PromptTemplate
 import itertools
@@ -315,7 +315,7 @@ class BNEvaluator:
         self.max_new_tokens_for_bn_eval = max_new_tokens_for_bn_eval
         self.max_try_for_bn_eval = max_try_for_bn_eval
 
-    def _generate_prompt(self, example, state: list[SubQAStep], action: Action):
+    def _generate_prompt(self, example, state: TrajectoryState, action: Action):
         partial_path = "\n".join([f"{step.get_action()}" for step in state])
         partial_path = "<No Existing Steps>" if partial_path.strip() == "" else partial_path
         candidate_step = action
@@ -363,9 +363,16 @@ class BNEvaluator:
             
         if self.search_method in ["rest", "bfs"]:
             context = verbalize_concat_state(example, state) 
-
         else:
-            context = verbalize_rap_state(example, state) 
+            # RAP method - try to import verbalize_rap_state from external formulation
+            try:
+                from lits_benchmark.formulations.rap.utils import verbalize_rap_state
+                context = verbalize_rap_state(example, state)
+            except ImportError:
+                raise ImportError(
+                    "RAP formulation not available. Install with: "
+                    "import lits_benchmark.formulations.rap"
+                )
         
         clusters = [ {"canonical_action": action, "count": 1} for action in actions]
         logger.debug(f"\n Input clusters: {clusters}")
@@ -414,6 +421,14 @@ Rules:
                 msg += f"Candidate {idx + 1}: {action}\n" 
         else:
             assert self.search_method == "rap", f"Unknown search method: {self.search_method}"
+            # RAP method - try to import verbalize_rap_state from external formulation
+            try:
+                from lits_benchmark.formulations.rap.utils import verbalize_rap_state
+            except ImportError:
+                raise ImportError(
+                    "RAP formulation not available. Install with: "
+                    "import lits_benchmark.formulations.rap"
+                )
             self.base_model.sys_prompt =  """You are given a QUESTION and its partial solution (Subquestions which have been answered).  
 Your task is to group the provided list of candidate next subquestions (After "List of Candidates for the following step") into clusters.
 
@@ -472,6 +487,19 @@ Rules:
 
 
 def test_bn_evaluator():
+    """Test function for BNEvaluator with RAP formulation.
+    
+    Requires RAP formulation to be installed:
+        import lits_benchmark.formulations.rap
+    """
+    try:
+        from lits_benchmark.formulations.rap.structures import SubQAStep
+    except ImportError:
+        raise ImportError(
+            "RAP formulation required for this test. Install with: "
+            "import lits_benchmark.formulations.rap"
+        )
+    
     evaluator = BNEvaluator(model_name="Qwen/Qwen3-14B", device="cuda")
     evaluator.example = """Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?"""
     

@@ -12,10 +12,48 @@ from ...eval import parse_reasoning_and_label
 logger = logging.getLogger(__name__)
 
 class GenerativePRM(RewardModel):
-    """ A Process Reward Model that evaluates the correctness and usefulness of a new step in the reasoning trace by directly prompting generative LLMs."""
+    """Process Reward Model that evaluates reasoning steps via generative LLM prompting.
+    
+    Evaluates the correctness and usefulness of each new step in the reasoning trace
+    by directly prompting generative LLMs with evaluation instructions.
+    
+    Config Args (via --component-arg):
+        think_for_correctness: Enable chain-of-thought for correctness evaluation (default: False)
+        think_for_usefulness: Enable chain-of-thought for usefulness evaluation (default: False)
+        n_for_correctness: Number of samples for correctness scoring (default: 2)
+        n_for_usefulness: Number of samples for usefulness scoring (default: 1)
+    """
     
     # Interface category for language-grounded tasks
     TASK_TYPE: str = "language_grounded"
+    
+    @classmethod
+    def from_config(cls, base_model, search_args: dict, component_args: dict, **kwargs):
+        """Create GenerativePRM from configuration dicts.
+        
+        Args:
+            base_model: LLM for reward evaluation
+            search_args: Search algorithm parameters (not used)
+            component_args: Component parameters:
+                - think_for_correctness: Enable CoT for correctness (default: False)
+                - think_for_usefulness: Enable CoT for usefulness (default: False)
+                - n_for_correctness: Number of samples for correctness (default: 2)
+                - n_for_usefulness: Number of samples for usefulness (default: 1)
+            **kwargs: Additional arguments (task_name, save_dir, etc.)
+        
+        Returns:
+            GenerativePRM instance
+        """
+        return cls(
+            base_model=base_model,
+            task_name=kwargs.get('task_name'),
+            task_prompt_spec=kwargs.get('task_prompt_spec'),
+            save_dir=kwargs.get('save_dir'),
+            think_for_correctness=component_args.get('think_for_correctness', False),
+            think_for_usefulness=component_args.get('think_for_usefulness', False),
+            n_for_correctness=component_args.get('n_for_correctness', 2),
+            n_for_usefulness=component_args.get('n_for_usefulness', 1),
+        )
     
     def __init__(self, **kwargs):
         # pop GenerativePRM-specific attributes

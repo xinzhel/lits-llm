@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-01-29 v0.2.8 (Codebase Refactoring for Language-Grounded Tasks)
+
+### Added
+- `--policy-model`, `--eval-model`, `--transition-model`, `--bn-model` CLI flags (`lits/cli/args.py`)
+- `--search-arg` and `--component-arg` CLI flags for parameter passing
+- `--help-config` flag for parameter discovery
+- `from_config()` pattern for components (`GenerativePRM`, `ThinkPRM`, `ConcatPolicy`, `ConcatTransition`)
+- `TGIModel` class for remote TGI completion models (`lits/lm/tgi.py`)
+- `Step.verbalize_state()` class method for extensible state verbalization
+- RAP formulation as external module (`lits_benchmark/formulations/rap/`)
+- `ComponentRegistry` for custom formulation registration
+
+### Changed
+- Refactored `ExperimentConfig` from ~50 fields to minimal ~15 fields (`lits/config.py`)
+- Moved `ExperimentConfig` to `lits/config.py`
+- Moved `component_factory.py` to `lits/components/factory.py`
+- Moved `model_loader.py` to `lits/lm/loader.py`
+- Renamed `terminal_gen_model_name` to `transition_model_name`
+- Factory now uses registry-driven component lookup
+
+### Removed
+- `reasoning_method` from `BaseConfig`
+- RAP components from core package (moved to `lits_benchmark/formulations/rap/`)
+
+
 ## 2026-01-22 v0.2.8
 
 ### Added

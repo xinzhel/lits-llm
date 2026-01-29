@@ -1,10 +1,22 @@
-import copy 
+"""RAP-specific prompt templates.
+
+This module contains all prompt templates for the RAP (Reasoning via Planning)
+formulation, including policy prompts for sub-question generation and reward
+prompts for usefulness evaluation.
+"""
+
+import copy
 import random
 import io
 
-prompt_dict = {
-        "instruction": "Given a question, please decompose it into sub-questions. For each sub-question, please answer it in a complete sentence, ending with \"The answer is\". When the original question is answerable, please start the subquestion with \"Now we can answer the question: \".",
-        "interactive_examples": [
+
+# =============================================================================
+# Policy Prompts - Sub-question decomposition
+# =============================================================================
+
+policy_prompt_dict = {
+    "instruction": "Given a question, please decompose it into sub-questions. For each sub-question, please answer it in a complete sentence, ending with \"The answer is\". When the original question is answerable, please start the subquestion with \"Now we can answer the question: \".",
+    "interactive_examples": [
         "Question {idx}: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?\nQuestion {idx}.1: How many clips did Natalia sell in May?\nAnswer {idx}.1: Natalia sold 48 clips in April and half as many clips in May, so she sold 48 / 2 = 24 clips in May. The answer is 48.\nQuestion {idx}.2: Now we can answer the question: How many clips did Natalia sell altogether in April and May?\nAnswer {idx}.2: Natalia sold 48 clips in April and 24 clips in May, so altogether she sold 48 + 24 = 72 clips. The answer is 72.",
         "Question {idx}: Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How much did she earn?\nQuestion {idx}.1: How much does Weng earn per minute?\nAnswer {idx}.1: Since Weng earns $12 an hour for babysitting, she earns $12 / 60 = $0.2 per minute. The answer is 0.2.\nQuestion {idx}.2: Now we can answer the question: How much did she earn?\nAnswer {idx}.2: Working 50 minutes, she earned $0.2 x 50 = $10. The answer is 10.",
         "Question {idx}: Betty is saving money for a new wallet which costs $100. Betty has only half of the money she needs. Her parents decided to give her $15 for that purpose, and her grandparents twice as much as her parents. How much more money does Betty need to buy the wallet?\nQuestion {idx}.1: How much money does Betty have in the beginning?\nAnswer {idx}.1: In the beginning, Betty has only half of the money she needs, which is 100 / 2 = $50. The answer is 50.\nQuestion {idx}.2: How much money did Betty's grandparents give her?\nAnswer {idx}.2: Her grandparents gave her twice as much as her parents, so they gave her 15 * 2 = $30. The answer is 30.\nQuestion {idx}.3: Now we can answer the question: How much more money does Betty need to buy the wallet?\nAnswer {idx}.3: Now that she got $15 from her parents and $30 from her grandparents, she will need $100 - $15 - $30 = $55. Since she already has $50, she needs $55 - $50 = $5 more. The answer is 5.",
@@ -15,47 +27,92 @@ prompt_dict = {
         "Question {idx}: Ken created a care package to send to his brother, who was away at boarding school. Ken placed a box on a scale, and then he poured into the box enough jelly beans to bring the weight to 2 pounds. Then, he added enough brownies to cause the weight to triple. Next, he added another 2 pounds of jelly beans. And finally, he added enough gummy worms to double the weight once again. What was the final weight of the box of goodies, in pounds?\nQuestion {idx}.1: What was the weight of the box after Ken poured jelly beans for the first time?\nAnswer {idx}.1: Ken poured jelly beans into the box until the weight was 2 pounds, so the weight of the box was 2 pounds. The answer is 2.\nQuestion {idx}.2: What was the weight of the box after Ken added brownies?\nAnswer {idx}.2: Ken aadded enough brownies to cause the weight to triple, so the weight of the box was 2 * 3 = 6 pounds. The answer is 6.\nQuestion {idx}.3: What was the weight of the box after Ken added jelly beans for the second time?\nAnswer {idx}.3: He added another 2 pounds of jelly beans, which means the weight of the box was 6 + 2 = 8 pounds. The answer is 8.\nQuestion {idx}.4: Now we can answer the question: What was the final weight of the box of goodies, in pounds?\nAnswer {idx}.4: Finally, he added enough gummy worms to double the weight once again, so the weight of the box was 8 * 2 = 16 pounds. The answer is 16.",
         "Question {idx}: Alexis is applying for a new job and bought a new set of business clothes to wear to the interview. She went to a department store with a budget of $200 and spent $30 on a button-up shirt, $46 on suit pants, $38 on a suit coat, $11 on socks, and $18 on a belt. She also purchased a pair of shoes, but lost the receipt for them. She has $16 left from her budget. How much did Alexis pay for the shoes?\nQuestion {idx}.1: How much did Alexis pay for everything else?\nAnswer {idx}.1: Alexis spent $30 on a button-up shirt, $46 on suit pants, $38 on a suit coat, $11 on socks, and $18 on a belt, so she spent 30 + 46 + 38 + 11 + 18 = $143 on everything else. The answer is 143.\nQuestion {idx}.2: How much money did Alexis spend in total?\nAnswer {idx}.2: Alexis had a budget of $200 and finally there was $16 left, so she spent 200 - 16 = $184 in total. The answer is 184.\nQuestion {idx}.3: Now we can answer the question: How much did Alexis pay for the shoes?\nAnswer {idx}.3: Alexis spent $143 on everything else, so she spent 184 - 143 = $41 on the shoes. The answer is 41.",
         "Question {idx}: Tina makes $18.00 an hour. If she works more than 8 hours per shift, she is eligible for overtime, which is paid by your hourly wage + 1/2 your hourly wage. If she works 10 hours every day for 5 days, how much money does she make?\nQuestion {idx}.1: How much does Tina make in an 8-hour shift?\nAnswer {idx}.1: Tina makes $18.00 an hour, so she makes 18 * 8 = $144.00 in an 8-hour shift. The answer is 144.\nQuestion {idx}.2: How many hours of overtime does Tina get?\nAnswer {idx}.2: Tina works 10 hours every day for 5 days, so she works 10 * 5 = 50 hours. Since she works 8 hours every day, she gets 50 - 8 * 5 = 10 hours of overtime. The answer is 10.\nQuestion {idx}.3: How much is her hourly overtime wage?\nAnswer {idx}.3: Her hourly overtime wage is 18 + 18 / 2 = $27.00. The answer is 27.\nQuestion {idx}.4: How much does Tina make in overtime each day?\nAnswer {idx}.4: Tina works 10 hours a day, and 8 hours of that is paid at her regular hourly wage, so she makes 10 - 8 = 2 hours of overtime every day. Since her hourly overtime wage is $27.00, she makes 27 * 2 = $54.00 in overtime each day. The answer is 54.\nQuestion {idx}.5: How much does Tina make each day?\nAnswer {idx}.5: Tina makes $144.00 in an 8-hour shift and $54.00 in overtime, so she makes 144 + 54 = $198.00 each day. The answer is 198.\nQuestion {idx}.6: Now we can answer the question: How much money does she make?\nAnswer {idx}.6: Tina works 5 days a week, so she makes 198 * 5 = $990.00. The answer is 990."
-        ],
-        "useful_examples": [
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        ""
-        ],
-        "question_prefix": "Question {idx}: {question}",
-        "subquestion_prefix": "Question {idx}.{sub_idx}:",
-        "answer_prefix": "Answer {idx}.{sub_idx}:",
-        "overall_question_prefix": "Now we can answer the question:",
-  }
+    ],
+    "useful_examples": [""] * 10,
+    "question_prefix": "Question {idx}: {question}",
+    "subquestion_prefix": "Question {idx}.{sub_idx}:",
+    "answer_prefix": "Answer {idx}.{sub_idx}:",
+    "overall_question_prefix": "Now we can answer the question:",
+}
+
 
 def get_task_instruction_with_examples(prompt_dict, num_shot=0):
-    # prompt dict
-    prompt_dict = copy.deepcopy(prompt_dict) 
-    prompt_dict['interactive_examples']= random.sample(list(prompt_dict['interactive_examples']), k=num_shot)
+    """Generate task instruction with few-shot examples."""
+    prompt_dict = copy.deepcopy(prompt_dict)
+    prompt_dict['interactive_examples'] = random.sample(
+        list(prompt_dict['interactive_examples']), k=num_shot
+    )
     
-    # instruction
     with io.StringIO() as f:
         f.write(prompt_dict['instruction'] + '\n\n')
         for idx, example in enumerate(prompt_dict['interactive_examples']):
             f.write(example.format(idx=idx + 1) + '\n\n')
-
         instruction = f.getvalue()
     
     return instruction
-    
+
+
+# Pre-built prompt specs for math QA tasks
 system_message_dict = {
-    k: prompt_dict[k]
+    k: policy_prompt_dict[k]
     for k in ["instruction", "interactive_examples", "useful_examples"]
 }
 task_prompt_spec_math_qa = get_task_instruction_with_examples(system_message_dict, 4)
-    
+
 usr_prompt_spec_math_qa = {
-    k: prompt_dict[k]
+    k: policy_prompt_dict[k]
     for k in ['question_prefix', 'subquestion_prefix', 'overall_question_prefix', 'answer_prefix']
 }
+
+
+# =============================================================================
+# Reward Prompts - Sub-question usefulness evaluation
+# =============================================================================
+
+reward_prompt_spec_math_qa = {
+    "input": "Given a question and some sub-questions, determine whether the last sub-question is useful to answer the question. Output 'Yes' or 'No', and a reason.\n\nQuestion 1: Four years ago, Kody was only half as old as Mohamed. If Mohamed is currently twice as 30 years old, how old is Kody?\nQuestion 1.1: How old is Mohamed?\nQuestion 1.2: How old was Mohamed four years ago?\nNew question 1.3: How old was Kody four years ago?\nIs the new question useful? Yes. We need the answer to calculate how old is Kody now.\n\nQuestion 2: Traci and Harris are baking cakes together. Traci has brought flour from her own house and Harris has 400g of flour in his house. Each cake needs 100g of flour and Traci and Harris have created 9 cakes each. How much flour, in grams, did Traci bring from her own house?\nNew question 2.1: How many cakes did Traci bring from her own house?\nIs the new question useful? No. The new question is not related to the original question.\n\nQuestion 3: A quantity surveyor is figuring the construction costs for a couple that wishes to build a house. The costs are as follows: land costs $50 per square meter, bricks cost $100 per 1000 bricks and roof tiles cost $10 per roof tile. If the house they wish to build requires 2000 square meters, 10000 bricks, and 500 roof tiles, how much construction costs are required for this project?\nQuestion 3.1: How much does the land cost?\nQuestion 3.2: How much do the bricks cost?\nNew question 3.3: How much do the roof tiles cost?\nIs the new question useful? Yes. We need the answer to calculate the total construction costs.\n\nQuestion 4: Wallace's water heater is twice the size of Catherine's water heater. If the capacity of Wallace's water heater is 40 gallons and it's 3/4 full, calculate the total number of gallons of water they both have if Catherine's water heater is also full with water to 3/4 of its capacity.\nQuestion 4.1: How much water is in Wallace's water heater?\nNew question 4.2: How much water do they have in total?\nIs the new question useful? No. It is too hard to answer the new question based on the current information.\n\n",
+    "question_prefix": "Question 5: ",
+    "subquestion_prefix": "Question 5.{}:",
+    "new_subquestion_prefix": "New question 5.{}:",
+    "useful_prefix": "Is the new question useful?"
+}
+
+
+# =============================================================================
+# Alias for backward compatibility with verbalize_rap_state
+# =============================================================================
+
+math_qa_prompt_dict = {
+    "actor_dynamics": {
+        "question_prefix": policy_prompt_dict["question_prefix"],
+        "subquestion_prefix": policy_prompt_dict["subquestion_prefix"],
+        "answer_prefix": policy_prompt_dict["answer_prefix"],
+    }
+}
+
+
+# =============================================================================
+# Register RAP prompts with PromptRegistry
+# =============================================================================
+
+def register_rap_prompts():
+    """Register RAP prompts with the global PromptRegistry.
+    
+    This is called when the RAP formulation module is imported.
+    """
+    from lits.prompts.registry import PromptRegistry
+    
+    # Register policy prompts
+    PromptRegistry.register('policy', 'rap', 'language_grounded', task_prompt_spec_math_qa)
+    PromptRegistry.register_usr('policy', 'rap', 'language_grounded', usr_prompt_spec_math_qa)
+    
+    # Register reward prompts
+    PromptRegistry.register('reward', 'rap', 'language_grounded', reward_prompt_spec_math_qa)
+    
+    # Register transition prompts (same as policy for RAP)
+    PromptRegistry.register('transition', 'rap', 'language_grounded', task_prompt_spec_math_qa)
+    PromptRegistry.register_usr('transition', 'rap', 'language_grounded', usr_prompt_spec_math_qa)
+
+
+# Auto-register when module is imported
+register_rap_prompts()

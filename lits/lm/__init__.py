@@ -1,4 +1,5 @@
 from .base import LanguageModel, HfChatModel, HfModel, DEFAULT_MAX_LENGTH, InferenceLogger
+from .loader import configure_hf_model_logging, setup_inference_logging, load_models
 
 from .openai_chat import OpenAIChatModel
 from .bedrock_chat import BedrockChatModel
@@ -56,10 +57,15 @@ def get_lm(model_name:str, **kwargs):
     if inferred_max_length is not None:
         kwargs["max_length"] = inferred_max_length
     
+    # TGI remote completion model: tgi://host:port/model_name
+    if model_name.startswith("tgi://"):
+        from .tgi import TGIModel
+        return TGIModel.from_url(model_name, **kwargs)
+    
     # if start with openai,  azure_openai, moonshot 
     if model_name.startswith("openai") or model_name.startswith("azure_openai") or model_name.startswith("moonshot") or model_name.startswith("groq"):
         base_model = OpenAIChatModel(model_name.split("/")[1], **kwargs)
-    if model_name.startswith("bedrock"):
+    elif model_name.startswith("bedrock"):
         from .bedrock_chat import BedrockChatModel
         base_model = BedrockChatModel(model_name.split("/")[1], **kwargs) # e.g., bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0
     else:
@@ -105,6 +111,19 @@ def infer_chat_model(model_name: str):
             - is_chat_model: bool
             - reason: str (explanation)
     """
+    # TGI models: infer from model name in URL
+    if model_name.startswith("tgi://"):
+        # Extract model name from tgi://host:port/model_name
+        parts = model_name[6:].split("/", 1)
+        if len(parts) > 1:
+            hf_model_name = parts[1]
+            # Recursively check the underlying model
+            return infer_chat_model(hf_model_name)
+        return {
+            "is_chat_model": False,
+            "reason": "TGI model without explicit model name, assuming completion model."
+        }
+    
     # Non-HF models (Bedrock, OpenAI, etc.) are always chat models
     if model_name.startswith(("bedrock/", "openai/", "azure_openai/", "moonshot/", "groq/")):
         return {

@@ -2,11 +2,9 @@ import re
 import logging
 from typing import Optional
 from pydantic import BaseModel
-from ..prompts.policy.rap import prompt_dict as math_qa_prompt_dict
 from ..lm.base import HfChatModel, HfModel,DETERMINISTIC_TEMPERATURE, LanguageModel
 from ..structures import (
     StateT,
-    SubQAStep,
     ThoughtStep,
     ToolUseState,
     ToolUseStep,
@@ -123,14 +121,6 @@ def verb_tools(tools, include_schema: bool = True, join_str: str = "\n\n") -> st
     return join_str.join([verb_tool(tool, include_schema) for tool in tools])
 
 # --- State verbalization ---
-def verbalize_rap_state(question, state, n_shots=4):
-    usr_msg_dict = math_qa_prompt_dict["actor_dynamics"]
-    user_message = usr_msg_dict["question_prefix"].format(idx=n_shots + 1, question=question) + "\n"
-    for idx, (sub_question, sub_answer, _) in enumerate(state):
-        user_message += usr_msg_dict["subquestion_prefix"].format(idx=n_shots + 1, sub_idx=idx + 1) + " " + sub_question + "\n"
-        user_message += usr_msg_dict["answer_prefix"].format(idx=n_shots + 1, sub_idx=idx + 1) + " " + sub_answer + "\n"
-    return user_message
-
 def verbalize_concat_state(question, state):
     """ The format of the prompt is:
         Problem: ...
@@ -261,14 +251,18 @@ def get_fn_retrieve_answer(base_model, answer_type="num", append_answer_to_state
             logger.debug(f"Original last step: {final_state[-1].get_answer()}")
             sample_answers = []
             for _ in range(5):  # sample 5 times
-                if isinstance(final_state[0], ThoughtStep):
-                    solution = verbalize_concat_state(question, final_state)
-                elif isinstance(final_state[0], SubQAStep):
-                    solution = verbalize_rap_state(question, final_state)
-                elif isinstance(final_state[0], ToolUseStep):
+                # Use Step.verbalize_state() if available (duck typing)
+                step_class = type(final_state[0])
+                if hasattr(step_class, 'verbalize_state'):
+                    solution = step_class.verbalize_state(question, final_state)
+                elif hasattr(final_state, 'render_history'):
+                    # ToolUseState has render_history
                     solution = question + "\n\n" + final_state.render_history()
                 else:
-                    raise ValueError(f"Unknown step type: {type(final_state[0])}")
+                    # Fallback to default verbalization
+                    from ..structures.base import Step
+                    solution = Step.verbalize_state(question, final_state)
+                
                 answer = extract_fn(base_model, solution)
                 logger.debug("Retrieve answer from the path, and append it to the final state: " + answer)
                 sample_answers.append(answer)
@@ -281,10 +275,9 @@ def get_fn_retrieve_answer(base_model, answer_type="num", append_answer_to_state
             if append_answer_to_state:
                 if isinstance(final_state[0], ThoughtStep):
                     final_state.append(ThoughtStep(action="The answer is " + answer))
-                elif isinstance(final_state[0], SubQAStep):
-                    final_state.append(SubQAStep(sub_question="What is the final answer?", sub_answer="The answer is " + answer, confidence=1.0))
                 else:
-                    raise ValueError(f"Unknown step type: {type(final_state[0])}")
+                    # For other step types, don't append (they may have different constructors)
+                    logger.debug(f"Cannot append answer to state for step type: {type(final_state[0])}")
                 logger.debug(f"Added last step: {final_state[-1].get_answer()}")
             return answer
 
@@ -309,10 +302,25 @@ def parsable_by_float(text: str) -> bool:
                 
 
 def retrieve_answer_from_last_step(step) -> Optional[str]:
+    """Extract numerical answer from a step.
     
+    Parses the step output to find answers in the format "The answer is X".
+    Works with any step type that has a get_answer() method.
+    
+    Args:
+        step: Step object with get_answer() method, or string containing the answer
+    
+    Returns:
+        Extracted numerical answer string, or empty string if not found
+    """
     # extract the answer from the last step
-    assert isinstance(step, (SubQAStep, ThoughtStep, ToolUseStep, str)), f"step should be SubQAStep, ThoughtStep, ToolUseStep or str, got {type(step)}: {step}"
-    output = step.get_answer() if isinstance(step, (SubQAStep, ThoughtStep)) else step
+    if isinstance(step, str):
+        output = step
+    elif hasattr(step, 'get_answer'):
+        output = step.get_answer()
+    else:
+        raise TypeError(f"step should have get_answer() method or be str, got {type(step)}: {step}")
+    
     pattern = r'.*[Tt]he answer is .*?([$.0-9,\-]+)(?:\..*)?'
     match = re.match(pattern, output, re.DOTALL)
     # `re.DOTALL` to make .* match across newline characters

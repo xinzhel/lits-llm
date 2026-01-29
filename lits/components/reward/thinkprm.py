@@ -405,35 +405,52 @@ class ThinkPRMSageMaker:
 # =============================================================================
 
 class ThinkPRM(RewardModel):
-    """
-    Process Reward Model using ThinkPRM-14B deployed on AWS SageMaker.
+    """Process Reward Model using ThinkPRM-14B deployed on AWS SageMaker.
     
     ThinkPRM is a 14B parameter model (based on Qwen2.5-14B-Instruct) trained to 
-    verify mathematical reasoning steps. It outputs \boxed{correct} or \boxed{incorrect} 
+    verify mathematical reasoning steps. It outputs \\boxed{correct} or \\boxed{incorrect} 
     for each step, along with an overall assessment of solution correctness.
     
     This class wraps the SageMaker endpoint to provide the standard RewardModel interface
     for use with LITS tree search algorithms (MCTS, BFS, etc.).
     
-    Scoring Modes:
-    -------------
-    - "last_step": Use only the last step's label as reward.
-                   Best for tree search where we evaluate partial solutions.
-                   If the new step is correct, reward=1.0; otherwise reward=0.0.
-                   
-    - "prefix": All steps must be correct for reward=1.0.
-                Best for evaluating complete solutions.
-                Any incorrect step results in reward=0.0.
-                
-    - "average": Average of all step labels.
-                 Softer scoring that gives partial credit.
-                 E.g., 2/3 correct steps = reward=0.67.
+    Config Args (via --component-arg):
+        thinkprm_endpoint: SageMaker endpoint name (default: 'thinkprm-14b-endpoint')
+        thinkprm_region: AWS region where endpoint is deployed (default: 'us-east-1')
+        thinkprm_scoring_mode: How to compute reward from step labels (default: 'last_step')
+            - 'last_step': Use only the new step's correctness (best for tree search)
+            - 'prefix': All steps must be correct (best for complete solutions)
+            - 'average': Average of all step labels (softer scoring)
     
     Attributes:
         TASK_TYPE: "language_grounded" - for math QA and reasoning tasks
     """
     
     TASK_TYPE: str = "language_grounded"
+    
+    @classmethod
+    def from_config(cls, base_model, search_args: dict, component_args: dict, **kwargs):
+        """Create ThinkPRM from configuration dicts.
+        
+        Note: ThinkPRM does not use base_model - it uses its own SageMaker endpoint.
+        
+        Args:
+            base_model: Ignored (ThinkPRM uses SageMaker endpoint)
+            search_args: Search algorithm parameters (not used)
+            component_args: Component parameters:
+                - thinkprm_endpoint: SageMaker endpoint name (default: "thinkprm-14b-endpoint")
+                - thinkprm_region: AWS region (default: "us-east-1")
+                - thinkprm_scoring_mode: Scoring mode (default: "last_step")
+            **kwargs: Additional arguments (ignored)
+        
+        Returns:
+            ThinkPRM instance
+        """
+        return cls(
+            endpoint_name=component_args.get('thinkprm_endpoint', 'thinkprm-14b-endpoint'),
+            region_name=component_args.get('thinkprm_region', 'us-east-1'),
+            scoring_mode=component_args.get('thinkprm_scoring_mode', 'last_step'),
+        )
     
     def __init__(
         self,
