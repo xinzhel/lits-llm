@@ -10,6 +10,7 @@ from .base import BaseSearchConfig
 from .continuation import _continuation
 from ...lm.base import DETERMINISTIC_TEMPERATURE  
 from .common import _world_modeling, _is_terminal_with_depth_limit, _sample_actions_with_existing, create_child_node
+from ..registry import register_search
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +162,7 @@ def _expand_with_existing(
 ##### EXPAND With Existing Children (END) #####
 
 
+@register_search("bfs", config_class=BFSConfig)
 def bfs_topk(
     question, 
     query_idx, 

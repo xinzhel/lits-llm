@@ -19,6 +19,7 @@ from .node import MCTSNode, SearchNode
 from .base import BaseSearchConfig
 from .common import visualize_node, visualize_path, _sample_actions_with_existing, _world_modeling, _is_terminal_with_depth_limit, _is_terminal_with_depth_limit_and_r_threshold, create_child_node
 from .continuation import _continuation
+from ..registry import register_search
 
 logger = logging.getLogger(__name__)
 
@@ -446,6 +447,7 @@ def _back_propagate(path: list[MCTSNode], cum_reward_func):
 ##### BACK-PROPAGATE (END)
 
 ##### MCTS (BEGIN) #####
+@register_search("mcts", config_class=MCTSConfig)
 def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, reward_model, bn_evaluator=None, init_state_kwargs: dict = None, checkpoint_dir: str = None, override_checkpoint: bool = True, memory_manager: Optional[LiTSMemoryManager] = None) -> MCTSResult:
     """Run MCTS search.
     

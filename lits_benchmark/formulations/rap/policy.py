@@ -2,6 +2,7 @@ from typing import Optional, Union, List, Tuple, Dict, Callable, Any
 from lits.components.base import Policy
 from lits.structures import State, StateT, ActionT, StepT
 from lits.lm.base import HfChatModel, HfModel
+from lits.lm.tgi import TGIModel
 from lits.components.registry import register_policy
 from .structures import SubQAStep
 from .utils import verbalize_rap_state
@@ -90,6 +91,10 @@ class RAPPolicy(Policy):
             assert self.n_shots == 0
             self.base_model.sys_prompt = task_prompt_spec
             return user_message
+        elif isinstance(self.base_model, TGIModel):
+            # TGIModel uses /generate endpoint - concatenate prompts
+            # For chat models via TGI, use OpenAIChatModel with /v1/chat/completions instead
+            return task_prompt_spec + user_message
         elif isinstance(self.base_model, HfModel):
             return task_prompt_spec + user_message
         else:
@@ -107,17 +112,20 @@ class RAPPolicy(Policy):
         **kwargs  
     ) -> list[SubQAStep]:
 
-        assert isinstance(state, State)
+        assert isinstance(state, (State, list)), f"Expected State or list, got {type(state)}"
         assert critic is None, "RAPPolicy does not support critic"
      
         outputs = []
         model_input = self._generate_prompt(query, state, at_depth_limit)
+        logger.debug(f"RAPPolicy prompt (first 500 chars):\n{model_input[:500]}")
+        logger.debug(f"RAPPolicy prompt (last 200 chars):\n{model_input[-200:]}")
         for idx in range(0, n_actions):
             output_text = self._call_model(model_input, temperature=temperature, max_length=self.max_length, max_new_tokens=self.max_new_tokens, top_p=self.top_p, stop='\n', new_line_stop=True).text.strip()
+            logger.debug(f"RAPPolicy raw output {idx}: '{output_text}'")
             outputs.append(output_text)
         
         if at_depth_limit:
-            outputs = [self.usr_msg_dict["overall_question_prefix"] + " " + output for output in outputs]
+            outputs = [self.usr_prompt_spec["overall_question_prefix"] + " " + output for output in outputs]
         
         # if the prefix ( "Now we can answer the question: ") is already there, 
         if self.force_overall_prompt_on_overall_question or self.force_overall_question_on_overall_prompt:

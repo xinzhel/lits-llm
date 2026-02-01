@@ -7,7 +7,7 @@ import logging
 import re
 logger = logging.getLogger(__name__)
 
-class Transition(ABC, Generic[StateT, ActionT]):
+class Transition(ABC, Generic[StateT, StepT]):
     """Base class for transition models (world models) in tree search.
     
     Transition models define how states evolve in response to actions.
@@ -81,7 +81,7 @@ class Transition(ABC, Generic[StateT, ActionT]):
     def is_terminal(self, state: StateT, *arg, **kwargs) -> bool: ...
 
 
-class LlmTransition(Transition, Generic[StateT, ActionT]):
+class LlmTransition(Transition, Generic[StateT, StepT]):
     """
     Base class for LLM-based transitions that use prompts.
     
@@ -342,7 +342,7 @@ class LlmTransition(Transition, Generic[StateT, ActionT]):
     
 
     
-class Policy(ABC, Generic[StateT, ActionT]):
+class Policy(ABC, Generic[StateT, StepT]):
     """
     Abstract base class for policy implementations. This class provides the framework for generating actions given a state.
     
@@ -1049,7 +1049,7 @@ class Policy(ABC, Generic[StateT, ActionT]):
             f"{self.__class__.__name__} must implement _get_actions method"
         )
 
-class RewardModel(ABC, Generic[StateT, ActionT]):
+class RewardModel(ABC, Generic[StateT, StepT]):
     """
     Abstract base class for reward model implementations.
     

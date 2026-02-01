@@ -2,8 +2,9 @@ import logging
 from typing import Dict, Any
 from collections import defaultdict
 from lits.components.base import LlmTransition
-from lits.structures import StateT, Action, log_state
+from lits.structures import StateT, Action, log_state, TrajectoryState
 from lits.lm.base import HfChatModel, HfModel
+from lits.lm.tgi import TGIModel
 from lits.components.registry import register_transition
 from .structures import SubQAStep
 from .utils import verbalize_rap_state, retrieve_answer_from_last_step
@@ -93,8 +94,8 @@ class RAPTransition(LlmTransition):
         # self.early_stop_base = early_stop_base if early_stop_base is not None else n_confidence
         self.early_stop_threshold = early_stop_threshold
 
-    def init_state(self, **kwargs) -> list:
-        return []
+    def init_state(self, **kwargs) -> TrajectoryState:
+        return TrajectoryState()
 
     def _generate_prompt(self, query_or_goals: str, state: StateT, action: Action) -> str:
         
@@ -112,6 +113,10 @@ class RAPTransition(LlmTransition):
             assert self.n_shots == 0
             self.base_model.sys_prompt = task_prompt_spec
             return user_message
+        elif isinstance(self.base_model, TGIModel):
+            # TGIModel uses /generate endpoint - concatenate prompts
+            # For chat models via TGI, use OpenAIChatModel with /v1/chat/completions instead
+            return task_prompt_spec + user_message
         elif isinstance(self.base_model, HfModel):
             return task_prompt_spec + user_message
         else:
@@ -150,7 +155,8 @@ class RAPTransition(LlmTransition):
             answer = max_answer_output_list[0]  # Here we simply choose the first appearance of the answer
             confidence = max_len / sum(len(v) for v in answer_dict.values())
 
-        new_state = state.copy()
+        new_state = TrajectoryState()
+        new_state.extend(state)  # Copy existing steps
         new_state.append(SubQAStep(sub_question=action, sub_answer=answer, confidence=confidence))
         log_state(logger, new_state, header="RAPTransition.step")
         aux = {'confidence': confidence}

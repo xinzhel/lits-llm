@@ -62,6 +62,11 @@ def get_lm(model_name:str, **kwargs):
         from .tgi import TGIModel
         return TGIModel.from_url(model_name, **kwargs)
     
+    # TGI remote chat model: tgi-chat://host:port/model_name
+    if model_name.startswith("tgi-chat://"):
+        from .tgi import TGIChatModel
+        return TGIChatModel.from_url(model_name, **kwargs)
+    
     # if start with openai,  azure_openai, moonshot 
     if model_name.startswith("openai") or model_name.startswith("azure_openai") or model_name.startswith("moonshot") or model_name.startswith("groq"):
         base_model = OpenAIChatModel(model_name.split("/")[1], **kwargs)

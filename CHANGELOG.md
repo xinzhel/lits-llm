@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-01-31 v0.2.8
+### Added
+- `TGIChatModel` for TGI's `/v1/chat/completions` endpoint (`lits/lm/tgi.py`)
+- `tgi-chat://` URL prefix for chat models via TGI
+- `TGIModel.is_chat_model` property using `infer_chat_model()`
+- `TGIModel.get_next_token_logits()` using TGI grammar constraints (`lits/lm/tgi.py`)
+- `TGIModel.get_top5_logits()` using TGI's `top_n_tokens` feature (`lits/lm/tgi.py`)
+
+### Fixed
+- RAP state type mismatch with `TrajectoryState` (`lits_benchmark/formulations/rap/policy.py`, `transition.py`)
+- RAP `_generate_prompt` now handles `TGIModel`
+- `TGIModel` stop parameter: convert string to list for TGI API (`lits/lm/tgi.py`)
+- `TGIModel` error handling: include response body in 422 errors
+
+### Changed
+- Generic type parameters in base classes: `Generic[StateT, ActionT]` → `Generic[StateT, StepT]` (`lits/components/base.py`)
+
+## 2026-01-29 v0.2.8 (Search Registry)
+### Added
+- `AgentRegistry` and `@register_search` decorator for custom search algorithms (`lits/agents/registry.py`)
+
+### Changed
+- Unified search invocation in `main_search.py` using `AgentRegistry.get_search()`
+
 ## 2026-01-29 v0.2.8 (Codebase Refactoring for Language-Grounded Tasks)
 
 ### Added
