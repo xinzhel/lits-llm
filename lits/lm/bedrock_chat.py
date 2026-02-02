@@ -403,9 +403,11 @@ class BedrockChatModel(LanguageModel):
         # Parse response
         try:
             if hasattr(response, "output") and hasattr(response.output, "message"):
-                text = response.output.message.content[0].text.strip()
+                content = response.output.message.content
+                text = content[0].text.strip() if content else ""
             elif isinstance(response, dict):
-                text = response.get("output", {}).get("message", {}).get("content", [{}])[0].get("text", "")
+                content = response.get("output", {}).get("message", {}).get("content", [])
+                text = content[0].get("text", "").strip() if content else ""
             else:
                 text = str(response)  
         except Exception as e:

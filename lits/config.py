@@ -78,7 +78,7 @@ _DEFAULT_COMPONENT_ARGS: Dict[str, Any] = {
 _EXCLUDE_FROM_SEARCH_CONFIG: Set[str] = {
     # Execution params
     "dataset", "search_framework", "search_algorithm",
-    "offset", "limit", "eval_idx", "levels",
+    "offset", "limit", "eval_idx",
     "verbose", "model_verbose", "print_answer_for_each_example", "override_log_result",
     "enable_memory", "memory_config", "check_action_sim"
 }
@@ -111,7 +111,6 @@ class ExperimentConfig:
         offset: Starting index for dataset slicing
         limit: Number of examples to evaluate (None = all)
         eval_idx: Specific indices to evaluate (overrides offset/limit)
-        levels: Filter math500 by difficulty levels (1-5)
     
     Parameter Categories:
         - Orchestration: dataset, search_framework, search_algorithm, model names
@@ -194,7 +193,6 @@ class ExperimentConfig:
     offset: int = 0
     limit: Optional[int] = 100
     eval_idx: List[int] = field(default_factory=list)
-    levels: Optional[List[int]] = None
     
     # === Logging ===
     model_verbose: bool = True

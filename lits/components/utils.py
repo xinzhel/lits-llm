@@ -288,7 +288,8 @@ def get_fn_retrieve_answer(base_model, answer_type="num", append_answer_to_state
         # use LLM to infer the answer
         if answer == "" or not parsable_by_float(answer):
             answer = extract_by_llm()
-            return answer
+        
+        return answer
 
     return retrieve_answer
 

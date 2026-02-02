@@ -8,6 +8,7 @@ from ..base import RewardModel
 from ...structures import StateT, ActionT
 from ...lm import HfChatModel, infer_chat_model
 from ...eval import parse_reasoning_and_label
+from ...log import log_phase, log_event
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +129,9 @@ class GenerativePRM(RewardModel):
             score_type = "correctness" if "correctness" in role_prefix else "usefulness"
             n_sample = self.n_for_correctness if "correctness" in role_prefix else self.n_for_usefulness
 
-            logger.debug(f"===== Sample {n_sample} {score_type} scores (Begin) ======")
+            log_phase(logger, f"Sample-{score_type}", f"Begin (n={n_sample})")
             for i in range(n_sample):
-                logger.debug(f">>>>> Sample {i+1}/{n_sample} <<<<<")
+                log_event(logger, "SAMPLE", f"{i+1}/{n_sample}", level="debug")
                 
                 try:
                     output = call_model_fn(msg, role_prefix, max_new_tokens=500, skip_special_tokens= True, enable_thinking=enable_thinking).text
@@ -174,10 +175,10 @@ class GenerativePRM(RewardModel):
                 sampled_scores.append(score)
                     
                 if "correctness" in role_prefix and score == 0:
-                    logger.debug(f"===== Sample {n_sample} {score_type} scores (END) ======")
+                    log_phase(logger, f"Sample-{score_type}", f"End (early stop)")
                     return 0
-            logger.debug(f"Sampled {n_sample} {score_type} scores: {sampled_scores}")
-            logger.debug(f"===== Sample {n_sample} {score_type} scores (END) ======")
+            log_event(logger, "SAMPLE", f"Sampled {n_sample} {score_type} scores: {sampled_scores}", level="debug")
+            log_phase(logger, f"Sample-{score_type}", "End")
             assert len(sampled_scores) == n_sample
             return float(np.mean(sampled_scores))
         

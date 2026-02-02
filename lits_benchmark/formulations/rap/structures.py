@@ -38,6 +38,25 @@ class SubQAStep(Step):
         """Return a string representation of the sub-question and answer."""
         return f"Sub-question: {self.sub_question}\nSub-answer: {self.sub_answer}"
 
+    def to_dict(self) -> dict:
+        """Serialize the step including RAP-specific fields."""
+        data = super().to_dict()
+        data["sub_question"] = self.sub_question
+        data["sub_answer"] = self.sub_answer
+        data["confidence"] = self.confidence
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SubQAStep":
+        """Deserialize from dict."""
+        return cls(
+            error=data.get("error"),
+            terminate=data.get("terminate", False),
+            sub_question=data.get("sub_question", ""),
+            sub_answer=data.get("sub_answer", ""),
+            confidence=data.get("confidence", 0.0),
+        )
+
     def to_messages(self) -> list[dict]:
         """Convert the step into chat messages (assistant asks, then answers)."""
         return [

@@ -20,6 +20,7 @@ from .base import BaseSearchConfig
 from .common import visualize_node, visualize_path, _sample_actions_with_existing, _world_modeling, _is_terminal_with_depth_limit, _is_terminal_with_depth_limit_and_r_threshold, create_child_node
 from .continuation import _continuation
 from ..registry import register_search
+from ...log import log_phase, log_event, log_metric
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +168,7 @@ def _select(w_exp: float, node: MCTSNode, max_steps: int, force_terminating_on_d
     Returns:
         List of nodes representing the selected path
     """
-    logger.debug("\n=========== [Select Begin] ===========")
+    log_phase(logger, "Select", "Begin")
     def _uct_select(w_exp: float, node: MCTSNode, return_detail=False) -> MCTSNode:
         best_child = None
         best_score = -np.inf
@@ -195,8 +196,8 @@ def _select(w_exp: float, node: MCTSNode, max_steps: int, force_terminating_on_d
 
             logger.debug(visualize_path(path))
             select_types_str = "->".join(record_select_types)
-            logger.debug(f"Select Types: {select_types_str}")
-            logger.debug("=========== [Select End] ===========\n")
+            log_event(logger, "Select", f"Types: {select_types_str}", level="debug")
+            log_phase(logger, "Select", "End")
             return path
         
         # continuous select
@@ -252,7 +253,7 @@ def _expand(
                        memory augmentation. If provided, the memory context is formatted
                        and passed to the policy for prompt injection.
     """
-    logger.debug(f"\n=========== [Expand for Example {query_idx} Begin] ===========")
+    log_phase(logger, "Expand", f"Begin (example={query_idx})")
 
     new_steps_or_actions = _sample_actions_with_existing(
         query_or_goals,
@@ -316,7 +317,7 @@ def _expand(
                 logger.debug(f"Child's (Node {child.id}) fast_reward not been assigned and not required to be assigned")
         else:
             logger.debug(f"Child's (Node {child.id}) fast_reward already assigned as {child.fast_reward}")
-    logger.debug("=========== [Expand End] ===========\n")
+    log_phase(logger, "Expand", "End")
 ##### EXPAND (END) #####
 
 ##### SIMULATE (Begin) (REUSE EXPAND...) #####
@@ -334,11 +335,11 @@ def _simulate(
     
     assert path[-1].state is not None, "node.state should not be None for rollout"
 
-    logger.debug("\n=========== [Simulate Begin] ===========")
+    log_phase(logger, "Simulate", "Begin")
     node = path[-1]
     unselected_terminal_paths = []
     for i in range(roll_out_steps):
-        logger.debug(f"Rollout Step {i+1}")
+        log_event(logger, "Simulate", f"Rollout step {i+1}", level="debug")
         
         _expand(
             query_or_goals, 
@@ -354,8 +355,8 @@ def _simulate(
         )
 
         if node.is_terminal_for_repeat:
-            logger.debug(f"!!!!! is_terminal_for_repeat")
-            logger.debug("=========== [Simulate End] ===========\n")
+            log_event(logger, "Simulate", "Terminal for repeat", level="debug")
+            log_phase(logger, "Simulate", "End")
             return True, unselected_terminal_paths
         
         fast_rewards = [child.fast_reward for child in node.children]
@@ -371,11 +372,11 @@ def _simulate(
                 unselected_terminal_paths.append(deepcopy(path + [node.children[i]]))
         # ====== Terminate Check (Begin) ======
         if _is_terminal_with_depth_limit_and_r_threshold(node,  mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
-            logger.debug("=========== [Simulate End] ===========\n")
+            log_phase(logger, "Simulate", "End")
             return False, unselected_terminal_paths
         # ====== Terminate Check (End) ======
     
-    logger.debug("=========== [Simulate End] ===========\n")
+    log_phase(logger, "Simulate", "End")
     return False, unselected_terminal_paths
 ##### SIMULATE (END) #####
 
@@ -420,16 +421,16 @@ def _back_propagate(path: list[MCTSNode], cum_reward_func):
         - First mean: aggregates rewards within a single rollout (backpropagation)
         - Second mean: aggregates across multiple rollouts (UCT selection)
     """
-    logger.debug("\n=========== [Backpropagate Begin] ===========")
+    log_phase(logger, "Backpropagate", "Begin")
     rewards = []
     cum_rewards_appened = []
     for node in reversed(path):
         rewards.append(node.reward)
         node.cum_rewards.append(cum_reward_func(rewards[::-1]))
         cum_rewards_appened.append(cum_reward_func(rewards[::-1]))
-    logger.debug(f"Rewards (leaf -> root): {rewards}")
-    logger.debug(f"Cumulative rewards appended to the nodes (leaf -> root): {cum_rewards_appened}")
-    logger.debug("=========== [Backpropagate End] ===========\n")
+    log_event(logger, "Backpropagate", f"Rewards (leaf->root): {rewards}", level="debug")
+    log_event(logger, "Backpropagate", f"Cum rewards: {cum_rewards_appened}", level="debug")
+    log_phase(logger, "Backpropagate", "End")
     return node.cum_rewards[-1]
 ##### BACK-PROPAGATE (END)
 
@@ -472,7 +473,7 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
         MCTSResult with search results
     """
     logger.debug(f"Question: {query_or_goals}")
-    logger.debug(f"\n\n\n=========== [MCTS for Example {query_idx} Begin] ===========")
+    log_phase(logger, "MCTS", f"Begin (example={query_idx})")
     
     # Setup checkpoint directory if provided
     if checkpoint_dir:
@@ -528,7 +529,7 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
         for idx_iter in trange(mcts_search_config.n_iters, desc='MCTS iteration', leave=False):
             if mcts_search_config.runtime_limit_before_iter and time.time() - start_time > mcts_search_config.runtime_limit_before_iter: 
                 raise ValueError(f"MCTS exceeded runtime limit: {mcts_search_config.runtime_limit_before_iter}")  # will be caught by except below
-            logger.debug(f"\n\n\n=========== [MCTS iteration {idx_iter} Begin] ===========")
+            log_phase(logger, "MCTS", f"Iteration {idx_iter}")
             is_terminal_for_repeat = False
             path = _select(mcts_search_config.w_exp, root, mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit)  ####### select
             
@@ -536,10 +537,10 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
             if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
                 if mcts_search_config.terminate_on_terminal_node:
-                    logger.debug(f"!!!!! The MCTS terminates due to terminal node")
+                    log_event(logger, "MCTS", "Terminates due to terminal node (after select)", level="debug")
                     break
                 else:
-                    logger.debug(f"!!!!! The MCTS continues to next iteration due to terminal node")
+                    log_event(logger, "MCTS", "Continues to next iteration due to terminal node (after select)", level="debug")
                     continue
             # ====== Terminate Check (End) ======
 
@@ -568,10 +569,10 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
                 if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                     trace_in_each_iter.append(deepcopy(path))
                     if mcts_search_config.terminate_on_terminal_node:
-                        logger.debug(f"!!!!! The MCTS terminates due to terminal node")
+                        log_event(logger, "MCTS", "Terminates due to terminal node (after continuation)", level="debug")
                         break
                     else:
-                        logger.debug(f"!!!!! The MCTS continues to next iteration due to terminal node")
+                        log_event(logger, "MCTS", "Continues to next iteration due to terminal node (after continuation)", level="debug")
                         continue
                 # ====== Terminate Check (End) ======
        
@@ -582,10 +583,10 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
             if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
                 if mcts_search_config.terminate_on_terminal_node:
-                    logger.debug(f"!!!!! The MCTS terminates due to terminal node")
+                    log_event(logger, "MCTS", "Terminates due to terminal node (after world modeling)", level="debug")
                     break
                 else:
-                    logger.debug(f"!!!!! The MCTS continues to next iteration due to terminal node")
+                    log_event(logger, "MCTS", "Continues to next iteration due to terminal node (after world modeling)", level="debug")
                     continue
             # ====== Terminate Check (End) ======
     
@@ -667,10 +668,10 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
             if _is_terminal_with_depth_limit_and_r_threshold(path[-1], mcts_search_config.max_steps, mcts_search_config.force_terminating_on_depth_limit, mcts_search_config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
                 if mcts_search_config.terminate_on_terminal_node:
-                    logger.debug(f"!!!!! The MCTS terminates due to terminal node")
+                    log_event(logger, "MCTS", "Terminates due to terminal node (before simulate)", level="debug")
                     break
                 else:
-                    logger.debug(f"!!!!! The MCTS continues to next iteration due to terminal node")
+                    log_event(logger, "MCTS", "Continues to next iteration due to terminal node (before simulate)", level="debug")
                     continue
             # ====== Terminate Check (End) ======
             is_terminal_for_repeat, unselected_terminal_paths = _simulate(
@@ -688,7 +689,7 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
 
             # ====== Terminate on First Solution (Begin) ======
             if mcts_search_config.terminate_on_first_solution and path[-1].is_terminal:
-                logger.debug(f"!!!!! The MCTS terminates due to first solution found (terminate_on_first_solution=True)")
+                log_event(logger, "MCTS", "Terminates due to first solution found", level="debug")
                 _back_propagate(path, mcts_search_config.cum_reward)
                 trace_in_each_iter.append(deepcopy(path))
                 break
@@ -705,12 +706,12 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
             if checkpoint_path:
                 checkpoint_file = checkpoint_path / f"{query_idx}_{idx_iter}.json"
                 if not override_checkpoint and checkpoint_file.exists():
-                    logger.debug(f"Skipping existing checkpoint: {checkpoint_file}")
+                    log_event(logger, "CHECKPOINT", f"Skipping existing: {checkpoint_file}", level="debug")
                 else:
                     checkpoint_data = _serialize_obj(path)
                     with open(checkpoint_file, 'w') as f:
                         json.dump(checkpoint_data, f, indent=2, ensure_ascii=False)
-                    logger.debug(f"Saved checkpoint: {checkpoint_file}")
+                    log_event(logger, "CHECKPOINT", f"Saved: {checkpoint_file}", level="debug")
             ##### Save trace in this iteration (END) #####
             
     except (ValueError, *([torch.cuda.OutOfMemoryError] if torch is not None else [])) as e:
@@ -722,7 +723,7 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
         logger.debug(msg)
         trace_in_each_iter.append([deepcopy(root)])
     num_hour_used = (time.time() - start_time) / 3600
-    logger.debug(f"Used Hours: {num_hour_used}")
+    log_metric(logger, "hours_used", num_hour_used, level="debug")
      
     # retrieve the path with maximum cumulative reward
     if mcts_search_config.output_strategy == 'max_reward':
@@ -732,12 +733,12 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
     if checkpoint_path and _output_iter:
         result_file = checkpoint_path / f"{query_idx}_result.json"
         if not override_checkpoint and result_file.exists():
-            logger.debug(f"Skipping existing result file: {result_file}")
+            log_event(logger, "CHECKPOINT", f"Skipping existing result: {result_file}", level="debug")
         else:
             result_data = _serialize_obj(_output_iter)
             with open(result_file, 'w') as f:
                 json.dump(result_data, f, indent=2)
-            logger.debug(f"Saved final result: {result_file}")
+            log_event(logger, "CHECKPOINT", f"Saved result: {result_file}", level="debug")
     
     # Collect all terminal nodes for unified post-processing
     def collect_terminal_nodes(node, terminals):
@@ -750,9 +751,9 @@ def mcts(query_or_goals, query_idx, mcts_search_config, world_model, policy, rew
     
     terminal_nodes_collected = []
     collect_terminal_nodes(root, terminal_nodes_collected)
-    logger.debug(f"Total terminal nodes collected: {len(terminal_nodes_collected)}")
+    log_event(logger, "MCTS", f"Total terminal nodes: {len(terminal_nodes_collected)}", level="debug")
     
-    logger.debug(f"=========== [MCTS for Example {query_idx} End] ===========\n")
+    log_phase(logger, "MCTS", f"End (example={query_idx})")
         
     result = MCTSResult(cum_reward=_output_cum_reward,
                         trace=([node.state for node in _output_iter], [node.action for node in _output_iter[1:]]) if _output_iter is not None else None,

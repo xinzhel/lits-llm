@@ -50,6 +50,7 @@ from typing import Dict, List, Literal, Optional, Union
 from ..base import RewardModel
 from ...structures import StateT, ActionT
 from ...structures.base import Step
+from ...log import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -590,10 +591,7 @@ class ThinkPRM(RewardModel):
         existing_steps = self._extract_steps_from_state(state)
         all_steps = existing_steps + [action_str]
         
-        logger.debug(
-            f"ThinkPRM evaluating {len(all_steps)} steps "
-            f"(query_idx={query_idx}, phase={from_phase})"
-        )
+        log_event(logger, "THINKPRM", f"Evaluating {len(all_steps)} steps (query_idx={query_idx}, phase={from_phase})", level="debug")
         
         # Call ThinkPRM
         results = self._prm.predict_correctness_batch(
@@ -637,10 +635,7 @@ class ThinkPRM(RewardModel):
             'prefix_score': result['prefix_score'],
         }
         
-        logger.debug(
-            f"ThinkPRM result: score={score:.3f} (mode={self.scoring_mode}), "
-            f"step_labels={step_labels}"
-        )
+        log_event(logger, "THINKPRM", f"Result: score={score:.3f} (mode={self.scoring_mode}), labels={step_labels}", level="debug")
         
         return score, details
     

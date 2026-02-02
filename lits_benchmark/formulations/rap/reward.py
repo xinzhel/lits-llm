@@ -76,8 +76,8 @@ class RapPRM(RewardModel):
             with io.StringIO() as f:
                 f.write(self.task_prompt_spec["input"])
                 f.write(self.task_prompt_spec["question_prefix"] + query + "\n")
-                for idx, (q, _, _) in enumerate(state):
-                    f.write(self.task_prompt_spec["subquestion_prefix"].format(idx + 1) + " " + q + "\n")
+                for idx, step in enumerate(state):
+                    f.write(self.task_prompt_spec["subquestion_prefix"].format(idx + 1) + " " + step.sub_question + "\n")
                 f.write(self.task_prompt_spec["new_subquestion_prefix"].format(len(state) + 1) + " " + action + "\n")
                 f.write(self.task_prompt_spec["useful_prefix"])
                 model_input = f.getvalue()
@@ -85,8 +85,8 @@ class RapPRM(RewardModel):
             assert isinstance(self.base_model, HfChatModel), "base_model must be HfChatModel since logits are required for `fast_reward`"
             sys_message = "Given a question and some sub-questions, determine whether the last sub-question is useful to answer the question. ONLY output one word: 'Yes' or 'No'"
             user_message = "Question 1: " + query + "\n"
-            for idx, (q, _, _) in enumerate(state):
-                user_message += 'Question 1.{}:'.format(idx + 1) + " " + q + "\n"
+            for idx, step in enumerate(state):
+                user_message += 'Question 1.{}:'.format(idx + 1) + " " + step.sub_question + "\n"
             user_message += 'New question 1.{}:'.format(len(state) + 1) + " " + action + "\n"
             user_message += 'Is the new question useful?'
 

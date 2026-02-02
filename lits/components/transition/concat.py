@@ -4,6 +4,7 @@ from ...structures import ThoughtStep, log_state, StateT
 from ..base import LlmTransition
 from ...lm.base import DETERMINISTIC_TEMPERATURE
 from ..utils import verbalize_concat_state, create_role, extract_existing_steps
+from ...log import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -117,13 +118,13 @@ Do not explain anything. Do not add extra text.
             else:
                 assert fast_reward is not None, "fast_reward must be provided when using reward_threshold"
                 outcome_reward = fast_reward
-            logger.debug(f"def is_terminal: reward_threshold (outcome_reward: {outcome_reward}; fast_reward: {fast_reward})")
+            log_event(logger, "TERMINAL", f"reward_threshold check: outcome={outcome_reward:.3f}, fast={fast_reward}", level="debug")
             if outcome_reward < self.r_terminating:
                 return False
             
         if "binary_sampling" in self.terminate_constraints:
             # usr msg
-            logger.debug(f"def is_terminal: binary_sampling")
+            log_event(logger, "TERMINAL", "binary_sampling check", level="debug")
             self.base_model.sys_prompt = self.terminate_prompt
             user_message = verbalize_concat_state(query_or_goals, state) + f"Do the above step(s) already provide the final answer to the question: '{query_or_goals}'"
 
@@ -134,16 +135,16 @@ Do not explain anything. Do not add extra text.
                 return False
         
         if "verify" in self.terminate_constraints:
-            logger.debug(f"def is_terminal: verify")
+            log_event(logger, "TERMINAL", "verify check", level="debug")
             
             self.base_model.sys_prompt = self.verify_terminate_prompt
             user_message = verbalize_concat_state(query_or_goals, state)
             answer_samples = self._sample_binary_output(user_message, sample_size=self.sample_size_terminate, target="complete", contrast="incomplete", role_prefix="dynamics_verify", max_length=self.max_length, max_new_tokens=self.max_new_tokens)
             complete_score = answer_samples['complete'] / self.sample_size_terminate
-            logger.debug(f"Rate for completion: {str(complete_score)}")
+            log_event(logger, "TERMINAL", f"completion rate: {complete_score:.3f}", level="debug")
             if complete_score < self.sample_threshold_verify:  
                 if "binary_sampling" in self.terminate_constraints:
-                    logger.debug("The task requires a numeric answer. The next step should take this into account.")
+                    log_event(logger, "TERMINAL", "numeric answer expected, updating step", level="debug")
                     assert isinstance(state[-1], ThoughtStep)
                     state[-1] = state[-1]._replace(
                         action=state[-1].get_action() + f"One numerical value is expected to directly answer the proposed question. The next step should take this into account."

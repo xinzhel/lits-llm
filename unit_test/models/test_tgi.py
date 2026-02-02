@@ -29,8 +29,18 @@ def test_basic_generation():
 def test_get_next_token_logits():
     """Test get_next_token_logits for token classification.
     
-    Note: Uses grammar constraints, requires N API calls for N candidates.
-    Single-character tokens may return logprob=0.0 due to TGI behavior.
+    Uses grammar constraints to get logprobs for specific candidate tokens.
+    Requires N API calls for N candidates.
+    
+    Note on logprobs:
+        - Logprobs are log(probability), always negative (since 0 < prob < 1)
+        - Closer to 0 (less negative) = higher probability
+        - Example: logprob=-0.003 → prob≈0.997, logprob=-2.3 → prob≈0.1
+    
+    Note on base models:
+        - Base models (e.g., Meta-Llama-3-8B) don't follow instructions well
+        - They predict tokens based on training patterns, not reasoning
+        - For instruction-following, use Instruct models (e.g., Meta-Llama-3-8B-Instruct)
     """
     m = get_lm('tgi:///meta-llama/Meta-Llama-3-8B')
     
@@ -51,6 +61,7 @@ def test_get_next_token_logits():
     if total > 0:
         probs = [p / total for p in probs]
     print(f"Normalized probs: {dict(zip(candidates, probs))}")
+    print(f"Note: Base model may not reason correctly; Instruct model recommended for RAP")
 
 
 def test_get_top5_logits():

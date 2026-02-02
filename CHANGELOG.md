@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-02-02 v0.2.8
+### Added
+- `dataset_kwargs` saved to config.json by `main_search.py` for reproducible dataset loading
+- `--dataset-arg levels=[5]` to all math500 examples in `run_configs.sh`
+- `docs/cli/search.md` - CLI documentation for main_search.py and eval_search.py
+
+### Changed
+- `main_search.py` uses `load_dataset()` from registry for language_grounded tasks
+- `eval_search.py` uses `load_dataset()` from registry for language_grounded tasks
+- `eval_search.py` loads `dataset_kwargs` from config.json and passes to dataset loader
+- Accuracy calculation uses `eval_output()` for numeric comparison instead of exact string match
+
+### Fixed
+- Dataset index mismatch in `eval_search.py`: `query_idx` now correctly indexes filtered dataset
+- Bedrock empty response handling in `eval_output()`
+
+## 2026-02-01 v0.2.8
+### Added
+- `SubQAStep.to_dict()` and `from_dict()` for proper serialization (`lits_benchmark/formulations/rap/structures.py`)
+- `--override` cleanup: removes stale files in `checkpoints/`, `terminal_nodes/`, and `treetojsonl*.jsonl` (`examples/main_search.py`)
+
+### Changed
+- `llm_calls.jsonl` logging now skipped for `language_grounded` tasks (only enabled for `env_grounded`/`tool_use` where duplicate detection is meaningful)
+- Refactor logging ssystem (see .kiro/specs/logging-system-refactoring for details)
+
+### Fixed
+- RAP `_step` TypeError: extract action string from Step object (`lits_benchmark/formulations/rap/transition.py`)
+- RAP `_fast_reward`: handle Step objects and access `SubQAStep.sub_question` instead of tuple unpacking (`lits_benchmark/formulations/rap/reward.py`)
+- CLI `--search-arg` overwrite bug: multiple `--search-arg` flags overwrite instead of append due to `nargs="+"` (e.g., `--search-arg a=1 --search-arg b=2` keeps only `b=2`); fixed `run_configs.sh` and added `or` fallback for `None` values
+
 ## 2026-01-31 v0.2.8
 ### Added
 - `TGIChatModel` for TGI's `/v1/chat/completions` endpoint (`lits/lm/tgi.py`)
@@ -22,6 +52,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Generic type parameters in base classes: `Generic[StateT, ActionT]` → `Generic[StateT, StepT]` (`lits/components/base.py`)
 
 ## 2026-01-29 v0.2.8 (Search Registry)
+see .kiro/specs/register-search-decorator for details
+
 ### Added
 - `AgentRegistry` and `@register_search` decorator for custom search algorithms (`lits/agents/registry.py`)
 
@@ -29,6 +61,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Unified search invocation in `main_search.py` using `AgentRegistry.get_search()`
 
 ## 2026-01-29 v0.2.8 (Codebase Refactoring for Language-Grounded Tasks)
+See .kiro/specs/lang_grounded_refactoring for details
 
 ### Added
 - `--policy-model`, `--eval-model`, `--transition-model`, `--bn-model` CLI flags (`lits/cli/args.py`)

@@ -11,6 +11,7 @@ from .continuation import _continuation
 from ...lm.base import DETERMINISTIC_TEMPERATURE  
 from .common import _world_modeling, _is_terminal_with_depth_limit, _sample_actions_with_existing, create_child_node
 from ..registry import register_search
+from ...log import log_phase, log_event
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def _expand(
     """
     Expand the node with new actions. 
     """
-    logger.debug("\n=========== [Expand Begin] ===========")
+    log_phase(logger, "Expand", "Begin")
     steps = policy.get_actions(node.state, query=example, critic=None, n_actions=n_actions, query_idx=query_idx, from_phase=from_phase)
 
     is_terminal_for_repeats = []
@@ -91,7 +92,7 @@ def _expand(
             _assign_fast_reward(child, reward_model, example, query_idx, from_phase)
         
         node.children.append(child)    
-    logger.debug("=========== [Expand End] ===========\n")
+    log_phase(logger, "Expand", "End")
 ##### EXPAND (END) #####
 
 
@@ -110,7 +111,7 @@ def _expand_with_existing(
 ):
     """ Expand the node with existing children. 
     This is designed for BFS with continuous phase but compatible for the original BFS. """
-    logger.debug(f"\n=========== [Expand for Example {query_idx} Begin] ===========")
+    log_phase(logger, "Expand", f"Begin (example={query_idx})")
 
     new_actions = _sample_actions_with_existing(
         example,
@@ -158,7 +159,7 @@ def _expand_with_existing(
             from .common import _assign_fast_reward
             _assign_fast_reward(child, reward_model, example, query_idx, from_phase)
 
-    logger.debug(f"=========== [Expand for Example {query_idx} End] ===========\n")
+    log_phase(logger, "Expand", f"End (example={query_idx})")
 ##### EXPAND With Existing Children (END) #####
 
 
@@ -194,7 +195,7 @@ def bfs_topk(
         BFSResult with search results
     """
     logger.debug(f"Question: {question}")
-    logger.debug(f"\n\n\n=========== [BFS for Example {query_idx} Begin] ===========")
+    log_phase(logger, "BFS", f"Begin (example={query_idx})")
     stop_continuation = False
     
     # Pass init_state_kwargs to init_state for task types that need it (e.g., env_grounded)
@@ -213,14 +214,14 @@ def bfs_topk(
      
     for depth in range(search_config.max_steps):
         if search_config.runtime_limit_before_iter and time.time() - start_time > search_config.runtime_limit_before_iter: 
-            logger.debug(f"Runtime limit exceeded: {search_config.runtime_limit_before_iter}")
+            log_event(logger, "BFS", f"Runtime limit exceeded: {search_config.runtime_limit_before_iter}", level="debug")
             break
-        logger.debug(f"=========== [BFS: Depth {depth} Begin] ===========\n")
+        log_phase(logger, "BFS", f"Depth {depth} Begin")
 
         # 1) Take all candidates scheduled at this depth, then beam-prune
         frontier = frontier_buckets.get(depth, [])
         if not frontier:
-            logger.debug("No nodes at this depth, breaking")
+            log_event(logger, "BFS", "No nodes at this depth, breaking", level="debug")
             break
 
         # Beam pruning on current layer
@@ -244,7 +245,7 @@ def bfs_topk(
             if len(node.children) > 0: # branching is done in the previous continuation or expand
                 continue
             if len(terminal_nodes) > max_leaves_to_terminate:
-                logger.debug(f"Number of terminal nodes: {len(terminal_nodes)}, breaking")
+                log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking", level="debug")
                 break
 
             # Ensure node.state is materialized
@@ -295,7 +296,7 @@ def bfs_topk(
                         terminal_nodes.append(node)
                     continue
                 if len(terminal_nodes) > max_leaves_to_terminate:
-                    logger.debug(f"Number of terminal nodes: {len(terminal_nodes)}, breaking")
+                    log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (after continuation)", level="debug")
                     break
             # Continuation + PostProcessing (End)
             
@@ -320,13 +321,13 @@ def bfs_topk(
                 buckets_with_terminal[child.depth].append(child)
 
             if len(terminal_nodes) > max_leaves_to_terminate:
-                logger.debug(f"Number of terminal nodes: {len(terminal_nodes)}, breaking")
+                log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (after expand)", level="debug")
                 break
         # 2) Loop each node in the frontier at this depth (End)
         if len(terminal_nodes) > max_leaves_to_terminate:
-            logger.debug(f"Number of terminal nodes: {len(terminal_nodes)}, breaking")
+            log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (end of depth)", level="debug")
             break
-        logger.debug(f"=========== [BFS: Depth {depth} End] ===========\n")
+        log_phase(logger, "BFS", f"Depth {depth} End")
     
     # Collect all terminal nodes from various sources
     terminal_nodes_collected = terminal_nodes.copy()
@@ -339,13 +340,13 @@ def bfs_topk(
     # Check deepest bucket for terminal nodes
     if buckets_with_terminal:
         max_d = max(buckets_with_terminal.keys())
-        logger.debug(f"Number of frontier candidates at depth {max_d}: {len(buckets_with_terminal[max_d])}")
+        log_event(logger, "BFS", f"Frontier candidates at depth {max_d}: {len(buckets_with_terminal[max_d])}", level="debug")
         for n in buckets_with_terminal[max_d]:
             if n.is_terminal and n not in terminal_nodes_collected:
                 terminal_nodes_collected.append(n)
     
-    logger.debug(f"Total terminal nodes collected: {len(terminal_nodes_collected)}")
-    logger.debug(f"=========== [BFS for Example {query_idx} End] ===========\n")
+    log_event(logger, "BFS", f"Total terminal nodes collected: {len(terminal_nodes_collected)}", level="debug")
+    log_phase(logger, "BFS", f"End (example={query_idx})")
     
     # Return unified BFSResult structure (post-processing done outside)
     return BFSResult(

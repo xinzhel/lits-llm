@@ -4,6 +4,7 @@ import re
 from ...lm.base import HfChatModel
 from ...structures import State, Action, ThoughtStep
 from ..utils import verbalize_concat_state, extract_existing_steps
+from ...log import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -235,13 +236,10 @@ class ConcatPolicy(Policy):
 
     def _log_validation_failure(self, reason: str, output_text: str, temperature: float, prompt: str):
         """Log details when output validation fails."""
-        logger.debug(f"!!!!!!!!!! {reason} (Begin) !!!!!!!!!!")
-        logger.debug(f"Output (temperature: {temperature}): {output_text}")
-        logger.debug("\nWith system prompt: ")
-        logger.debug(self.task_prompt_spec)
-        logger.debug("\nWith user prompt: ")
-        logger.debug(prompt)
-        logger.debug(f"!!!!!!!!!! {reason} (End) !!!!!!!!!!")
+        log_event(logger, "VALIDATION", f"{reason}", level="debug")
+        logger.debug(f"  Output (temperature={temperature}): {output_text}")
+        logger.debug(f"  System prompt: {self.task_prompt_spec[:200]}...")
+        logger.debug(f"  User prompt: {prompt[:200]}...")
 
     def _generate_action_with_retry(
         self,
@@ -279,11 +277,9 @@ class ConcatPolicy(Policy):
                 
                 is_similar, similar_idx, similarity = self._check_similarity(embedding, existing_embeddings)
                 if is_similar:
-                    logger.debug(f"!!!!!!!!!! Found similar embedding (Begin) !!!!!!!!!!")
-                    logger.debug(f"Existing text: {existing_steps[similar_idx]}")
-                    logger.debug(f"New text: {output_text}")
-                    logger.debug(f"Similarity: {similarity}")
-                    logger.debug("!!!!!!!!!! Found similar embedding (End) !!!!!!!!!!")
+                    log_event(logger, "SIMILARITY", f"Found similar embedding (sim={similarity:.3f})", level="debug")
+                    logger.debug(f"  Existing text: {existing_steps[similar_idx]}")
+                    logger.debug(f"  New text: {output_text}")
                     continue
             
             # Check token length

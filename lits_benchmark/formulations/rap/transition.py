@@ -45,9 +45,9 @@ class RAPTransition(LlmTransition):
         Returns:
             RAPTransition instance
         """
-        n_confidence = search_args.get('n_confidence', 8)
-        max_length = component_args.get('max_length', 32768)
-        num_shot = component_args.get('num_shot', 4)
+        n_confidence = search_args.get('n_confidence') or 8
+        max_length = component_args.get('max_length') or 32768
+        num_shot = component_args.get('num_shot') or 4
         
         transition = cls(
             base_model=base_model,
@@ -123,8 +123,12 @@ class RAPTransition(LlmTransition):
             raise ValueError(f"Unknown model type: {type(self.base_model)}")
 
     def _step(self, state: StateT, step_or_action, query_or_goals: str, **kwargs) -> tuple[StateT, dict]:
-        # For RAP, we only use actions (SubQAStep.sub_question), not full steps
-        action = step_or_action
+        # Extract action string from Step object or use directly if string
+        from lits.structures.base import Step
+        if isinstance(step_or_action, Step):
+            action = step_or_action.get_action()
+        else:
+            action = step_or_action
         
         model_input = self._generate_prompt(query_or_goals, state, action)
         # logger.debug("\n>>>>>>>>> + 1 Dynamics Call; Output (BEGIN) <<<<<<<<<")

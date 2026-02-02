@@ -5,6 +5,7 @@ from typing import Optional
 from ..base import Transition
 from ...structures import ToolUseState, ToolUseStep, ToolUseAction, log_state
 from ...tools.utils import execute_tool_action
+from ...log import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -64,21 +65,21 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseAction]):
         
         # Case 1: Step has an answer (terminal) - append directly
         if step.answer is not None:
-            logger.debug(f"Step has answer, appending directly: {step.answer}")
+            log_event(logger, "TRANSITION", f"Step has answer, appending directly: {step.answer}", level="debug")
             new_state.append(step)
             log_state(logger, new_state, header="ToolUseTransition.step (answer)")
             return new_state, {"confidence": 1.0}
         
         # Case 2: Step has an error - append directly
         if step.error is not None:
-            logger.debug(f"Step has error, appending directly: {step.error}")
+            log_event(logger, "TRANSITION", f"Step has error, appending directly: {step.error}", level="debug")
             new_state.append(step)
             log_state(logger, new_state, header="ToolUseTransition.step (error)")
             return new_state, {"confidence": 0.0}
         
         # Case 3: Handle cases where no action and answer are provided
         elif step.answer is None and step.action is None:
-            logger.warning("Either action or answer must be provided in assistant output.")
+            log_event(logger, "TRANSITION", "No action or answer provided", level="warning")
             step.observation = (
                 "Assistant output did not provide an action or answer, or it did not follow the required "
                 "format and could not be parsed. Please STRICTLY follow the format required in the system prompt."

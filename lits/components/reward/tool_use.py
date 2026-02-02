@@ -18,6 +18,7 @@ from ...lm.base import HfChatModel
 from ...lm.openai_chat import OpenAIChatModel
 from ...lm.bedrock_chat import BedrockChatModel
 from ..utils import extract_existing_steps
+from ...log import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -283,17 +284,17 @@ The score must be a valid float parsable by Python's float() function."""
                 query_idx=query_idx,
                 from_phase=from_phase
             )
-            logger.debug(f"Rollout step 0: executed via transition")
+            log_event(logger, "ROLLOUT", "Step 0: executed via transition", level="debug")
         else:
             # Step already has observation/answer/error, just append it
             rollout_state.append(step)
-            logger.debug(f"Rollout step 0: step already executed, appended directly")
+            log_event(logger, "ROLLOUT", "Step 0: already executed, appended directly", level="debug")
         
         # Continue the trajectory for max_rollout_steps
         for step_idx in range(self.max_rollout_steps):
             # Check if we've reached a terminal state (has answer)
             if rollout_state and rollout_state[-1].get_answer():
-                logger.debug(f"Rollout terminated at step {step_idx} with answer")
+                log_event(logger, "ROLLOUT", f"Terminated at step {step_idx} with answer", level="debug")
                 break
             
             # Generate next action using policy
@@ -306,7 +307,7 @@ The score must be a valid float parsable by Python's float() function."""
             )
             
             if not steps or not steps[0]:
-                logger.debug(f"Rollout: no action generated at step {step_idx}")
+                log_event(logger, "ROLLOUT", f"No action generated at step {step_idx}", level="debug")
                 break
             
             step = steps[0]
@@ -320,7 +321,7 @@ The score must be a valid float parsable by Python's float() function."""
                 from_phase=from_phase+"_prm"
             )
             rollout_state = new_state
-            logger.debug(f"Rollout step {step_idx + 1}: executed via transition")
+            log_event(logger, "ROLLOUT", f"Step {step_idx + 1}: executed via transition", level="debug")
         
         return rollout_state
 
@@ -356,7 +357,7 @@ The score must be a valid float parsable by Python's float() function."""
         cache_key = self._create_cache_key(query, state, step_or_action)
         if cache_key in self._reward_cache:
             cached_score = self._reward_cache[cache_key]
-            logger.debug(f"Cache hit for query_idx={query_idx}, returning cached score: {cached_score}")
+            log_event(logger, "REWARD", f"Cache hit for query_idx={query_idx}, score={cached_score:.3f}", level="debug")
             return cached_score
         
         # Step 1: Complete the trajectory with real tool execution
@@ -379,11 +380,11 @@ The score must be a valid float parsable by Python's float() function."""
             )
             
             response = response.text
-            logger.debug(f"Reward scoring response: {response[:200]}")
+            log_event(logger, "REWARD", f"Scoring response: {response[:100]}...", level="debug")
             
             # Extract score
             score = self._extract_score(response)
-            logger.debug(f"Extracted reward score: {score}")
+            log_event(logger, "REWARD", f"Extracted score: {score:.3f}", level="debug")
             
             # Cache the score
             self._reward_cache[cache_key] = score
@@ -413,10 +414,10 @@ The score must be a valid float parsable by Python's float() function."""
             
             try:
                 completed_state.save(str(save_path), query, score=score, num_completed_steps=len(completed_state)-len(state))
-                logger.debug(f"Saved rollout trajectory to {save_path}")
+                log_event(logger, "ROLLOUT", f"Saved trajectory to {save_path}", level="debug")
                 self.idx_rollout += 1
             except Exception as e:
-                logger.warning(f"Failed to save rollout trajectory: {e}")
+                log_event(logger, "ROLLOUT", f"Failed to save trajectory: {e}", level="warning")
                 
         return score
 

@@ -349,7 +349,17 @@ policy.set_dynamic_notes_fn(provider.get_notes)
 - **Caching**: Return cached responses for identical prompts
 - **Mocking**: Replace LLM responses for testing without API calls
 - **Response Modification**: Filter or sanitize LLM outputs
-- **Diversity Analysis**: Analyze duplicate generation patterns in tree search
+- **Diversity Analysis**: Analyze duplicate generation patterns in tree search (env_grounded tasks only)
+
+### When Diversity Analysis is Useful
+
+The `llm_calls.jsonl` logging and diversity analysis is **only enabled for env_grounded and tool_use tasks**:
+
+| Task Type | Logging Enabled | Reason |
+|-----------|-----------------|--------|
+| `env_grounded` | ✅ Yes | Actions are structured (e.g., `h1. word` for Crosswords), making duplicate detection meaningful for identifying mode collapse |
+| `tool_use` | ✅ Yes | Tool calls have structured formats, duplicates indicate exploration issues |
+| `language_grounded` | ❌ No | Actions are free-form text (reasoning steps), making exact duplicate detection less informative since semantically similar actions may differ textually |
 
 ### Diversity Analysis Example
 

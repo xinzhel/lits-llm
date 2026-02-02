@@ -2,6 +2,7 @@ from typing import List, Optional, Union
 from ..base import Policy
 from ...structures.env_grounded import EnvState, EnvStep, EnvAction
 from ...prompts.prompt import PromptTemplate
+from ...log import log_event
 import logging
 
 logger = logging.getLogger(__name__)
@@ -185,10 +186,10 @@ class EnvGroundedPolicy(Policy):
             idx = int(action)
             if 1 <= idx <= len(valid_actions):
                 action = valid_actions[idx - 1]  # 1-indexed
-                logger.debug(f"Parsed numeric response as 1-indexed action: {action}")
+                log_event(logger, "POLICY", f"Parsed numeric response '{idx}' as 1-indexed action: {action}", level="debug")
             elif 0 <= idx < len(valid_actions):
                 action = valid_actions[idx]  # 0-indexed fallback
-                logger.debug(f"Parsed numeric response as 0-indexed action: {action}")
+                log_event(logger, "POLICY", f"Parsed numeric response '{idx}' as 0-indexed action: {action}", level="debug")
         
         return action
 
@@ -260,16 +261,13 @@ class EnvGroundedPolicy(Policy):
             
             # Check validity first
             if not self._is_valid_action(env_state, action, valid_actions):
-                logger.warning(f"Invalid action (attempt {attempt}/{max_retries}): '{action}'")
+                log_event(logger, "POLICY", f"Invalid action (attempt {attempt}/{max_retries}): '{action}'", level="warning")
                 temperature = min(temperature + temperature_increment, 1.0)
                 continue
             
             # Check for duplicates (only if not allowing duplicates)
             if not allow_duplicates and action in selected_actions:
-                logger.warning(
-                    f"Duplicate action detected (attempt {attempt}/{max_retries}): '{action}'. "
-                    f"Retrying with temperature={temperature + temperature_increment:.2f}"
-                )
+                log_event(logger, "POLICY", f"Duplicate action (attempt {attempt}/{max_retries}): '{action}', retrying with temp={temperature + temperature_increment:.2f}", level="warning")
                 temperature = min(temperature + temperature_increment, 1.0)
                 continue
             
