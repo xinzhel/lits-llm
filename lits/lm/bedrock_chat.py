@@ -361,14 +361,22 @@ class BedrockChatModel(LanguageModel):
             }
         """
         # Format for Converse API
+        inference_config = {
+            "maxTokens": max_new_tokens,
+        }
+        
+        # Claude Opus 4.5 doesn't allow both temperature and top_p
+        # Use temperature only for Opus 4.5, both for other models
+        if "opus-4" in self.model_name.lower():
+            inference_config["temperature"] = temperature
+        else:
+            inference_config["temperature"] = temperature
+            inference_config["topP"] = top_p
+        
         converse_params = {
             "modelId": self.model_name,
             "messages": messages,
-            "inferenceConfig": {
-                "maxTokens": max_new_tokens,
-                "temperature": temperature,
-                "topP": top_p,
-            },
+            "inferenceConfig": inference_config,
         }
         if stop:
             converse_params['inferenceConfig']["stopSequences"] = stop
