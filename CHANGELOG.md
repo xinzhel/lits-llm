@@ -4,11 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-02-04 v0.2.8
+### Changed
+- Moved `examples/math_qa/main_cot.py` to `examples/main_cot.py`
+- `main_cot.py`: added `--override` flag, fixed `sys.path` and `.env` path for new location
+- `main_cot.py`: fixed `extract_numerical_answer` to clean up literal `""` responses
+- `main_cot.py`: `process_model_output` always wraps in `<think>...</think>` for correct parsing
+- `main_cot.py`: skip extraction call when solution is empty
+
+### Fixed
+- `_parse_value` in `lits/cli/args.py` now handles list syntax `[5]` or `[1,2,3]`
+
 ## 2026-02-02 v0.2.8
 ### Added
 - `dataset_kwargs` saved to config.json by `main_search.py` for reproducible dataset loading
 - `--dataset-arg levels=[5]` to all math500 examples in `run_configs.sh`
 - `docs/cli/search.md` - CLI documentation for main_search.py and eval_search.py
+- CLI argument parsing in `examples/math_qa/main_cot.py` (`--dataset`, `--model`, `--dataset-arg`)
 
 ### Changed
 - `main_search.py` uses `load_dataset()` from registry for language_grounded tasks
@@ -19,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 - Dataset index mismatch in `eval_search.py`: `query_idx` now correctly indexes filtered dataset
 - Bedrock empty response handling in `eval_output()`
+- `_parse_value` in `lits/cli/args.py` now handles list syntax `[5]` or `[1,2,3]`
 
 ## 2026-02-01 v0.2.8
 ### Added

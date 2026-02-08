@@ -328,6 +328,21 @@ def _parse_value(value_str: str, old_value: Any) -> Any:
     Returns:
         Parsed value with appropriate type
     """
+    # Handle list syntax like [5] or [1,2,3] (regardless of old_value)
+    if value_str.startswith('[') and value_str.endswith(']'):
+        inner = value_str[1:-1].strip()
+        if not inner:
+            return []
+        items = [v.strip() for v in inner.split(',')]
+        # Try to parse as integers first
+        try:
+            return [int(v) for v in items]
+        except ValueError:
+            try:
+                return [float(v) for v in items]
+            except ValueError:
+                return items
+    
     if old_value is None:
         # Try int, float, then string
         try:
