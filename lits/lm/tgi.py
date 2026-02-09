@@ -201,8 +201,10 @@ class TGIModel(LanguageModel):
             logger.error(f"TGI request failed: {e}")
             raise RuntimeError(f"TGI request failed: {e}")
         
-        end_time = time.time()
-        running_time = end_time - start_time
+        # Prefer server-side GPU compute time from TGI response headers.
+        running_time = float(resp.headers.get("x-compute-time", 0))
+        if running_time == 0:
+            running_time = time.time() - start_time
         
         # Parse response
         result = resp.json()
@@ -604,8 +606,13 @@ class TGIChatModel(LanguageModel):
             logger.error(f"TGI chat request failed: {e}")
             raise RuntimeError(f"TGI chat request failed: {e}")
         
-        end_time = time.time()
-        running_time = end_time - start_time
+        # Prefer server-side GPU compute time from TGI response headers.
+        # x-compute-time: GPU compute seconds (most accurate)
+        # x-inference-time: inference ms (excludes validation/queue)
+        # Falls back to client-side wallclock if headers missing.
+        running_time = float(resp.headers.get("x-compute-time", 0))
+        if running_time == 0:
+            running_time = time.time() - start_time
         
         result = resp.json()
         text = result["choices"][0]["message"]["content"].strip()
