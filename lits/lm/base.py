@@ -2,6 +2,7 @@
 import json
 import time
 import os
+from contextlib import contextmanager
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 from torch.nn import functional as F
@@ -53,6 +54,7 @@ class InferenceLogger:
         self.include_idx = None
         self.exclude_idx = None
         self.return_metrics = None
+        self._extra_fields: dict = {}
 
     def set_return_metrics(self, return_metrics):
         self.return_metrics = return_metrics
@@ -65,6 +67,27 @@ class InferenceLogger:
 
     def set_max_check(self, max_check):
         self.max_check = max_check
+
+    @contextmanager
+    def log_context(self, **fields):
+        """Attach contextual fields to all records logged within this block.
+
+        Fields (e.g., trajectory_key, iteration) are merged into every record
+        written by ``update_usage()`` while the block is active.  Supports
+        composable nesting: inner blocks add/override fields; the outer block's
+        ``finally`` restores the previous state.
+
+        Example::
+
+            with logger.log_context(trajectory_key="q/0/1", iteration=3):
+                model.generate(...)   # record gets trajectory_key + iteration
+        """
+        prev = self._extra_fields.copy()
+        self._extra_fields.update(fields)
+        try:
+            yield
+        finally:
+            self._extra_fields = prev
 
     def update_usage(
         self,
@@ -98,6 +121,7 @@ class InferenceLogger:
             "num_flatten_calls": batch_size if batch else 0,
             "running_time":    running_time 
         }
+        record.update(self._extra_fields)
         with open(self.filepath, "a") as f:
             f.write(json.dumps(record) + "\n")
 
