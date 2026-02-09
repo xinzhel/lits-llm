@@ -12,6 +12,7 @@ from ...lm.base import DETERMINISTIC_TEMPERATURE
 from .common import _world_modeling, _is_terminal_with_depth_limit, _sample_actions_with_existing, create_child_node
 from ..registry import register_search
 from ...log import log_phase, log_event
+from ...memory.types import TrajectoryKey
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +201,16 @@ def bfs_topk(
     
     # Pass init_state_kwargs to init_state for task types that need it (e.g., env_grounded)
     _init_kwargs = init_state_kwargs if init_state_kwargs is not None else {}
-    root = SearchNode(state=world_model.init_state(**_init_kwargs), action=None, parent=None)
+    
+    # Generate unique search_id for TrajectoryKey (same pattern as MCTS)
+    search_id = f"{query_idx}_{int(time.time())}"
+    
+    root = SearchNode(
+        state=world_model.init_state(**_init_kwargs),
+        action=None,
+        parent=None,
+        trajectory_key=TrajectoryKey(search_id=search_id, indices=())
+    )
     terminal_nodes = []
 
     
