@@ -136,7 +136,7 @@ def infer_chat_model(model_name: str):
             "reason": f"Non-HF API models are chat models by default."
         }
     
-    if model_name in ["Qwen/Qwen3-32B-AWQ", "meta-llama/Meta-Llama-3-8B-Instruct"]:
+    if model_name in ["Qwen/Qwen3-32B-AWQ", "Qwen/Qwen3-14B", "meta-llama/Meta-Llama-3-8B-Instruct"]:
         return {
             "is_chat_model": True,
             "reason": f"Known chat models."

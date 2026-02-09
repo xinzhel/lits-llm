@@ -559,6 +559,7 @@ class TGIChatModel(LanguageModel):
         top_p: float = 1.0,
         max_new_tokens: Optional[int] = None,
         stop: Optional[List[str]] = None,
+        enable_thinking: Optional[bool] = None,
         **kwargs
     ) -> Output:
         """Generate chat completion from TGI server.
@@ -570,9 +571,11 @@ class TGIChatModel(LanguageModel):
             top_p: Nucleus sampling parameter
             max_new_tokens: Maximum tokens to generate
             stop: Stop sequences
+            enable_thinking: Override instance-level enable_thinking for this call.
+                If None, uses self.enable_thinking.
             
         Returns:
-            Output object with generated text
+            Output object with generated text and optional thinking_content
         """
         messages = self._format_messages(prompt)
         max_new_tokens = max_new_tokens or self.max_new_tokens or 512
@@ -607,6 +610,15 @@ class TGIChatModel(LanguageModel):
         result = resp.json()
         text = result["choices"][0]["message"]["content"].strip()
         
+        # Parse <think>...</think> block if present
+        thinking_content = None
+        use_thinking = enable_thinking if enable_thinking is not None else self.enable_thinking
+        if use_thinking:
+            think_match = re.match(r"<think>(.*?)</think>(.*)", text, re.DOTALL)
+            if think_match:
+                thinking_content = think_match.group(1).strip()
+                text = think_match.group(2).strip()
+        
         # Extract token usage
         usage = result.get("usage", {})
         input_tokens = usage.get("prompt_tokens", 0)
@@ -624,10 +636,12 @@ class TGIChatModel(LanguageModel):
         
         if self.verbose and self.LOG_MODEL_OUTPUT:
             logger.debug(f">>>>> TGI Chat Output (BEGIN) <<<<<")
+            if thinking_content:
+                logger.debug(f"[thinking] {thinking_content[:300]}")
             logger.debug(text[:500])
             logger.debug(f">>>>> TGI Chat Output (END) <<<<<")
         
-        return Output(text)
+        return Output(text, thinking_content=thinking_content)
     
     def batch_generate(
         self,

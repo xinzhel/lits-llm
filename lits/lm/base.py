@@ -404,8 +404,15 @@ class StopOnTokens(StoppingCriteria):
     
 
 class Output:
-    def __init__(self, text): 
+    """Model output container.
+    
+    Attributes:
+        text: The generated text (final answer, excluding thinking content).
+        thinking_content: Raw thinking content from <think>...</think> block, if any.
+    """
+    def __init__(self, text, thinking_content=None): 
         self.text = text
+        self.thinking_content = thinking_content
 
 class LanguageModel:
     LOG_MODEL_INPUT = False
