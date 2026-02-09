@@ -181,6 +181,11 @@ class ExperimentConfig:
     search_framework: Optional[str] = None
     search_algorithm: str = "mcts"
     
+    # === Component overrides (from --policy, --transition, --reward CLI flags) ===
+    policy: Optional[str] = None
+    transition: Optional[str] = None
+    reward: Optional[str] = None
+    
     # === Parameter dicts (from CLI --search-arg and --component-arg) ===
     search_args: Dict[str, Any] = field(default_factory=dict)
     component_args: Dict[str, Any] = field(default_factory=dict)
