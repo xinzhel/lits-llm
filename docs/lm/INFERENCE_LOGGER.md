@@ -37,6 +37,49 @@ logger.update_usage(
 )
 ```
 
+## Contextual Metadata (`log_context`)
+
+Attaches key-value fields to all LLM call records within a `with` block. Useful for tagging records with search-specific information (iteration index, trajectory key) without modifying individual call sites.
+
+### On `InferenceLogger`
+
+```python
+with inference_logger.log_context(iteration=3, trajectory_key="0/1/2"):
+    # All update_usage() calls inside this block get iteration=3 and trajectory_key="0/1/2"
+    policy.get_actions(...)
+```
+
+### On `BaseTreeSearch`
+
+Convenience wrapper that returns `contextlib.nullcontext()` when no inference logger is available:
+
+```python
+class MCTSSearch(BaseTreeSearch):
+    def search(self, query, query_idx):
+        for idx_iter in range(self.config.n_iters):
+            path = _select(...)
+            with self.log_context(iteration=idx_iter):
+                _expand(...)
+                _simulate(...)
+```
+
+### Nesting
+
+Inner blocks add fields; the outer block's state is restored on exit:
+
+```python
+with self.log_context(iteration=3):
+    with self.log_context(trajectory_key="0/1/2"):
+        _expand(...)   # records get iteration=3 + trajectory_key="0/1/2"
+    _back_propagate(...)  # records get iteration=3 only
+```
+
+### Sample log record with extra fields
+
+```json
+{"timestamp": "02-09 10:30:15", "role": "policy_5_expand", "input_tokens": 1200, "output_tokens": 45, "batch": false, "batch_size": 1, "num_flatten_calls": 0, "running_time": 0.8, "iteration": 3, "trajectory_key": "5_1738000000/0/1/2"}
+```
+
 ## Query Methods
 
 ### Single-group aggregation (returns one dict)

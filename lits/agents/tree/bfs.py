@@ -1,18 +1,14 @@
-from dataclasses import dataclass, field, asdict
-from typing import NamedTuple
 from collections import defaultdict
+from dataclasses import dataclass, field, asdict
 import logging
-import time
-from pyarrow.types import is_temporal
-from ...structures.base import State
+
 from .node import SearchNode
 from .base import BaseSearchConfig
+from .search_base import BaseTreeSearch, SearchResult
 from .continuation import _continuation
-from ...lm.base import DETERMINISTIC_TEMPERATURE  
 from .common import _world_modeling, _is_terminal_with_depth_limit, _sample_actions_with_existing, create_child_node
 from ..registry import register_search
 from ...log import log_phase, log_event
-from ...memory.types import TrajectoryKey
 
 logger = logging.getLogger(__name__)
 
@@ -22,27 +18,29 @@ class BFSConfig(BaseSearchConfig):
     
     Config Args (via --search-arg):
         beam_size: Number of top candidates to keep at each depth level (default: 5)
+        max_leaves_to_terminate: Maximum terminal leaves before stopping search (default: 5)
     """
     beam_size: int = 5
+    max_leaves_to_terminate: int = 5
     
     def to_dict(self):
         return asdict(self)
 
-class BFSResult(NamedTuple):
+@dataclass
+class BFSResult(SearchResult):
+    """BFS-specific search result.
+
+    Extends ``SearchResult`` with depth-bucketed node data.
+    ``to_paths()`` delegates to ``buckets_to_paths()`` for
+    breadth-to-depth conversion.
     """
-    Unified BFS result structure matching MCTS output format.
-    
-    Post-processing (answer extraction, voting) is done outside bfs_topk,
-    similar to how MCTS works. This makes the signatures identical.
-    
-    Attributes:
-        root: Root node of the search tree
-        terminal_nodes_collected: All terminal nodes collected during search
-        buckets_with_terminal: All nodes organized by depth
-    """
-    root: SearchNode = None
-    terminal_nodes_collected: list[SearchNode] = None
-    buckets_with_terminal: dict = None
+    buckets_with_terminal: dict = field(default_factory=dict)
+
+    def to_paths(self) -> list[list[SearchNode]]:
+        """BFS paths: reconstruct from depth buckets."""
+        from ...visualize import buckets_to_paths
+        return buckets_to_paths(self.buckets_with_terminal)
+
 
 ##### EXPAND (Begin) #####
 def _expand(
@@ -164,204 +162,181 @@ def _expand_with_existing(
 ##### EXPAND With Existing Children (END) #####
 
 
+##### BFS (BEGIN) #####
 @register_search("bfs", config_class=BFSConfig)
-def bfs_topk(
-    question, 
-    query_idx, 
-    search_config, 
-    world_model, 
-    policy, 
-    evaluator, 
-    bn_evaluator=None, 
-    max_leaves_to_terminate=5,
-    only_continuation_at_head=False,
-    init_state_kwargs: dict = None
-) -> BFSResult:
-    """Run BFS tree search.
-    
-    Args:
-        question: The query or goals string
-        query_idx: Index of the query
-        search_config: BFS configuration
-        world_model: Transition model
-        policy: Policy model
-        evaluator: Reward model
-        bn_evaluator: Optional BN evaluator
-        max_leaves_to_terminate: Max terminal leaves before stopping
-        only_continuation_at_head: Whether to only continue at head
-        init_state_kwargs: Optional kwargs passed to world_model.init_state().
-                           For env_grounded tasks, should include 'init_state_str'.
-    
-    Returns:
-        BFSResult with search results
+class BFSSearch(BaseTreeSearch):
+    """BFS tree search algorithm as a ``BaseTreeSearch`` subclass.
+
+    Peripherals (node ID reset, root creation, checkpoint dir, runtime
+    tracking, terminal collection, error handling, inference logger) are
+    handled by ``BaseTreeSearch``.  This class implements the depth-bucketed
+    frontier loop with beam pruning.
     """
-    logger.debug(f"Question: {question}")
-    log_phase(logger, "BFS", f"Begin (example={query_idx})")
-    stop_continuation = False
-    
-    # Pass init_state_kwargs to init_state for task types that need it (e.g., env_grounded)
-    _init_kwargs = init_state_kwargs if init_state_kwargs is not None else {}
-    
-    # Generate unique search_id for TrajectoryKey (same pattern as MCTS)
-    search_id = f"{query_idx}_{int(time.time())}"
-    
-    root = SearchNode(
-        state=world_model.init_state(**_init_kwargs),
-        action=None,
-        parent=None,
-        trajectory_key=TrajectoryKey(search_id=search_id, indices=())
-    )
-    terminal_nodes = []
 
-    
-    # Per-depth buckets: absolute_depth -> list[SearchNode]
-    frontier_buckets = defaultdict(list)
-    frontier_buckets[0].append(root)
+    node_class = SearchNode
 
-    buckets_with_terminal = defaultdict(list)
-    buckets_with_terminal[0].append(root)
-    start_time = time.time()   # <--- record start time
-     
-    for depth in range(search_config.max_steps):
-        if search_config.runtime_limit_before_iter and time.time() - start_time > search_config.runtime_limit_before_iter: 
-            log_event(logger, "BFS", f"Runtime limit exceeded: {search_config.runtime_limit_before_iter}", level="debug")
-            break
-        log_phase(logger, "BFS", f"Depth {depth} Begin")
+    def search(self, query, query_idx) -> BFSResult:
+        """Run BFS iterations.  ``self.root`` is ready."""
+        logger.debug(f"Question: {query}")
+        log_phase(logger, "BFS", f"Begin (example={query_idx})")
 
-        # 1) Take all candidates scheduled at this depth, then beam-prune
-        frontier = frontier_buckets.get(depth, [])
-        if not frontier:
-            log_event(logger, "BFS", "No nodes at this depth, breaking", level="debug")
-            break
+        config = self.config
+        stop_continuation = False
+        terminal_nodes = []
 
-        # Beam pruning on current layer
-        if len(frontier) > search_config.beam_size:
-            for node in frontier:
-                if node.fast_reward == -1 or node.fast_reward is None:
-                    logger.debug(f"Fast reward not computed for node {node.action} for sort")
-                    fast_reward, _ = evaluator.fast_reward(
-                        node.parent.state, node.action, question, query_idx, from_phase="sort"
-                    )
-                    node.fast_reward = fast_reward
-            frontier.sort(key=lambda n: n.fast_reward, reverse=True)
-            frontier = frontier[: search_config.beam_size]
-        
-        # 2) Loop each node in the frontier at this depth (Begin)
-        for node in frontier:
-            if _is_terminal_with_depth_limit(node, search_config.max_steps, search_config.force_terminating_on_depth_limit):
-                if node not in terminal_nodes:
-                    terminal_nodes.append(node)
-                continue
-            if len(node.children) > 0: # branching is done in the previous continuation or expand
-                continue
-            if len(terminal_nodes) > max_leaves_to_terminate:
-                log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking", level="debug")
+        # Per-depth buckets: absolute_depth -> list[SearchNode]
+        frontier_buckets = defaultdict(list)
+        frontier_buckets[0].append(self.root)
+
+        buckets_with_terminal = defaultdict(list)
+        buckets_with_terminal[0].append(self.root)
+
+        for depth in range(config.max_steps):
+            # Use shared check but catch locally so the normal
+            # terminal-collection logic below still runs with buckets intact.
+            try:
+                self.check_runtime_limit()
+            except ValueError:
+                log_event(logger, "BFS", f"Runtime limit exceeded: {config.runtime_limit_before_iter}", level="debug")
+                break
+            log_phase(logger, "BFS", f"Depth {depth} Begin")
+
+            # 1) Take all candidates scheduled at this depth, then beam-prune
+            frontier = frontier_buckets.get(depth, [])
+            if not frontier:
+                log_event(logger, "BFS", "No nodes at this depth, breaking", level="debug")
                 break
 
-            # Ensure node.state is materialized
-            if node.state is None:
-                _world_modeling(question, query_idx, node, transition_model=world_model, reward_model=evaluator, from_phase="expand")
+            # Beam pruning on current layer
+            if len(frontier) > config.beam_size:
+                for node in frontier:
+                    if node.fast_reward == -1 or node.fast_reward is None:
+                        logger.debug(f"Fast reward not computed for node {node.action} for sort")
+                        fast_reward, _ = self.reward_model.fast_reward(
+                            node.parent.state, node.action, query, query_idx, from_phase="sort"
+                        )
+                        node.fast_reward = fast_reward
+                frontier.sort(key=lambda n: n.fast_reward, reverse=True)
+                frontier = frontier[: config.beam_size]
 
-            # Continuation + PostProcessing (Begin)
-            if search_config.add_continuation and not stop_continuation:
-                if only_continuation_at_head:
-                    stop_continuation = True
-                cont_trace = _continuation(
-                    question, 
-                    query_idx, 
-                    node, 
-                    world_model, 
-                    policy,
-                    evaluator,
-                    expand_func=_expand_with_existing,
-                    bn_evaluator=bn_evaluator,
-                    world_modeling_func=_world_modeling,
-                    threshold_alpha=search_config.reward_alpha,
-                    threshold_conf=search_config.reward_beta, 
-                    threshold_gamma=search_config.reward_gamma,
-                    threshold_gamma1=search_config.reward_gamma1,
-                    n_actions_for_bne=search_config.n_actions_for_bne,
-                    use_critic=False
-                )
-
-                # Place each continuation hop at correct future depth
-                # cont_trace[i] belongs to depth = depth + i
-                for i, cnode in enumerate(cont_trace[1:]):
-                    assert cnode.state is not None, f"`_continuation` returns a node without materialized state"
-
-                    if _is_terminal_with_depth_limit(cnode, search_config.max_steps, search_config.force_terminating_on_depth_limit):
-                        if cnode not in terminal_nodes:
-                            terminal_nodes.append(cnode)
-                        assert len(cont_trace[1:]) == i + 1, f"Continuation trace includes node(s) at the depth beyond the depth limit"
-                        # Once terminal is reached along the chain, do not schedule deeper hops
-                        # (continuation should have already stopped)
-                    else:
-                        # Schedule the canonical single child for its exact depth
-                        frontier_buckets[cnode.depth].append(cnode)
-                    buckets_with_terminal[cnode.depth].append(cnode)
-                node = cont_trace[-1]
-
-                if _is_terminal_with_depth_limit(node, search_config.max_steps, search_config.force_terminating_on_depth_limit):
+            # 2) Loop each node in the frontier at this depth (Begin)
+            for node in frontier:
+                if _is_terminal_with_depth_limit(node, config.max_steps, config.force_terminating_on_depth_limit):
                     if node not in terminal_nodes:
                         terminal_nodes.append(node)
                     continue
-                if len(terminal_nodes) > max_leaves_to_terminate:
-                    log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (after continuation)", level="debug")
+                if len(node.children) > 0:  # branching is done in the previous continuation or expand
+                    continue
+                if len(terminal_nodes) > config.max_leaves_to_terminate:
+                    log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking", level="debug")
                     break
-            # Continuation + PostProcessing (End)
-            
 
-            assert node.state is not None
-            _expand_with_existing(
-                question, 
-                query_idx, 
-                node,
-                policy, 
-                search_config.n_actions,
-                reward_model=evaluator,
-                from_phase="expand"
-            )
-            for child in node.children:
-                _world_modeling(question, query_idx, child, transition_model=world_model, reward_model=evaluator, from_phase="expand")
-                if _is_terminal_with_depth_limit(child, search_config.max_steps, search_config.force_terminating_on_depth_limit):
-                    if child not in terminal_nodes:
-                        terminal_nodes.append(child)
-                else:
-                    frontier_buckets[child.depth].append(child)
-                buckets_with_terminal[child.depth].append(child)
+                # Ensure node.state is materialized
+                if node.state is None:
+                    _world_modeling(query, query_idx, node, transition_model=self.world_model, reward_model=self.reward_model, from_phase="expand")
 
-            if len(terminal_nodes) > max_leaves_to_terminate:
-                log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (after expand)", level="debug")
+                # Continuation + PostProcessing (Begin)
+                if config.add_continuation and not stop_continuation:
+                    if config.only_continuation_at_head:
+                        stop_continuation = True
+                    cont_trace = _continuation(
+                        query,
+                        query_idx,
+                        node,
+                        self.world_model,
+                        self.policy,
+                        self.reward_model,
+                        expand_func=_expand_with_existing,
+                        bn_evaluator=self.bn_evaluator,
+                        world_modeling_func=_world_modeling,
+                        threshold_alpha=config.reward_alpha,
+                        threshold_conf=config.reward_beta,
+                        threshold_gamma=config.reward_gamma,
+                        threshold_gamma1=config.reward_gamma1,
+                        n_actions_for_bne=config.n_actions_for_bne,
+                        use_critic=False
+                    )
+
+                    # Place each continuation hop at correct future depth
+                    # cont_trace[i] belongs to depth = depth + i
+                    for i, cnode in enumerate(cont_trace[1:]):
+                        assert cnode.state is not None, f"`_continuation` returns a node without materialized state"
+
+                        if _is_terminal_with_depth_limit(cnode, config.max_steps, config.force_terminating_on_depth_limit):
+                            if cnode not in terminal_nodes:
+                                terminal_nodes.append(cnode)
+                            assert len(cont_trace[1:]) == i + 1, f"Continuation trace includes node(s) at the depth beyond the depth limit"
+                        else:
+                            frontier_buckets[cnode.depth].append(cnode)
+                        buckets_with_terminal[cnode.depth].append(cnode)
+                    node = cont_trace[-1]
+
+                    if _is_terminal_with_depth_limit(node, config.max_steps, config.force_terminating_on_depth_limit):
+                        if node not in terminal_nodes:
+                            terminal_nodes.append(node)
+                        continue
+                    if len(terminal_nodes) > config.max_leaves_to_terminate:
+                        log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (after continuation)", level="debug")
+                        break
+                # Continuation + PostProcessing (End)
+
+                assert node.state is not None
+                _expand_with_existing(
+                    query,
+                    query_idx,
+                    node,
+                    self.policy,
+                    config.n_actions,
+                    reward_model=self.reward_model,
+                    from_phase="expand"
+                )
+                for child in node.children:
+                    _world_modeling(query, query_idx, child, transition_model=self.world_model, reward_model=self.reward_model, from_phase="expand")
+                    if _is_terminal_with_depth_limit(child, config.max_steps, config.force_terminating_on_depth_limit):
+                        if child not in terminal_nodes:
+                            terminal_nodes.append(child)
+                    else:
+                        frontier_buckets[child.depth].append(child)
+                    buckets_with_terminal[child.depth].append(child)
+
+                if len(terminal_nodes) > config.max_leaves_to_terminate:
+                    log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (after expand)", level="debug")
+                    break
+            # 2) Loop each node in the frontier at this depth (End)
+            if len(terminal_nodes) > config.max_leaves_to_terminate:
+                log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (end of depth)", level="debug")
                 break
-        # 2) Loop each node in the frontier at this depth (End)
-        if len(terminal_nodes) > max_leaves_to_terminate:
-            log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (end of depth)", level="debug")
-            break
-        log_phase(logger, "BFS", f"Depth {depth} End")
-    
-    # Collect all terminal nodes from various sources
-    terminal_nodes_collected = terminal_nodes.copy()
-    
-    # Check frontier for additional terminal nodes
-    for node in frontier:
-        if node.is_terminal and node not in terminal_nodes_collected:
-            terminal_nodes_collected.append(node)
-    
-    # Check deepest bucket for terminal nodes
-    if buckets_with_terminal:
-        max_d = max(buckets_with_terminal.keys())
-        log_event(logger, "BFS", f"Frontier candidates at depth {max_d}: {len(buckets_with_terminal[max_d])}", level="debug")
-        for n in buckets_with_terminal[max_d]:
-            if n.is_terminal and n not in terminal_nodes_collected:
-                terminal_nodes_collected.append(n)
-    
-    log_event(logger, "BFS", f"Total terminal nodes collected: {len(terminal_nodes_collected)}", level="debug")
-    log_phase(logger, "BFS", f"End (example={query_idx})")
-    
-    # Return unified BFSResult structure (post-processing done outside)
-    return BFSResult(
-        root=root,
-        terminal_nodes_collected=terminal_nodes_collected,
-        buckets_with_terminal=buckets_with_terminal
-    )
-    
+            log_phase(logger, "BFS", f"Depth {depth} End")
+
+        # Collect all terminal nodes from various sources
+        terminal_nodes_collected = terminal_nodes.copy()
+
+        # Check frontier for additional terminal nodes
+        for node in frontier:
+            if node.is_terminal and node not in terminal_nodes_collected:
+                terminal_nodes_collected.append(node)
+
+        # Check deepest bucket for terminal nodes
+        if buckets_with_terminal:
+            max_d = max(buckets_with_terminal.keys())
+            log_event(logger, "BFS", f"Frontier candidates at depth {max_d}: {len(buckets_with_terminal[max_d])}", level="debug")
+            for n in buckets_with_terminal[max_d]:
+                if n.is_terminal and n not in terminal_nodes_collected:
+                    terminal_nodes_collected.append(n)
+
+        log_event(logger, "BFS", f"Total terminal nodes collected: {len(terminal_nodes_collected)}", level="debug")
+        log_phase(logger, "BFS", f"End (example={query_idx})")
+
+        return BFSResult(
+            root=self.root,
+            terminal_nodes_collected=terminal_nodes_collected,
+            buckets_with_terminal=buckets_with_terminal
+        )
+
+    def _fallback_result(self, query, query_idx) -> BFSResult:
+        """Return partial BFS result on error."""
+        return BFSResult(
+            root=self.root,
+            terminal_nodes_collected=self.collect_terminal_nodes(),
+        )
+##### BFS (END) #####
