@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-02-09 v0.2.9
+### Added
+- `BaseTreeSearch` ABC and `SearchResult` dataclass (`lits/agents/tree/search_base.py`)
+- `InferenceLogger.log_context()` for binding search-phase metadata to LLM call records
+- `MCTSSearch` and `BFSSearch` classes inheriting from `BaseTreeSearch`
+- `--policy`, `--transition`, `--reward` CLI flags wired through component factory
+- `TrajectoryKey` to BFS root node (`lits/agents/tree/bfs.py`)
+- Thinking mode support for `TGIChatModel` (Qwen3) (`lits/lm/tgi.py`)
+
+### Changed
+- `@register_search` now supports class-based registration (`lits/agents/registry.py`)
+- Simplified `main_search.py`: unified `search_kwargs`, `algo_output.to_paths()`, single `TreeToJsonl`
+- Updated `lits/agents/__init__.py` exports: `MCTSSearch`, `BFSSearch`, `BaseTreeSearch`, `SearchResult`
+- `create_components_language_grounded` and `create_components_env_grounded` accept override params (`lits/components/factory.py`)
+- `ExperimentConfig`: added `policy`, `transition`, `reward` override fields (`lits/config.py`)
+
+### Fixed
+- TGI `running_time`: prefer server-side `x-compute-time` over client wallclock (`lits/lm/tgi.py`)
+
+### Docs
+- Added `log_context()` section to `INFERENCE_LOGGER.md`
+
+## 2026-02-08 v0.2.8
+### Docs
+- Split `CHAIN.md` into `ENV_CHAIN.md` and `ReAct.md` (`docs/agents/`)
+
+## 2026-02-06 v0.2.8
+### Fixed
+- Bedrock support for Opus 4.5 (`lits/lm/base.py`)
+
 ## 2026-02-04 v0.2.8
 ### Changed
 - Moved `examples/math_qa/main_cot.py` to `examples/main_cot.py`
