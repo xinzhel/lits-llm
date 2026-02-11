@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-02-11 v0.2.10
+### Changed
+- Moved `BlocksWorldTransition` from `lits/components/transition/blocksworld.py` to `lits_benchmark/blocksworld.py`
+- Moved BlocksWorld prompts (policy, reward, transition) to decorator-based registration in `lits_benchmark/blocksworld.py`
+
 ## 2026-02-09 v0.2.9
 ### Added
 - `BaseTreeSearch` ABC and `SearchResult` dataclass (`lits/agents/tree/search_base.py`)

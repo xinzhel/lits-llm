@@ -37,7 +37,7 @@ class TestBlocksWorldAutoRegistration(unittest.TestCase):
         Validates: Requirements 3.1, 3.3
         """
         # Import the module to trigger registration
-        from lits.components.transition.blocksworld import BlocksWorldTransition
+        from lits_benchmark.blocksworld import BlocksWorldTransition
         
         # Verify registration
         TransitionCls = ComponentRegistry.get_transition('blocksworld')
@@ -49,7 +49,7 @@ class TestBlocksWorldAutoRegistration(unittest.TestCase):
         Validates: Requirements 3.1
         """
         # Import to trigger registration
-        from lits.components.transition.blocksworld import BlocksWorldTransition
+        from lits_benchmark.blocksworld import BlocksWorldTransition
         
         task_type = ComponentRegistry.get_task_type('blocksworld')
         self.assertEqual(task_type, 'env_grounded')
@@ -59,7 +59,7 @@ class TestBlocksWorldAutoRegistration(unittest.TestCase):
         
         Validates: Requirements 1.2, 3.3
         """
-        from lits.components.transition.blocksworld import BlocksWorldTransition
+        from lits_benchmark.blocksworld import BlocksWorldTransition
         
         # Verify it's callable
         self.assertTrue(callable(BlocksWorldTransition.goal_check))
@@ -79,7 +79,7 @@ class TestBlocksWorldAutoRegistration(unittest.TestCase):
         
         Validates: Requirements 1.2, 3.3
         """
-        from lits.components.transition.blocksworld import BlocksWorldTransition
+        from lits_benchmark.blocksworld import BlocksWorldTransition
         
         # Verify it's callable
         self.assertTrue(callable(BlocksWorldTransition.generate_actions))

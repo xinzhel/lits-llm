@@ -9,7 +9,7 @@ Tests the prompt registry integration and parameter handling for:
 import sys
 sys.path.append('../..')
 
-from lits.components.transition.blocksworld import BlocksWorldTransition
+from lits_benchmark.blocksworld import BlocksWorldTransition
 from lits.components.transition.rap import RAPTransition
 from lits.prompts.registry import PromptRegistry
 

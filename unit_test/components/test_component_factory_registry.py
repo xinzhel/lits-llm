@@ -45,7 +45,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
     def setUpClass(cls):
         """Import blocksworld module to trigger registration."""
         # Import to trigger auto-registration
-        from lits.components.transition.blocksworld import BlocksWorldTransition
+        from lits_benchmark.blocksworld import BlocksWorldTransition
     
     def test_factory_uses_registry_for_blocksworld(self):
         """Factory uses ComponentRegistry to look up BlocksWorldTransition.
@@ -78,7 +78,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
         self.assertIsNotNone(evaluator)
         
         # Verify world_model is BlocksWorldTransition instance
-        from lits.components.transition.blocksworld import BlocksWorldTransition
+        from lits_benchmark.blocksworld import BlocksWorldTransition
         self.assertIsInstance(world_model, BlocksWorldTransition)
     
     def test_factory_accesses_static_methods_via_transition_class(self):
@@ -87,7 +87,7 @@ class TestComponentFactoryRegistryIntegration(unittest.TestCase):
         Validates: Requirements 4.2
         """
         from lits_benchmark.experiments.component_factory import create_components_env_grounded
-        from lits.components.transition.blocksworld import BlocksWorldTransition
+        from lits_benchmark.blocksworld import BlocksWorldTransition
         
         # Create mock models
         base_model = MagicMock()

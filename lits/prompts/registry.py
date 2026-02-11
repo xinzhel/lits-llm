@@ -327,21 +327,14 @@ def load_default_prompts():
     try:
         from .policy import concat as concat_policy
         from .policy import tool_use as tool_use_policy
-        from .policy import blocksworld as blocksworld_policy
         from .policy import env_grounded as env_grounded_policy  # Fallback prompts
         from .reward import generative as generative_reward
-        from .reward import blocksworld as blocksworld_reward
         from .reward import env_grounded as env_grounded_reward  # Fallback prompts
-        from .transition import blocksworld as blocksworld_transition
         
         # Register policy prompts
         # Concat policy for language_grounded tasks
         if hasattr(concat_policy, 'task_prompt_spec_math_qa'):
             PromptRegistry.register('policy', 'concat', 'language_grounded', concat_policy.task_prompt_spec_math_qa)
-        
-        # EnvGrounded policy for blocksworld (benchmark-specific)
-        if hasattr(blocksworld_policy, 'usr_prompt_spec'):
-            PromptRegistry.register_usr('policy', 'env_grounded', 'blocksworld', blocksworld_policy.usr_prompt_spec)
         
         # ToolUse policy (default for all tool_use tasks)
         if hasattr(tool_use_policy, 'task_prompt_spec'):
@@ -351,19 +344,6 @@ def load_default_prompts():
         # Generative reward for language_grounded tasks
         if hasattr(generative_reward, 'task_prompt_spec_math_qa'):
             PromptRegistry.register('reward', 'generative', 'language_grounded', generative_reward.task_prompt_spec_math_qa)
-        
-        # EnvGrounded reward for blocksworld (benchmark-specific)
-        if hasattr(blocksworld_reward, 'task_prompt_spec_blocksworld'):
-            PromptRegistry.register('reward', 'env_grounded', 'blocksworld', blocksworld_reward.task_prompt_spec_blocksworld)
-        if hasattr(blocksworld_reward, 'usr_prompt_spec_blocksworld'):
-            PromptRegistry.register_usr('reward', 'env_grounded', 'blocksworld', blocksworld_reward.usr_prompt_spec_blocksworld)
-                
-        # Register transition prompts
-        # BlocksWorld transition (benchmark-specific)
-        if hasattr(blocksworld_transition, 'task_prompt_spec'):
-            PromptRegistry.register('transition', 'blocksworld', None, blocksworld_transition.task_prompt_spec)
-        if hasattr(blocksworld_transition, 'usr_prompt_spec'):
-            PromptRegistry.register_usr('transition', 'blocksworld', None, blocksworld_transition.usr_prompt_spec)
         
     except ImportError as e:
         # Gracefully handle missing prompt modules
