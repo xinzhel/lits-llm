@@ -82,6 +82,12 @@ dev = [
     "twine"
 ]
 
+[project.scripts]
+lits-search = "lits.cli.search:main"
+lits-eval = "lits.cli.eval_search:main"
+lits-chain = "lits.cli.chain:main"
+lits-eval-chain = "lits.cli.eval_chain:main"
+
 [project.urls]
 Homepage = "https://github.com/xinzhel/langagent"
 Repository = "https://github.com/xinzhel/langagent"

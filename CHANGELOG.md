@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-02-12 v0.2.11
+### Added
+- `lits-search`, `lits-eval`, `lits-chain`, `lits-eval-chain` CLI entry points (`pyproject.toml`)
+- `lits/cli/search.py` — tree search entry point
+- `lits/cli/eval_search.py` — tree search evaluation entry point
+- `lits/cli/chain.py` — chain agent entry point
+- `lits/cli/eval_chain.py` — chain agent evaluation entry point
+
+### Changed
+- `examples/` scripts converted to thin backward-compat wrappers
+
+### Removed
+- `lits/cli/commands.py` placeholder stubs
+
 ## 2026-02-11 v0.2.10
 ### Changed
 - Moved `BlocksWorldTransition` from `lits/components/transition/blocksworld.py` to `lits_benchmark/blocksworld.py`
