@@ -1,7 +1,13 @@
 
+from importlib.metadata import version, PackageNotFoundError
+
 DEFAULT_MODEL_NAME = "Qwen/Qwen3-32B-AWQ"
 DEFAULT_DEVICE = "cuda"
-PACKAGE_VERSION = "0.2.5"
+
+try:
+    PACKAGE_VERSION = version("lits-llm")
+except PackageNotFoundError:
+    PACKAGE_VERSION = "dev"
 
 #  """Your task is to give the correct next step, given a science problem and an existing partial solution (not a complete answer). 
 # Assuming the input is n-steps, then the format of the input is:

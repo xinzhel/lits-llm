@@ -5,6 +5,7 @@ import copy
 import numpy as np
 from ..utils import verbalize_concat_state, strip_num
 from ..base import RewardModel
+from ..registry import register_reward_model
 from ...structures import StateT, ActionT
 from ...lm import HfChatModel, infer_chat_model
 from ...eval import parse_reasoning_and_label
@@ -12,6 +13,7 @@ from ...log import log_phase, log_event
 
 logger = logging.getLogger(__name__)
 
+@register_reward_model("generative", task_type="language_grounded")
 class GenerativePRM(RewardModel):
     """Process Reward Model that evaluates reasoning steps via generative LLM prompting.
     

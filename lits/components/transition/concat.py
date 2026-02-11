@@ -2,6 +2,7 @@ import logging
 from typing import Union, Tuple, Optional
 from ...structures import ThoughtStep, log_state, StateT
 from ..base import LlmTransition
+from ..registry import register_transition
 from ...lm.base import DETERMINISTIC_TEMPERATURE
 from ..utils import verbalize_concat_state, create_role, extract_existing_steps
 from ...log import log_event
@@ -26,6 +27,7 @@ to the problem.
     return terminate_prompt
 
 
+@register_transition("concat", task_type="language_grounded")
 class ConcatTransition(LlmTransition):
     """World model for ReST-style reasoning that concatenates steps.
     

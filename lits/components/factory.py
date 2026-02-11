@@ -21,6 +21,11 @@ from .policy.env_grounded import EnvGroundedPolicy
 from .reward.env_grounded import EnvGroundedPRM
 from ..lm.base import HfChatModel
 
+# Import core components to trigger @register_* decorators
+from .transition.concat import ConcatTransition  # noqa: F401
+from .policy.concat import ConcatPolicy  # noqa: F401
+from .reward.generative import GenerativePRM  # noqa: F401
+
 
 def create_components_language_grounded(
     base_model,

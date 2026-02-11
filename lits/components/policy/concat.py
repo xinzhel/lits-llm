@@ -1,4 +1,5 @@
 from ..base import Policy
+from ..registry import register_policy
 import logging
 import re
 from ...lm.base import HfChatModel
@@ -40,6 +41,7 @@ def count_tokens(text: str, model) -> int:
         return len(text) // 4  # Rough estimate: ~4 chars per token
 
 
+@register_policy("concat", task_type="language_grounded")
 class ConcatPolicy(Policy):
     """Policy that generates reasoning actions by concatenating new steps to the existing trace.
     

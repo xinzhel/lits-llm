@@ -2,6 +2,7 @@ from dataclasses import dataclass, asdict, field
 from typing import Any, Dict, Optional, List
 import os
 import json
+from ..framework_config import PACKAGE_VERSION
 
 @dataclass
 class BaseConfig:
@@ -19,7 +20,7 @@ class BaseConfig:
         dataset_kwargs: Dataset-specific kwargs for load_dataset()
     """
 
-    package_version: str = "v0.2.5"
+    package_version: str = f"v{PACKAGE_VERSION}"
     policy_model_name: Optional[str] = None
     gpu_device: Optional[str] = None
     max_length: Optional[int] = None
