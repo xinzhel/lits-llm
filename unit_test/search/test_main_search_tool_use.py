@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from lits.benchmarks.registry import has_resource
-from lits_benchmark import load_resource
+from lits.benchmarks.registry import load_resource
 
 
 def test_has_resource():

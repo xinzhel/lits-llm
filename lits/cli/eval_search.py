@@ -152,9 +152,8 @@ def evaluate_from_checkpoints(
         full_dataset = None
         eval_logger.info(f"Evaluating {dataset_name} results (goal checking via registry)")
     elif is_tool_use:
-        # Load only the examples, not the tools (no database connection needed)
-        from lits_benchmark import load_dataset_examples
-        full_dataset = load_dataset_examples(dataset_name)
+        # Tool-use datasets are registered via @register_dataset, same as other task types
+        full_dataset = load_dataset(dataset_name)
         # NOTE: Do NOT slice the dataset here. The query_idx in terminal node files
         # refers to the original dataset index, not the sliced index.
     else:
