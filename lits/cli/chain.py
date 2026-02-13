@@ -6,10 +6,10 @@ Unlike tree search (lits-search), this uses a sequential chain agent that
 executes actions step-by-step without branching.
 
 Usage:
-    lits-chain --dataset blocksworld --import lits_benchmark.blocksworld
-    lits-chain --dataset crosswords --import lits_benchmark.crosswords \
+    lits-chain --dataset blocksworld --include lits_benchmark.blocksworld
+    lits-chain --dataset crosswords --include lits_benchmark.crosswords \
         --dataset-arg data_file=crosswords/data/mini0505.json
-    lits-chain --dry-run --dataset blocksworld --import lits_benchmark.blocksworld
+    lits-chain --dry-run --dataset blocksworld --include lits_benchmark.blocksworld
     lits-chain --help
 
 Two-Stage Workflow:
@@ -133,7 +133,7 @@ def main() -> int:
         available = ComponentRegistry.list_by_task_type("env_grounded")
         print(f"Error: Transition '{transition_key}' not found in registry.", file=sys.stderr)
         print(f"Available env_grounded benchmarks: {available}", file=sys.stderr)
-        print(f"Did you forget to use --import to load the module containing "
+        print(f"Did you forget to use --include to load the module containing "
               f"@register_transition('{transition_key}')?", file=sys.stderr)
         return 1
 
@@ -149,11 +149,6 @@ def main() -> int:
     generate_all_actions = getattr(TransitionCls, 'generate_actions', None)
     validate_action = getattr(TransitionCls, 'validate_action', None)
 
-    # Setup directories
-    run_id, result_dir = get_result_dir(config.policy_model_name, benchmark_name)
-    checkpoint_dir = os.path.join(result_dir, "checkpoints")
-    os.makedirs(checkpoint_dir, exist_ok=True)
-
     # Load dataset kwargs from CLI --dataset-arg or config
     dataset_kwargs = parse_dataset_kwargs(cli_args)
 
@@ -161,16 +156,6 @@ def main() -> int:
     if config.dataset_kwargs:
         merged_kwargs = {**config.dataset_kwargs, **dataset_kwargs}
         dataset_kwargs = merged_kwargs
-
-    # Store dataset_kwargs in config for reproducibility
-    if dataset_kwargs:
-        config.dataset_kwargs = dataset_kwargs
-
-    # Save config
-    config.save_config(result_dir)
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Results will be saved to: {result_dir}")
-    print(f"Config saved to: {os.path.join(result_dir, 'config.json')}")
 
     # Default kwargs for known datasets (backwards compatibility)
     if benchmark_name == "blocksworld" and not dataset_kwargs:
@@ -187,14 +172,32 @@ def main() -> int:
         print("Please register a dataset loader using @register_dataset decorator.", file=sys.stderr)
         return 1
 
-    # Dry-run mode: print first dataset element and exit
+    # Dry-run mode: print first dataset element and exit with no side effects
     if cli_args.dry_run:
         print(f"\n=== Dry Run Mode ===")
         print(f"Benchmark: {benchmark_name}")
+        print(f"Transition: {TransitionCls.__name__}")
         print(f"Dataset size: {len(full_dataset)}")
         print(f"\nFirst element:")
         print(json.dumps(full_dataset[0], indent=2, default=str))
         return 0
+
+    # --- Everything below only runs for real execution ---
+
+    # Setup directories
+    run_id, result_dir = get_result_dir(config.policy_model_name, benchmark_name)
+    checkpoint_dir = os.path.join(result_dir, "checkpoints")
+    os.makedirs(checkpoint_dir, exist_ok=True)
+
+    # Store dataset_kwargs in config for reproducibility
+    if dataset_kwargs:
+        config.dataset_kwargs = dataset_kwargs
+
+    # Save config
+    config.save_config(result_dir)
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Results will be saved to: {result_dir}")
+    print(f"Config saved to: {os.path.join(result_dir, 'config.json')}")
 
     # Setup logging
     run_logger = setup_logging(

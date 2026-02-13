@@ -8,7 +8,7 @@ registered Transition class via ComponentRegistry.
 Usage:
     lits-eval-chain --result_dir results/blocksworld_chain/run_0.2.10
     lits-eval-chain --benchmark crosswords --result_dir results/crosswords_chain/run_0.2.10
-    lits-eval-chain --list --import lits_benchmark.blocksworld
+    lits-eval-chain --list --include lits_benchmark.blocksworld
     lits-eval-chain --help
 
 Auto-loads import_modules and benchmark from config.json in result_dir.
@@ -213,10 +213,10 @@ Examples:
   lits-eval-chain --benchmark blocksworld --result_dir results/blocksworld_chain/run_0.2.10
   
   # Evaluate custom benchmark (import module to register Transition)
-  lits-eval-chain --benchmark robot_arm --import my_project.robot_arm --result_dir results/robot_arm/run_0.2.10
+  lits-eval-chain --benchmark robot_arm --include my_project.robot_arm --result_dir results/robot_arm/run_0.2.10
   
   # List available benchmarks (including custom ones)
-  lits-eval-chain --import my_project.robot_arm --list
+  lits-eval-chain --include my_project.robot_arm --list
 """
     )
     parser.add_argument(
@@ -232,12 +232,12 @@ Examples:
         help="Path to run directory containing checkpoints/ and config (e.g., results/blocksworld_chain/run_0.2.10)"
     )
     parser.add_argument(
-        "--import",
+        "--include",
         dest="import_modules",
         type=str,
         nargs="+",
         metavar="MODULE",
-        help="Python module(s) to import for custom Transition registration. Auto-loaded from config if not specified."
+        help="Python module(s)/package(s) to include for custom Transition registration. Auto-loaded from config if not specified."
     )
     parser.add_argument(
         "--list",

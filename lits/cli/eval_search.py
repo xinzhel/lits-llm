@@ -412,7 +412,7 @@ Examples:
   # Evaluate custom benchmark (import module to register Transition)
   lits-eval --result_dir results/robot_arm_rap/run_0.2.10 \\
       --dataset_name robot_arm --eval_model_name bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0 \\
-      --import my_project.robot_arm
+      --include my_project.robot_arm
 """
     )
     parser.add_argument("--result_dir", type=str, required=True, help="Directory containing terminal_nodes/ subdirectory")
@@ -421,12 +421,12 @@ Examples:
     parser.add_argument("--offset", type=int, default=0, help="Dataset offset used during search")
     parser.add_argument("--limit", type=int, default=None, help="Dataset limit used during search")
     parser.add_argument(
-        "--import",
+        "--include",
         dest="import_modules",
         type=str,
         nargs="+",
         metavar="MODULE",
-        help="Python module(s) to import for custom component registration. Auto-loaded from config if not specified."
+        help="Python module(s)/package(s) to include for custom component registration. Auto-loaded from config if not specified."
     )
     
     args = parser.parse_args()

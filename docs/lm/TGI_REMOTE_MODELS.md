@@ -57,7 +57,7 @@ RAP (Reasoning via Planning) requires completion models. Use TGI to serve Llama-
 
 ```bash
 python main_search.py \
-    --import lits_benchmark.formulations.rap \
+    --include lits_benchmark.formulations.rap \
     --search_framework rap \
     --dataset gsm8k \
     --policy_model_name "tgi://localhost:8080/meta-llama/Meta-Llama-3-8B" \

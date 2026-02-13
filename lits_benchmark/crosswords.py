@@ -22,7 +22,7 @@ Example:
     import lits_benchmark.crosswords
     
     # Use with main_search.py
-    # python main_search.py --benchmark crosswords --import lits_benchmark.crosswords
+    # python main_search.py --benchmark crosswords --include lits_benchmark.crosswords
     ```
 """
 

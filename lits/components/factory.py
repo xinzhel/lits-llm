@@ -119,7 +119,7 @@ def create_components_language_grounded(
                 f"Component override(s) not found in registry: {', '.join(overrides)}.\n"
                 f"Ensure you:\n"
                 f"  1. Use matching @register_policy/transition/reward_model decorators\n"
-                f"  2. Import the module: --import your_module"
+                f"  2. Import the module: --include your_module"
             )
         
         # Not in registry and no overrides - fall back to built-in Concat components for rest/bfs
@@ -128,7 +128,7 @@ def create_components_language_grounded(
                 f"Components for '{search_framework}' not found in registry.\n"
                 f"For custom formulations, ensure you:\n"
                 f"  1. Use @register_policy/transition/reward_model('{search_framework}') decorators\n"
-                f"  2. Import the module: --import your_formulation_module"
+                f"  2. Import the module: --include your_formulation_module"
             )
     
     # Built-in fallback for rest/tot_bfs using Concat components
@@ -350,6 +350,62 @@ def create_bn_evaluator(
         max_new_tokens_for_bn_eval=max_new_tokens_for_bn_eval, max_try_for_bn_eval=max_try_for_bn_eval,
         eval_method=bn_method
     )
+
+
+def resolve_component_names(task_type: str, config) -> Dict[str, str]:
+    """Resolve component class names from the registry without instantiation.
+    
+    Read-only counterpart to create_components(). Extracts the key-resolution
+    and registry-lookup pattern embedded in create_components_language_grounded()
+    and create_components_env_grounded(), but returns class names instead of
+    creating instances. No models loaded, no files created.
+    
+    Used by --dry-run to show which component classes would be used.
+    
+    Args:
+        task_type: One of 'language_grounded', 'env_grounded', 'tool_use'
+        config: ExperimentConfig with policy/transition/reward overrides
+    
+    Returns:
+        Dict with keys 'policy', 'transition', 'reward' mapping to class names
+    """
+    from .registry import ComponentRegistry
+    
+    policy_override = getattr(config, 'policy', None)
+    transition_override = getattr(config, 'transition', None)
+    reward_override = getattr(config, 'reward', None)
+    
+    if task_type == "language_grounded":
+        framework_key = getattr(config, 'search_framework', None) or "rest"
+        if framework_key == "tot_bfs":
+            framework_key = "bfs"
+        t_key = transition_override or framework_key
+        p_key = policy_override or framework_key
+        r_key = reward_override or framework_key
+        fallbacks = ("ConcatPolicy", "ConcatTransition", "GenerativePRM")
+    elif task_type == "env_grounded":
+        t_key = transition_override or config.dataset
+        p_key = policy_override or config.dataset
+        r_key = reward_override or config.dataset
+        fallbacks = ("EnvGroundedPolicy", None, "EnvGroundedPRM")
+    else:  # tool_use
+        return {
+            "policy": "ToolUsePolicy",
+            "transition": "ToolUseTransition",
+            "reward": "ToolUsePRM",
+        }
+    
+    def _resolve(getter, key, fallback):
+        try:
+            return getter(key).__name__
+        except KeyError:
+            return fallback or key
+    
+    return {
+        "policy": _resolve(ComponentRegistry.get_policy, p_key, fallbacks[0]),
+        "transition": _resolve(ComponentRegistry.get_transition, t_key, fallbacks[1]),
+        "reward": _resolve(ComponentRegistry.get_reward_model, r_key, fallbacks[2]),
+    }
 
 
 def create_components(

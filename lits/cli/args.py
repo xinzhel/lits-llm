@@ -67,7 +67,7 @@ Model Selection:
   --bn-model, -bm       Branching number model name (defaults to policy model if not specified)
 
 Tree Search Flags (main_search.py only, ignored by chain agents):
-  --search_framework    Search framework (e.g., rest, rap, tot_bfs). Custom via --import
+  --search_framework    Search framework (e.g., rest, rap, tot_bfs). Custom via --include
   --policy              Policy component override (e.g., concat, rap)
   --transition          Transition component override (e.g., concat, rap)
   --reward              Reward model override (e.g., generative, thinkprm)
@@ -104,12 +104,12 @@ Script Variables (--var):
 
 Examples (Tree Search - main_search.py):
   # env_grounded task
-  python main_search.py --dataset crosswords --import lits_benchmark.crosswords \\
+  python main_search.py --dataset crosswords --include lits_benchmark.crosswords \\
       --search-arg n_actions=3 max_steps=10 n_iters=30
   
   # language_grounded with TGI model
   python main_search.py --dataset gsm8k --search_framework rap \\
-      --import lits_benchmark.formulations.rap \\
+      --include lits_benchmark.formulations.rap \\
       --policy-model "tgi:///meta-llama/Meta-Llama-3-8B" \\
       --search-arg n_iters=50 n_actions=3
   
@@ -124,7 +124,7 @@ Examples (Chain Agent - main_env_chain.py):
   python main_env_chain.py --dataset blocksworld
   
   # Run on crosswords with custom data file
-  python main_env_chain.py --dataset crosswords --import lits_benchmark.crosswords \\
+  python main_env_chain.py --dataset crosswords --include lits_benchmark.crosswords \\
       --dataset-arg data_file=crosswords/data/mini0505.json
 
 Common Options:
@@ -137,12 +137,12 @@ Common Options:
     )
     
     parser.add_argument(
-        "--import",
+        "--include",
         dest="import_modules",
         type=str,
         nargs="+",
         metavar="MODULE",
-        help="Python module(s) to import for custom component registration"
+        help="Python module(s)/package(s) to include for custom component registration"
     )
     
     parser.add_argument(
@@ -198,7 +198,7 @@ Common Options:
         "--search_framework",
         dest="search_framework",
         type=str,
-        help="Search framework (e.g., rest, rap, tot_bfs). Custom frameworks via --import"
+        help="Search framework (e.g., rest, rap, tot_bfs). Custom frameworks via --include"
     )
     
     # Model flags (Task 6)

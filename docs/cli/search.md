@@ -22,7 +22,7 @@ python main_search.py --dataset <dataset> --search_framework <framework> [option
 | `--search_framework` | Search framework: rest, rap, tot_bfs |
 | `--policy-model` | Policy model name |
 | `--eval-model` | Evaluation model (defaults to policy model) |
-| `--import` | Python module(s) for custom component registration |
+| `--include` | Python module(s)/package(s) for custom component registration |
 | `--search-arg` | Search algorithm params (e.g., `n_iters=50 n_actions=3`) |
 | `--component-arg` | Component params (e.g., `think_for_correctness=true`) |
 | `--dataset-arg` | Dataset loader kwargs (e.g., `levels=[5]`) |
@@ -60,7 +60,7 @@ python main_search.py \
 python main_search.py \
     --dataset math500 \
     --search_framework rap \
-    --import lits_benchmark.formulations.rap \
+    --include lits_benchmark.formulations.rap \
     --policy-model "tgi:///meta-llama/Meta-Llama-3-8B" \
     --dataset-arg levels=[5] \
     --search-arg roll_out_steps=10000 n_iters=10 n_confidence=3
@@ -68,7 +68,7 @@ python main_search.py \
 # env_grounded task (blocksworld)
 python main_search.py \
     --dataset blocksworld \
-    --import lits_benchmark.blocksworld \
+    --include lits_benchmark.blocksworld \
     --search-arg max_steps=6 roll_out_steps=6 terminate_on_first_solution=true
 ```
 
@@ -94,7 +94,7 @@ python eval_search.py \
 | `--eval_model_name` | Model for answer extraction |
 | `--offset` | Dataset offset (default: 0) |
 | `--limit` | Dataset limit (default: all) |
-| `--import` | Override auto-loaded import_modules |
+| `--include` | Override auto-loaded import_modules |
 
 ### Auto-Loading
 

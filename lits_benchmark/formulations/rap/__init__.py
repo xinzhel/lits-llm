@@ -4,7 +4,7 @@ This module registers RAP components with ComponentRegistry when imported,
 enabling the RAP search framework for sub-question decomposition tasks.
 
 Usage:
-    python main_search.py --import lits_benchmark.formulations.rap --search_framework rap ...
+    python main_search.py --include lits_benchmark.formulations.rap --search_framework rap ...
 
 Components registered:
 - RAPPolicy: Generates candidate sub-questions
@@ -13,7 +13,7 @@ Components registered:
 
 Example:
     python main_search.py \\
-        --import lits_benchmark.formulations.rap \\
+        --include lits_benchmark.formulations.rap \\
         --search_framework rap \\
         --dataset gsm8k \\
         --policy_model_name "meta-llama/Llama-3-8B-Instruct" \\

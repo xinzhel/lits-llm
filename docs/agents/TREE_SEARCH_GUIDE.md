@@ -72,7 +72,7 @@ python main_search.py --dataset math500 \
     --component-arg reward_model_type=thinkprm thinkprm_endpoint=my-endpoint
 
 # Environment-grounded tasks with custom modules
-python main_search.py --dataset crosswords --import lits_benchmark.crosswords \
+python main_search.py --dataset crosswords --include lits_benchmark.crosswords \
     --search-arg n_actions=3 max_steps=10 n_iters=30 \
     --dataset-arg data_file=crosswords/data/mini0505.json
 
@@ -90,7 +90,7 @@ python main_search.py --help-config
 | `--component-arg` | Component params | `--component-arg think_for_correctness=true` |
 | `--dataset-arg` | Dataset loader kwargs | `--dataset-arg levels=1,2,3` |
 | `--var` | Execution vars (not saved) | `--var offset=0 limit=50` |
-| `--import` | Custom module import | `--import lits_benchmark.crosswords` |
+| `--include` | Custom module/package include | `--include lits_benchmark.crosswords` |
 | `--override` | Override existing results | `--override` |
 | `--dry-run` | Test dataset loading | `--dry-run` |
 | `--help-config` | Show all parameters | `--help-config` |
@@ -555,7 +555,7 @@ class MyRewardModel(RewardModel):
 
 ## External Formulations
 
-LITS supports external formulations via the `--import` flag. This allows custom search frameworks to be developed outside the core package while still integrating seamlessly with the CLI and component factory.
+LITS supports external formulations via the `--include` flag. This allows custom search frameworks to be developed outside the core package while still integrating seamlessly with the CLI and component factory.
 
 ### Using External Formulations
 
@@ -563,7 +563,7 @@ External formulations are imported at runtime before component creation:
 
 ```bash
 python main_search.py \
-    --import lits_benchmark.formulations.rap \
+    --include lits_benchmark.formulations.rap \
     --search_framework rap \
     --dataset gsm8k \
     --policy_model_name "meta-llama/Llama-3-8B-Instruct" \
@@ -571,7 +571,7 @@ python main_search.py \
     --search-arg max_steps=10
 ```
 
-The `--import` flag triggers Python's import mechanism, which executes the module's `__init__.py` and registers components with `ComponentRegistry`.
+The `--include` flag triggers Python's import mechanism, which executes the module's `__init__.py` and registers components with `ComponentRegistry`.
 
 ### Example: RAP Formulation
 
@@ -657,7 +657,7 @@ class MyRewardModel(RewardModel):
 
 ```bash
 python main_search.py \
-    --import my_formulation \
+    --include my_formulation \
     --search_framework my_formulation \
     --dataset my_dataset \
     --search-arg my_param=20 \

@@ -98,10 +98,10 @@ from lits.benchmarks.registry import (
 # =============================================================================
 # CLI Utilities for Custom Component Loading
 # =============================================================================
-# These utilities enable the "specify --import once, auto-load in eval" pattern:
+# These utilities enable the "specify --include once, auto-load in eval" pattern:
 #
 # 1. Main script (main_search.py, main_env_chain.py):
-#    - User specifies: --import my_project.robot_arm
+#    - User specifies: --include my_project.robot_arm
 #    - Script calls import_custom_modules() to trigger registration
 #    - Script saves import_modules to config JSON
 #
@@ -112,11 +112,11 @@ from lits.benchmarks.registry import (
 #
 # Example workflow:
 #    # Step 1: Run main script with custom module
-#    python main_env_chain.py --benchmark robot_arm --import my_project.robot_arm
+#    python main_env_chain.py --benchmark robot_arm --include my_project.robot_arm
 #    
 #    # Step 2: Eval script auto-loads import_modules from config
 #    python eval_env_chain.py --result_dir results/robot_arm_chain/run_0.2.5
-#    # No --import needed! Auto-loaded from env_chain_config.json
+#    # No --include needed! Auto-loaded from env_chain_config.json
 # =============================================================================
 
 def import_custom_modules(module_paths: Optional[List[str]]) -> None:
@@ -135,7 +135,7 @@ def import_custom_modules(module_paths: Optional[List[str]]) -> None:
         ImportError: If a module cannot be imported
         
     Example:
-        # In main_env_chain.py - user specifies --import
+        # In main_env_chain.py - user specifies --include
         import_custom_modules(["my_project.robot_arm"])
         
         # Now custom Transition is available in registry
@@ -163,7 +163,7 @@ def load_config_from_result_dir(
     
     Main scripts (main_search.py, main_env_chain.py) save their config including
     import_modules to a JSON file. Eval scripts use this function to retrieve
-    that config and auto-load the same modules without requiring --import again.
+    that config and auto-load the same modules without requiring --include again.
     
     Args:
         result_dir: Path to the run directory (e.g., results/robot_arm_chain/run_0.2.5/)

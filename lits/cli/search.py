@@ -3,7 +3,7 @@ lits-search: Tree search experiment CLI entry point.
 
 Usage:
     lits-search --dataset math500 --search_framework rest --var limit=10
-    lits-search --dataset blocksworld --import lits_benchmark.blocksworld --search-arg n_iters=10
+    lits-search --dataset blocksworld --include lits_benchmark.blocksworld --search-arg n_iters=10
     lits-search --help
     lits-search --help-config
 
@@ -347,22 +347,13 @@ def main() -> int:
     if cli_args.component_args:
         config.component_args.update(parse_component_args(cli_args))
 
-    # Setup directories
-    configure_hf_model_logging()
-    run_id, result_dir = config.setup_directories(is_running_in_jupyter())
+    # Infer task type and load dataset early (needed for --dry-run before any side effects)
     task_type = infer_task_type(config.dataset)
     task_name = config.dataset
-
-    # Create search config and save
-    search_config = config.create_search_config()
-    if cli_args.import_modules:
-        search_config.import_modules = cli_args.import_modules
-    search_config.save_config(result_dir)
+    dataset_kwargs = parse_dataset_kwargs(cli_args)
 
     # Load tool use spec if applicable
     if config.dataset in TOOL_USE_DATASETS:
-        # Tool-use tasks may need extra env vars (DB credentials etc.)
-        # General .env already loaded above; this adds task-specific vars if present
         if os.path.exists("mapeval/.env"):
             load_dotenv("mapeval/.env")
         tool_use_spec = None
@@ -371,12 +362,61 @@ def main() -> int:
             tool_use_spec = load_resource(config.dataset)
         except ImportError:
             print("Error: lits_benchmark is required for tool-use datasets.")
-            print("Install it or use --import to register your own tool-use dataset.")
+            print("Install it or use --include to register your own tool-use dataset.")
             return 1
         is_tool_use = True
     else:
         tool_use_spec = None
         is_tool_use = False
+
+    # Load dataset
+    if task_type == "tool_use":
+        full_dataset = tool_use_spec["examples"]
+    elif task_type == "language_grounded":
+        full_dataset = load_dataset(config.dataset, **dataset_kwargs)
+    elif task_type == "env_grounded":
+        if config.dataset == "blocksworld" and not dataset_kwargs:
+            dataset_kwargs = {
+                'config_file': "blocksworld/bw_data_bw_config.yaml",
+                'domain_file': "blocksworld/bw_data_generated_domain.pddl",
+                'data_file': 'blocksworld/bw_data_step_6.json'
+            }
+        # Validate dataset file paths exist before loading
+        for key, path in dataset_kwargs.items():
+            if key.endswith('_file') and not os.path.exists(path):
+                print(f"Error: dataset file not found: {path} (from --dataset-arg {key}={path})")
+                print(f"Current working directory: {os.getcwd()}")
+                print("Hint: run from the directory containing the data files, or use --dataset-arg to specify paths.")
+                return 1
+        full_dataset = load_dataset(config.dataset, **dataset_kwargs)
+
+    # Dry-run mode: print config + first element, then exit with no side effects
+    if cli_args.dry_run:
+        from lits.components.factory import resolve_component_names
+
+        names = resolve_component_names(task_type, config)
+        print(f"\n=== Dry Run Mode ===")
+        print(f"Dataset: {config.dataset}")
+        print(f"Task type: {task_type}")
+        print(f"Search algorithm: {config.search_algorithm}")
+        print(f"Components: policy={names['policy']}, transition={names['transition']}, reward={names['reward']}")
+        print(f"Dataset size: {len(full_dataset)}")
+        print(f"\nFirst element:")
+        print(json.dumps(full_dataset[0], indent=2, default=str))
+        return 0
+
+    # --- Everything below only runs for real execution ---
+
+    # Setup directories and save config
+    configure_hf_model_logging()
+    run_id, result_dir = config.setup_directories(is_running_in_jupyter())
+
+    search_config = config.create_search_config()
+    if cli_args.import_modules:
+        search_config.import_modules = cli_args.import_modules
+    if dataset_kwargs:
+        search_config.dataset_kwargs = dataset_kwargs
+    search_config.save_config(result_dir)
 
     # Login to Hugging Face
     login(token=os.getenv("HF_TOKEN"))
@@ -457,44 +497,6 @@ def main() -> int:
 
     # Initialize memory manager if enabled
     memory_manager = setup_memory_manager(config, run_logger)
-
-    # Load dataset
-    dataset_kwargs = parse_dataset_kwargs(cli_args)
-
-    if task_type == "tool_use":
-        full_dataset = tool_use_spec["examples"]
-    elif task_type == "language_grounded":
-        full_dataset = load_dataset(config.dataset, **dataset_kwargs)
-    elif task_type == "env_grounded":
-        if config.dataset == "blocksworld" and not dataset_kwargs:
-            dataset_kwargs = {
-                'config_file': "blocksworld/bw_data_bw_config.yaml",
-                'domain_file': "blocksworld/bw_data_generated_domain.pddl",
-                'data_file': 'blocksworld/bw_data_step_6.json'
-            }
-        # Validate dataset file paths exist before loading
-        for key, path in dataset_kwargs.items():
-            if key.endswith('_file') and not os.path.exists(path):
-                print(f"Error: dataset file not found: {path} (from --dataset-arg {key}={path})")
-                print(f"Current working directory: {os.getcwd()}")
-                print("Hint: run from the directory containing the data files, or use --dataset-arg to specify paths.")
-                return 1
-        full_dataset = load_dataset(config.dataset, **dataset_kwargs)
-
-    # Save dataset_kwargs for reproducibility
-    if dataset_kwargs:
-        search_config.dataset_kwargs = dataset_kwargs
-        search_config.save_config(result_dir)
-
-    # Dry-run mode
-    if cli_args.dry_run:
-        print(f"\n=== Dry Run Mode ===")
-        print(f"Dataset: {config.dataset}")
-        print(f"Task type: {task_type}")
-        print(f"Dataset size: {len(full_dataset)}")
-        print(f"\nFirst element:")
-        print(json.dumps(full_dataset[0], indent=2, default=str))
-        return 0
 
     # Slice dataset
     if config.eval_idx:

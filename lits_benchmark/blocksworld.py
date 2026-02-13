@@ -16,7 +16,7 @@ Example:
     import lits_benchmark.blocksworld
 
     # Use with CLI
-    # lits-search --import lits_benchmark.blocksworld --dataset blocksworld --transition blocksworld
+    # lits-search --include lits_benchmark.blocksworld --dataset blocksworld --transition blocksworld
     ```
 """
 
