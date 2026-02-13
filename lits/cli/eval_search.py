@@ -25,7 +25,7 @@ from dotenv import load_dotenv, find_dotenv
 
 from lits.agents.tree.node import SearchNode, MCTSNode
 from lits.agents.tree.common import extract_answers_from_terminal_nodes
-from lits.benchmarks.registry import load_dataset, TOOL_USE_DATASETS
+from lits.benchmarks.registry import load_dataset, has_resource
 from lits.components.registry import ComponentRegistry
 from lits.registry import import_custom_modules, load_config_from_result_dir
 from lits.components.utils import get_fn_retrieve_answer
@@ -143,7 +143,7 @@ def evaluate_from_checkpoints(
     
     # Determine task type using registry
     is_env_grounded = is_env_grounded_task(dataset_name)
-    is_tool_use = dataset_name in TOOL_USE_DATASETS
+    is_tool_use = has_resource(dataset_name)
     
     # Load dataset for ground truths (not needed for env_grounded tasks)
     if is_env_grounded:

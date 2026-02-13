@@ -1,6 +1,6 @@
 import re
 from datasets import load_dataset as hf_load_dataset
-from lits.benchmarks.registry import register_dataset
+from lits.benchmarks.registry import register_dataset, register_resource
 
 
 def _to_option(value):
@@ -136,3 +136,55 @@ def load_mapeval_sql(**kwargs):
             "answer": _gold_option(item)
         })
     return formatted_examples
+
+
+# ============================================================================
+# Registered resource loaders for tool-use benchmarks
+# ============================================================================
+
+def _load_mapeval_resource(benchmark_name: str, **kwargs) -> dict:
+    """Shared logic for mapeval and mapeval-sql resource loading.
+    
+    Args:
+        benchmark_name: 'mapeval' or 'mapeval-sql'
+        **kwargs: db_host, db_port, secret_token, etc.
+    
+    Returns:
+        Dict with 'tools', 'tool_context', 'examples'
+    """
+    from lits.utils import make_tag_extractor
+    from lits.tools import build_tools
+    from lits.structures.tool_use import ToolUseStep
+
+    ToolUseStep.configure_extractors(
+        answer_extractor=make_answer_extractor(make_tag_extractor("answer"), retrieve_answer)
+    )
+
+    raw_examples = list(hf_load_dataset("xinzhel/mapeval_query", split="test"))
+    formatted_examples = []
+    for item in raw_examples:
+        question_prompt = construct_prompt(item)
+        formatted_examples.append({"question": question_prompt, "answer": ""})
+
+    return {
+        "tools": build_tools(
+            benchmark_name=benchmark_name,
+            db_host=kwargs.get("db_host"),
+            db_port=kwargs.get("db_port"),
+            secret_token=kwargs.get("secret_token"),
+        ),
+        "tool_context": "",
+        "examples": formatted_examples,
+    }
+
+
+@register_resource("mapeval-sql")
+def load_mapeval_sql_resource(**kwargs) -> dict:
+    """Load MapEval-SQL tool-use resource (SQL database tools for geospatial queries)."""
+    return _load_mapeval_resource("mapeval-sql", **kwargs)
+
+
+@register_resource("mapeval")
+def load_mapeval_resource(**kwargs) -> dict:
+    """Load MapEval tool-use resource (API-based geospatial tools)."""
+    return _load_mapeval_resource("mapeval", **kwargs)

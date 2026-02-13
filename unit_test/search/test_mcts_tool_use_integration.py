@@ -19,7 +19,7 @@ load_dotenv("../../.env")
 
 from lits.lm import get_lm
 from lits_benchmark import load_resource
-from lits.benchmarks.registry import infer_task_type, TOOL_USE_DATASETS
+from lits.benchmarks.registry import infer_task_type, has_resource
 from lits.agents.tree.mcts import mcts, MCTSConfig
 from lits.log import setup_logging
 import tempfile
@@ -36,9 +36,9 @@ def test_mcts_tool_use_integration():
     eval_model_name = "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0"
     
     # Verify this is a tool-use dataset
-    assert benchmark_name in TOOL_USE_DATASETS, \
-        f"{benchmark_name} should be in TOOL_USE_DATASETS"
-    print(f"✓ {benchmark_name} is recognized as tool-use dataset")
+    assert has_resource(benchmark_name), \
+        f"{benchmark_name} should be registered as a resource"
+    print(f"✓ {benchmark_name} is registered as a tool-use resource")
     
     # Load tool-use specification
     tool_use_spec = None

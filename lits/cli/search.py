@@ -33,7 +33,7 @@ from lits.eval.llm_call_logger import create_llm_call_logger, load_llm_calls, pr
 from lits.agents import AgentRegistry
 from lits.log import setup_logging
 from lits.utils.sys_utils import is_running_in_jupyter
-from lits.benchmarks.registry import infer_task_type, TOOL_USE_DATASETS, load_dataset
+from lits.benchmarks.registry import infer_task_type, load_dataset, load_resource, has_resource
 from lits.config import ExperimentConfig
 from lits.lm import configure_hf_model_logging, setup_inference_logging, load_models
 from lits.components.factory import create_components, create_bn_evaluator
@@ -353,17 +353,10 @@ def main() -> int:
     dataset_kwargs = parse_dataset_kwargs(cli_args)
 
     # Load tool use spec if applicable
-    if config.dataset in TOOL_USE_DATASETS:
+    if has_resource(config.dataset):
         if os.path.exists("mapeval/.env"):
             load_dotenv("mapeval/.env")
-        tool_use_spec = None
-        try:
-            from lits_benchmark import load_resource
-            tool_use_spec = load_resource(config.dataset)
-        except ImportError:
-            print("Error: lits_benchmark is required for tool-use datasets.")
-            print("Install it or use --include to register your own tool-use dataset.")
-            return 1
+        tool_use_spec = load_resource(config.dataset)
         is_tool_use = True
     else:
         tool_use_spec = None

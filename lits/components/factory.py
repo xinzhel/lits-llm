@@ -458,7 +458,7 @@ def create_components(
         if tool_use_spec is None:
             raise ValueError(
                 f"tool_use_spec is required for task_type='tool_use' but got None. "
-                f"Ensure the dataset is in TOOL_USE_DATASETS and load_resource() succeeds."
+                f"Ensure the dataset has a registered resource via @register_resource."
             )
         return create_components_tool_use(
             base_model=base_model, eval_base_model=eval_base_model, tool_use_spec=tool_use_spec,

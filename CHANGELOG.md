@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2026-02-13 v0.2.12
+### Added
+- `@register_resource` decorator for tool-use benchmarks (`lits/benchmarks/registry.py`)
+
 ## 2026-02-12 v0.2.11
 ### Added
 - `lits-search`, `lits-eval`, `lits-chain`, `lits-eval-chain` CLI entry points (`pyproject.toml`)

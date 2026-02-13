@@ -27,12 +27,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Built-in constants for backwards compatibility (fallback when not in registry)
-# These match the constants in lits_benchmark/main.py
-TOOL_USE_DATASETS = {"mapeval", "clue", "mapeval-sql"}
-LANGUAGE_GROUNDED_DATASETS = {"gsm8k", "math500", "spart_yn"}
-ENV_GROUNDED_DATASETS = {"blocksworld", "crosswords"}
-
 
 class BenchmarkRegistry:
     """Registry for dataset loaders and task type inference.
@@ -40,7 +34,7 @@ class BenchmarkRegistry:
     Provides:
     - Dataset loader registration and lookup
     - Task type inference from dataset names
-    - Fallback to built-in constants (TOOL_USE_DATASETS, etc.)
+    - Resource (tool-use benchmark) registration and lookup
     
     This registry is separate from ComponentRegistry because:
     - Datasets are not components (Transition, Policy, RewardModel)
@@ -51,6 +45,7 @@ class BenchmarkRegistry:
     # Internal storage
     _datasets: Dict[str, Callable[..., List[Dict]]] = {}
     _dataset_task_types: Dict[str, str] = {}
+    _resources: Dict[str, Callable[..., Dict[str, Any]]] = {}
     
     @classmethod
     def register_dataset(cls, name: str, task_type: Optional[str] = None) -> Callable:
@@ -147,7 +142,7 @@ class BenchmarkRegistry:
     def infer_task_type(cls, dataset_name: str) -> str:
         """Infer task type from dataset name.
         
-        Checks registry first, then falls back to built-in constants.
+        Looks up the task_type registered via @register_dataset(name, task_type=...).
         
         Args:
             dataset_name: Name of the dataset
@@ -162,23 +157,14 @@ class BenchmarkRegistry:
             task_type = BenchmarkRegistry.infer_task_type("blocksworld")
             # Returns "env_grounded"
         """
-        # First check registry
         if dataset_name in cls._dataset_task_types:
             return cls._dataset_task_types[dataset_name]
         
-        # Fallback to built-in constants
-        if dataset_name in LANGUAGE_GROUNDED_DATASETS:
-            return "language_grounded"
-        elif dataset_name in ENV_GROUNDED_DATASETS:
-            return "env_grounded"
-        elif dataset_name in TOOL_USE_DATASETS:
-            return "tool_use"
-        else:
-            raise ValueError(
-                f"Unknown dataset name: {dataset_name}. "
-                f"Register it with @register_dataset('{dataset_name}', task_type='...') "
-                f"or add it to the built-in constants."
-            )
+        raise ValueError(
+            f"Unknown dataset name: {dataset_name}. "
+            f"Register it with @register_dataset('{dataset_name}', task_type='...') "
+            f"and ensure the module is imported via --include."
+        )
     
     @classmethod
     def list_datasets(cls) -> List[str]:
@@ -210,7 +196,79 @@ class BenchmarkRegistry:
         """
         cls._datasets.clear()
         cls._dataset_task_types.clear()
+        cls._resources.clear()
         logger.debug("BenchmarkRegistry cleared")
+    
+    # --- Resource registry (tool-use benchmarks) ---
+    
+    @classmethod
+    def register_resource(cls, name: str) -> Callable:
+        """Decorator to register a tool-use resource loader function.
+        
+        The registered function should return a dict with:
+        - "tools": list of BaseTool instances
+        - "tool_context": str describing the tools
+        - "examples": list of dataset examples (optional, can use @register_dataset separately)
+        
+        Args:
+            name: Resource name (e.g., 'mapeval-sql', 'clue')
+        
+        Returns:
+            Decorator function
+        
+        Example:
+            @BenchmarkRegistry.register_resource("mapeval-sql")
+            def load_mapeval_sql_resource(**kwargs):
+                tools = build_tools("mapeval-sql", **kwargs)
+                return {"tools": tools, "tool_context": "...", "examples": [...]}
+        """
+        def decorator(loader_func: Callable[..., Dict[str, Any]]) -> Callable[..., Dict[str, Any]]:
+            if name in cls._resources:
+                raise ValueError(
+                    f"Resource '{name}' is already registered as {cls._resources[name].__name__}. "
+                    f"Cannot register {loader_func.__name__}."
+                )
+            cls._resources[name] = loader_func
+            logger.debug(f"Registered resource '{name}': {loader_func.__name__}")
+            return loader_func
+        return decorator
+    
+    @classmethod
+    def load_resource(cls, name: str, **kwargs) -> Dict[str, Any]:
+        """Load a tool-use resource by name.
+        
+        Args:
+            name: Resource name
+            **kwargs: Additional parameters (e.g., db_host, db_port)
+        
+        Returns:
+            Dict with "tools", "tool_context", and optionally "examples"
+        
+        Raises:
+            KeyError: If no resource loader is found
+        """
+        loader = cls._resources.get(name)
+        if loader is not None:
+            return loader(**kwargs)
+        
+        available = list(cls._resources.keys())
+        raise KeyError(
+            f"Resource '{name}' not found in registry. "
+            f"Available resources: {available}. "
+            f"Did you forget to import the module containing @register_resource('{name}')?"
+        )
+    
+    @classmethod
+    def has_resource(cls, name: str) -> bool:
+        """Check if a resource is registered for the given name.
+        
+        Args:
+            name: Resource name
+        
+        Returns:
+            True if a resource loader is registered
+        """
+        return name in cls._resources
 
 
 # Module-level function aliases for convenience
@@ -283,3 +341,53 @@ def infer_task_type(dataset_name: str) -> str:
         # Returns "env_grounded"
     """
     return BenchmarkRegistry.infer_task_type(dataset_name)
+
+
+def register_resource(name: str) -> Callable:
+    """Decorator to register a tool-use resource loader function.
+    
+    This is a module-level alias for BenchmarkRegistry.register_resource().
+    
+    Args:
+        name: Resource name (e.g., 'mapeval-sql', 'clue')
+    
+    Returns:
+        Decorator function
+    
+    Example:
+        from lits.benchmarks.registry import register_resource
+        
+        @register_resource("mapeval-sql")
+        def load_mapeval_sql_resource(**kwargs):
+            return {"tools": [...], "tool_context": "...", "examples": [...]}
+    """
+    return BenchmarkRegistry.register_resource(name)
+
+
+def load_resource(name: str, **kwargs) -> Dict[str, Any]:
+    """Load a tool-use resource by name.
+    
+    This is a module-level alias for BenchmarkRegistry.load_resource().
+    
+    Args:
+        name: Resource name
+        **kwargs: Additional parameters (e.g., db_host, db_port)
+    
+    Returns:
+        Dict with "tools", "tool_context", and optionally "examples"
+    """
+    return BenchmarkRegistry.load_resource(name, **kwargs)
+
+
+def has_resource(name: str) -> bool:
+    """Check if a resource is registered for the given name.
+    
+    This is a module-level alias for BenchmarkRegistry.has_resource().
+    
+    Args:
+        name: Resource name
+    
+    Returns:
+        True if a resource loader is registered
+    """
+    return BenchmarkRegistry.has_resource(name)
