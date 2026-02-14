@@ -6,7 +6,7 @@ registered when their modules are imported.
 Tests:
 - BlocksWorldTransition is accessible via registry after import
 - goal_check and generate_actions are callable static methods
-- All dataset loaders are registered (blocksworld, gsm8k, math500, spart_yn, mapeval, mapeval-sql, crosswords)
+- All dataset loaders are registered (blocksworld, gsm8k, math500, spart_yn, mapeval-sql, crosswords)
 
 Validates: Requirements 1.2, 1.5, 3.1, 3.3
 
@@ -158,18 +158,6 @@ class TestDatasetAutoRegistration(unittest.TestCase):
         task_type = infer_task_type('spart_yn')
         self.assertEqual(task_type, 'language_grounded')
     
-    def test_mapeval_dataset_registered(self):
-        """mapeval dataset is registered with task_type='tool_use'.
-        
-        Validates: Requirements 1.5
-        """
-        loader = BenchmarkRegistry.get_dataset('mapeval')
-        self.assertIsNotNone(loader)
-        self.assertTrue(callable(loader))
-        
-        task_type = infer_task_type('mapeval')
-        self.assertEqual(task_type, 'tool_use')
-    
     def test_mapeval_sql_dataset_registered(self):
         """mapeval-sql dataset is registered with task_type='tool_use'.
         
@@ -204,7 +192,6 @@ class TestDatasetAutoRegistration(unittest.TestCase):
             'gsm8k': 'language_grounded',
             'math500': 'language_grounded',
             'spart_yn': 'language_grounded',
-            'mapeval': 'tool_use',
             'mapeval-sql': 'tool_use',
             'crosswords': 'env_grounded',
         }

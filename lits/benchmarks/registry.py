@@ -18,8 +18,9 @@ Usage:
     # Infer task type from dataset name
     task_type = infer_task_type("my_dataset")  # Returns "language_grounded"
 
-The registry supports fallback to built-in constants for backwards compatibility
-with existing code that doesn't use the registry.
+The registry is the single source of truth for task type inference.
+Datasets must be registered via @register_dataset() and their modules
+imported (e.g., via --include) before use.
 """
 
 from typing import Dict, Callable, Optional, List, Any
@@ -208,10 +209,11 @@ class BenchmarkRegistry:
         The registered function should return a dict with:
         - "tools": list of BaseTool instances
         - "tool_context": str describing the tools
-        - "examples": list of dataset examples (optional, can use @register_dataset separately)
+        
+        Dataset examples are loaded separately via @register_dataset / load_dataset().
         
         Args:
-            name: Resource name (e.g., 'mapeval-sql', 'clue')
+            name: Resource name (e.g., 'mapeval-sql')
         
         Returns:
             Decorator function
@@ -220,7 +222,7 @@ class BenchmarkRegistry:
             @BenchmarkRegistry.register_resource("mapeval-sql")
             def load_mapeval_sql_resource(**kwargs):
                 tools = build_tools("mapeval-sql", **kwargs)
-                return {"tools": tools, "tool_context": "...", "examples": [...]}
+                return {"tools": tools, "tool_context": "..."}
         """
         def decorator(loader_func: Callable[..., Dict[str, Any]]) -> Callable[..., Dict[str, Any]]:
             if name in cls._resources:
@@ -242,7 +244,7 @@ class BenchmarkRegistry:
             **kwargs: Additional parameters (e.g., db_host, db_port)
         
         Returns:
-            Dict with "tools", "tool_context", and optionally "examples"
+            Dict with "tools" and "tool_context"
         
         Raises:
             KeyError: If no resource loader is found
@@ -359,7 +361,7 @@ def register_resource(name: str) -> Callable:
         
         @register_resource("mapeval-sql")
         def load_mapeval_sql_resource(**kwargs):
-            return {"tools": [...], "tool_context": "...", "examples": [...]}
+            return {"tools": [...], "tool_context": "..."}
     """
     return BenchmarkRegistry.register_resource(name)
 
@@ -374,7 +376,7 @@ def load_resource(name: str, **kwargs) -> Dict[str, Any]:
         **kwargs: Additional parameters (e.g., db_host, db_port)
     
     Returns:
-        Dict with "tools", "tool_context", and optionally "examples"
+        Dict with "tools" and "tool_context"
     """
     return BenchmarkRegistry.load_resource(name, **kwargs)
 

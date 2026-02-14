@@ -364,7 +364,7 @@ def main() -> int:
 
     # Load dataset
     if task_type == "tool_use":
-        full_dataset = tool_use_spec["examples"]
+        full_dataset = load_dataset(config.dataset, **dataset_kwargs)
     elif task_type == "language_grounded":
         full_dataset = load_dataset(config.dataset, **dataset_kwargs)
     elif task_type == "env_grounded":

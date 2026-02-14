@@ -131,31 +131,30 @@ class TestBenchmarkRegistryTaskTypeTracking(unittest.TestCase):
         self.assertEqual(set(BenchmarkRegistry.list_by_task_type('tool_use')), {'ds_tool'})
 
 
-class TestBenchmarkRegistryBuiltinFallback(unittest.TestCase):
-    """Tests for built-in constant fallback in infer_task_type.
+class TestBenchmarkRegistryBuiltinDatasets(unittest.TestCase):
+    """Tests for built-in dataset task type inference after module import.
     
     **Validates: Requirements 5.2, 5.3**
     """
     
-    def setUp(self):
-        """Clear registry before each test."""
-        BenchmarkRegistry.clear()
+    @classmethod
+    def setUpClass(cls):
+        """Import all benchmark modules to trigger registration."""
+        import lits_benchmark.blocksworld
+        import lits_benchmark.math_qa
+        import lits_benchmark.mapeval
+        import lits_benchmark.crosswords
     
-    def tearDown(self):
-        """Clear registry after each test."""
-        BenchmarkRegistry.clear()
-    
-    def test_builtin_env_grounded_fallback(self):
-        """Built-in env_grounded datasets are recognized via fallback.
+    def test_builtin_env_grounded(self):
+        """Built-in env_grounded datasets are recognized after import.
         
         **Validates: Requirements 5.2, 5.3**
         """
-        # These should work via built-in constants even without registration
         self.assertEqual(infer_task_type('blocksworld'), 'env_grounded')
         self.assertEqual(infer_task_type('crosswords'), 'env_grounded')
     
-    def test_builtin_language_grounded_fallback(self):
-        """Built-in language_grounded datasets are recognized via fallback.
+    def test_builtin_language_grounded(self):
+        """Built-in language_grounded datasets are recognized after import.
         
         **Validates: Requirements 5.2, 5.3**
         """
@@ -163,13 +162,11 @@ class TestBenchmarkRegistryBuiltinFallback(unittest.TestCase):
         self.assertEqual(infer_task_type('math500'), 'language_grounded')
         self.assertEqual(infer_task_type('spart_yn'), 'language_grounded')
     
-    def test_builtin_tool_use_fallback(self):
-        """Built-in tool_use datasets are recognized via fallback.
+    def test_tool_use_task_type(self):
+        """mapeval-sql dataset is recognized as tool_use via registry.
         
         **Validates: Requirements 5.2, 5.3**
         """
-        self.assertEqual(infer_task_type('mapeval'), 'tool_use')
-        self.assertEqual(infer_task_type('clue'), 'tool_use')
         self.assertEqual(infer_task_type('mapeval-sql'), 'tool_use')
     
     def test_unknown_dataset_raises_value_error(self):

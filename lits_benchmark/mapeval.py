@@ -56,20 +56,11 @@ def construct_prompt(item):
             + item["answer"]["options"][i]
             + ", "
         )
-    # print("Prompt is created. Now passing to the model.", prompt)
     return prompt
 
-def extract(s):
-    for char in s:
-        if char.isdigit():
-            return char
-    return None  # Return None if no numeric character is found
 
 def retrieve_answer(text: str) -> int | None:
-    """
-    Extracts the option number from a string formatted as ^^Option_Number^^ 
-    or similar variants (^^2^^, ^^Option2^^).
-    """
+    """Extracts the option number from ^^Option_Number^^ or similar variants."""
     match = re.search(r"\^\^(?:Option_?|)(\d+)\^\^", text.strip())
     return int(match.group(1)) if match else None
 
@@ -89,68 +80,35 @@ def make_answer_extractor(primary_extractor, fallback_fn):
 
 
 # ============================================================================
-# Registered dataset loaders for BenchmarkRegistry
-# Assuming the decorator is “pure registration” and you pass the same args, 
-# the registered functions are effectively just aliases for `load_qa_dataset` 
-# with a fixed `dataset_name`., as long as:
-
-#     * the registered wrapper calls `load_qa_dataset()` with the same `dataset_name`, and
-#     * you pass the same arguments (especially `levels` for `math500`), and
-#     * `register_dataset` / `@register_dataset(...)` doesn’t alter behavior (it usually just registers metadata and stores a callable).
+# Registry: dataset + resource for MapEval-SQL
 # ============================================================================
-
-@register_dataset("mapeval", task_type="tool_use")
-def load_mapeval(**kwargs):
-    """Load MapEval dataset from HuggingFace hub.
-    
-    Returns:
-        List of formatted examples with 'question' and 'answer' fields.
-    """
-    raw_examples = list(hf_load_dataset("xinzhel/mapeval_query", split="test"))
-    formatted_examples = []
-    for item in raw_examples:
-        question_prompt = construct_prompt(item)
-        formatted_examples.append({
-            "question": question_prompt, 
-            "answer": _gold_option(item)
-        })
-    return formatted_examples
-
 
 @register_dataset("mapeval-sql", task_type="tool_use")
 def load_mapeval_sql(**kwargs):
-    """Load MapEval-SQL dataset from HuggingFace hub.
-    
-    This is the same dataset as mapeval but with a different task type identifier
-    for SQL-based tool use.
+    """Load MapEval-SQL dataset (geospatial queries with SQL tools).
     
     Returns:
-        List of formatted examples with 'question' and 'answer' fields.
+        List of dicts with 'question' (formatted prompt) and 'answer' (gold option).
     """
     raw_examples = list(hf_load_dataset("xinzhel/mapeval_query", split="test"))
-    formatted_examples = []
+    formatted = []
     for item in raw_examples:
-        question_prompt = construct_prompt(item)
-        formatted_examples.append({
-            "question": question_prompt, 
-            "answer": _gold_option(item)
+        formatted.append({
+            "question": construct_prompt(item),
+            "answer": _gold_option(item),
         })
-    return formatted_examples
+    return formatted
 
 
-# ============================================================================
-# Registered resource loaders for tool-use benchmarks
-# ============================================================================
-
-def _load_mapeval_resource(benchmark_name: str, **kwargs) -> dict:
-    """Shared logic for mapeval and mapeval-sql resource loading.
+@register_resource("mapeval-sql")
+def load_mapeval_sql_resource(**kwargs) -> dict:
+    """Load MapEval-SQL tool-use resource: tools for geospatial SQL queries.
     
     Args:
-        benchmark_name: 'mapeval' or 'mapeval-sql'
-        **kwargs: db_host, db_port, secret_token, etc.
+        **kwargs: db_host, db_port, secret_token for database connection.
     
     Returns:
-        Dict with 'tools', 'tool_context', 'examples'
+        Dict with 'tools' and 'tool_context'.
     """
     from lits.utils import make_tag_extractor
     from lits.tools import build_tools
@@ -160,31 +118,12 @@ def _load_mapeval_resource(benchmark_name: str, **kwargs) -> dict:
         answer_extractor=make_answer_extractor(make_tag_extractor("answer"), retrieve_answer)
     )
 
-    raw_examples = list(hf_load_dataset("xinzhel/mapeval_query", split="test"))
-    formatted_examples = []
-    for item in raw_examples:
-        question_prompt = construct_prompt(item)
-        formatted_examples.append({"question": question_prompt, "answer": ""})
-
     return {
         "tools": build_tools(
-            benchmark_name=benchmark_name,
+            benchmark_name="mapeval-sql",
             db_host=kwargs.get("db_host"),
             db_port=kwargs.get("db_port"),
             secret_token=kwargs.get("secret_token"),
         ),
         "tool_context": "",
-        "examples": formatted_examples,
     }
-
-
-@register_resource("mapeval-sql")
-def load_mapeval_sql_resource(**kwargs) -> dict:
-    """Load MapEval-SQL tool-use resource (SQL database tools for geospatial queries)."""
-    return _load_mapeval_resource("mapeval-sql", **kwargs)
-
-
-@register_resource("mapeval")
-def load_mapeval_resource(**kwargs) -> dict:
-    """Load MapEval tool-use resource (API-based geospatial tools)."""
-    return _load_mapeval_resource("mapeval", **kwargs)
