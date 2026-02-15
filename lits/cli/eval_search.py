@@ -404,7 +404,10 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Evaluate results (auto-loads import_modules from config)
+  # Evaluate results (auto-loads dataset_name, eval_model_name, import_modules from config)
+  lits-eval --result_dir demo_results
+  
+  # Explicit overrides
   lits-eval --result_dir claude35v1_results/blocksworld_rap/run_0.2.10 \\
       --dataset_name blocksworld --eval_model_name bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0
   
@@ -415,8 +418,8 @@ Examples:
 """
     )
     parser.add_argument("--result_dir", type=str, required=True, help="Directory containing terminal_nodes/ subdirectory")
-    parser.add_argument("--dataset_name", type=str, required=True, help="Dataset name (e.g., gsm8k, math500, blocksworld)")
-    parser.add_argument("--eval_model_name", type=str, required=True, help="Model name used for answer extraction")
+    parser.add_argument("--dataset_name", type=str, default=None, help="Dataset name (e.g., gsm8k, math500, blocksworld). Auto-loaded from config.json if not specified.")
+    parser.add_argument("--eval_model_name", type=str, default=None, help="Model name used for answer extraction. Auto-loaded from config.json if not specified.")
     parser.add_argument("--offset", type=int, default=0, help="Dataset offset used during search")
     parser.add_argument("--limit", type=int, default=None, help="Dataset limit used during search")
     parser.add_argument(
@@ -449,6 +452,26 @@ Examples:
     if dataset_kwargs:
         print(f"Auto-loaded dataset_kwargs from config: {dataset_kwargs}")
     
+    # Resolve dataset_name: CLI > config > error
+    dataset_name = args.dataset_name
+    if not dataset_name:
+        dataset_name = config.get("dataset") or config.get("benchmark")
+        if dataset_name:
+            print(f"Auto-loaded dataset_name from config: {dataset_name}")
+        else:
+            print("Error: --dataset_name not specified and not found in config.json", file=sys.stderr)
+            return 1
+
+    # Resolve eval_model_name: CLI > config (eval_model_name or policy_model_name) > error
+    eval_model_name = args.eval_model_name
+    if not eval_model_name:
+        eval_model_name = config.get("eval_model_name") or config.get("policy_model_name")
+        if eval_model_name:
+            print(f"Auto-loaded eval_model_name from config: {eval_model_name}")
+        else:
+            print("Error: --eval_model_name not specified and not found in config.json", file=sys.stderr)
+            return 1
+    
     # Import custom modules to trigger registration
     try:
         import_custom_modules(import_modules)
@@ -459,8 +482,8 @@ Examples:
     try:
         evaluate_from_checkpoints(
             result_dir=args.result_dir,
-            dataset_name=args.dataset_name,
-            eval_model_name=args.eval_model_name,
+            dataset_name=dataset_name,
+            eval_model_name=eval_model_name,
             offset=args.offset,
             limit=args.limit,
             dataset_kwargs=dataset_kwargs
@@ -469,6 +492,10 @@ Examples:
         print(f"Error during evaluation: {e}", file=sys.stderr)
         traceback.print_exc()
         return 1
+    
+    eval_log = Path(args.result_dir) / "eval.log"
+    if eval_log.exists():
+        print(f"Evaluation log saved to: {eval_log}")
     
     return 0
 
