@@ -3,16 +3,30 @@ import json
 import time
 import os
 from contextlib import contextmanager
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-from torch.nn import functional as F
 import warnings
-import numpy as np
-from transformers import StoppingCriteria, StoppingCriteriaList, StopStringCriteria
 import logging
 from typing import Callable, Dict
 
 logger = logging.getLogger(__name__)
+
+# Lazy-loaded by _ensure_hf_imports() when HfModel/HfChatModel is instantiated.
+# This avoids importing transformers/torch/numpy at module load time,
+# which would add 30-60s startup delay for Bedrock/OpenAI-only users.
+torch = None
+np = None
+F = None
+
+def _ensure_hf_imports():
+    """Populate module globals for torch/numpy/transformers on first HF use."""
+    global torch, np, F
+    if torch is not None:
+        return
+    import torch as _torch
+    import numpy as _np
+    from torch.nn import functional as _F
+    torch = _torch
+    np = _np
+    F = _F
 
 VALID_ROLES_PREFIX = ["default", "dynamics", "policy", "evaluator", "prm", "bn_eval", "bn_entropy"]
 DETERMINISTIC_TEMPERATURE = 1e-6
@@ -416,15 +430,19 @@ def calculate_cost(
     return (input_tokens * input_price_per_m / 1_000_000 + 
             output_tokens * output_price_per_m / 1_000_000)
     
-class StopOnTokens(StoppingCriteria):
-    def __init__(self, stop_ids):
-        super().__init__()
-        self.stop_ids = set(stop_ids)
+def _make_stop_on_tokens_class():
+    """Lazy factory to avoid importing transformers at module load time."""
+    from transformers import StoppingCriteria
 
-    def __call__(self, input_ids, scores, **kwargs):
-        # input_ids is (batch_size, seq_len); we stop when the newest token in _each_ batch
-        # is in our stop set.  For batch_size=1, just check input_ids[0, -1].
-        return any(int(tok) in self.stop_ids for tok in input_ids[:, -1])
+    class StopOnTokens(StoppingCriteria):
+        def __init__(self, stop_ids):
+            super().__init__()
+            self.stop_ids = set(stop_ids)
+
+        def __call__(self, input_ids, scores, **kwargs):
+            return any(int(tok) in self.stop_ids for tok in input_ids[:, -1])
+
+    return StopOnTokens
     
 
 class Output:
@@ -589,6 +607,7 @@ class HfModel(LanguageModel):
         max_new_tokens=None, 
         verbose=False
     ):
+        _ensure_hf_imports()
         super().__init__(
             model_name=model_name,
             model=model, 
@@ -731,6 +750,7 @@ class HfModel(LanguageModel):
     
     def _get_stopping_criteria(self, new_line_stop, new_sent_stop):
         if new_line_stop or new_sent_stop:
+            from transformers import StopStringCriteria, StoppingCriteriaList
             stop_lst = []
             if new_line_stop:
                 stop_lst.append(StopStringCriteria(self.tokenizer, stop_strings="\n"))
@@ -812,8 +832,11 @@ class HfModel(LanguageModel):
 
         return self.tokenizer.eos_token_id  # fallback
     
-    @torch.no_grad()
-    def get_next_token_logits(self, prompt: str=None, candidates: list[str]=None, role:str=None, input_ids=None, toekn_idx_for_logit=-1) -> np.ndarray:
+    def get_next_token_logits(self, prompt: str=None, candidates: list[str]=None, role:str=None, input_ids=None, toekn_idx_for_logit=-1):
+        with torch.no_grad():
+            return self._get_next_token_logits_impl(prompt, candidates, role, input_ids, toekn_idx_for_logit)
+
+    def _get_next_token_logits_impl(self, prompt, candidates, role, input_ids, toekn_idx_for_logit):
         # Encode prompt
         if prompt is not None:
             input_ids = self.tokenize(prompt, enable_thinking=False)
@@ -863,6 +886,7 @@ class HfModel(LanguageModel):
         if model_name in LOADED_MODEL_CACHE:
             model, tokenizer = LOADED_MODEL_CACHE[model_name]
         else:
+            from transformers import AutoModelForCausalLM, AutoTokenizer
             tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
             if "Qwen3-235B-A22B-Thinking-2507-FP8" in model_name:
                 model = AutoModelForCausalLM.from_pretrained(

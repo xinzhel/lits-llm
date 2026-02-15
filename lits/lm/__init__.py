@@ -3,14 +3,13 @@ from .loader import configure_hf_model_logging, setup_inference_logging, load_mo
 
 from .openai_chat import OpenAIChatModel
 from .bedrock_chat import BedrockChatModel
-from huggingface_hub import model_info
-from transformers import AutoTokenizer, AutoConfig
 import logging
 
 logger = logging.getLogger(__name__)
 
 def model_exists_on_hf(model_name: str) -> bool:
     try:
+        from huggingface_hub import model_info
         model_info(model_name)
         return True
     except Exception as e:
@@ -152,6 +151,7 @@ def infer_chat_model(model_name: str):
     # 1. Try to load tokenizer safely
     # ------------------------------------------------------------------
     try:
+        from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
     except Exception as exc:
         return {
