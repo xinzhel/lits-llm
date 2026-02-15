@@ -38,6 +38,8 @@ class CLIArgs:
     search_args: Optional[List[str]] = None  # --search-arg KEY=VALUE for search algorithm params
     component_args: Optional[List[str]] = None  # --component-arg KEY=VALUE for component params
     help_config: bool = False  # --help-config to show available params
+    # Output directory
+    output_dir: Optional[str] = None  # --output-dir / -o
 
 
 def create_experiment_parser(description: str = "Run LiTS experiment") -> argparse.ArgumentParser:
@@ -277,6 +279,14 @@ Common Options:
         help="Show all available --search-arg and --component-arg parameters with descriptions"
     )
     
+    parser.add_argument(
+        "--output-dir", "-o",
+        dest="output_dir",
+        type=str,
+        default=None,
+        help="Custom output directory for results, logs, and checkpoints. Overrides the auto-generated path."
+    )
+    
     return parser
 
 
@@ -315,6 +325,7 @@ def parse_experiment_args(args: List[str] = None, description: str = "Run LiTS e
         search_args=parsed.search_args,
         component_args=parsed.component_args,
         help_config=parsed.help_config,
+        output_dir=parsed.output_dir,
     )
 
 

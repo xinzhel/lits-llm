@@ -82,6 +82,10 @@ def main() -> int:
     if cli_args.policy_model:
         config.policy_model_name = cli_args.policy_model
 
+    # Map --output-dir flag
+    if cli_args.output_dir:
+        config.output_dir = cli_args.output_dir
+
     # Parse script-level variables (not part of algorithm config)
     script_vars = parse_script_vars(cli_args, {'offset': 0, 'limit': None})
     offset = script_vars['offset']

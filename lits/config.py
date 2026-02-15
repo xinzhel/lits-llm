@@ -201,7 +201,7 @@ class ExperimentConfig:
     eval_idx: List[int] = field(default_factory=list)
     
     # === Output ===
-    save_to: Optional[str] = None
+    output_dir: Optional[str] = None
     
     # === Logging ===
     model_verbose: bool = True
@@ -379,7 +379,10 @@ class ExperimentConfig:
             - Prints current working directory and result directory path
         """
         run_id = self.get_run_id(is_jupyter)
-        result_dir = self.get_result_dir(run_id)
+        if self.output_dir:
+            result_dir = self.output_dir
+        else:
+            result_dir = self.get_result_dir(run_id)
         os.makedirs(result_dir, exist_ok=True)
         print(f"Current working directory: {os.getcwd()}")
         print(f"Log/config file/results are saved to: {result_dir}")

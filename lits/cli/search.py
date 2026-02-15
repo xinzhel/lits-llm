@@ -331,6 +331,10 @@ def main() -> int:
     if cli_args.override:
         config.override_log_result = True
 
+    # Map --output-dir flag
+    if cli_args.output_dir:
+        config.output_dir = cli_args.output_dir
+
     # Parse script-level variables
     script_vars = parse_script_vars(cli_args, {'offset': config.offset, 'limit': config.limit})
     config.offset = script_vars['offset']

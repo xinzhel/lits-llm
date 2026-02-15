@@ -51,6 +51,7 @@ class BaseConfig:
     dataset: str = ""  # Dataset/benchmark name
     import_modules: Optional[List[str]] = None
     dataset_kwargs: Dict[str, Any] = field(default_factory=dict)
+    output_dir: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary using dataclass asdict for consistency."""
@@ -76,8 +77,11 @@ class BaseConfig:
         Returns:
             result_dir path (created on disk)
         """
-        prefix = get_model_dir_prefix(self.policy_model_name)
-        result_dir = f"{prefix}_results/{run_id}/run_{self.package_version}"
+        if self.output_dir:
+            result_dir = self.output_dir
+        else:
+            prefix = get_model_dir_prefix(self.policy_model_name)
+            result_dir = f"{prefix}_results/{run_id}/run_{self.package_version}"
         os.makedirs(result_dir, exist_ok=True)
         print(f"Current working directory: {os.getcwd()}")
         print(f"Log/config file/results are saved to: {result_dir}")

@@ -4,11 +4,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## 2026-02-13 v0.2.12
+Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
+
+
+## 2026-02-15 v0.2.11
+
+### Changed
+- Lazy-import `transformers`/`torch`/`numpy`/`huggingface_hub` in `lits/lm/base.py` and `lits/lm/__init__.py`
+
+### Changed (See .kiro/specs/x-minor-chain-result-dir)
+- Consolidate result directory logic: `get_model_dir_prefix()` and `MODEL_NAME_TO_DIR_PREFIX` in `lits/agents/base.py`
+- `BaseConfig.setup_directories(run_id)` (`lits/agents/base.py`)
+- Remove standalone `get_result_dir()` from `lits/cli/chain.py`
+- `ExperimentConfig.get_result_dir()` uses shared `get_model_dir_prefix()`
+
+### Added (See .kiro/specs/minor-output-dir-cli)
+- `--output-dir` / `-o` CLI flag (`lits/cli/args.py`)
+- `output_dir` field on `BaseConfig` and `ExperimentConfig`
+- `output_dir` override in `BaseConfig.setup_directories()` and `ExperimentConfig.setup_directories()`
+
+## 2026-02-14  v0.2.11 (Too-Use Registry)
+
+### Fixed
+- `lits_benchmark/mapeval.py`: inline dataset loading (fix broken `_load_mapeval_examples` call)
+- `lits/benchmarks/registry.py`: remove stale `"examples"` references from `@register_resource` docstrings
+- `unit_test/search/test_mcts_tool_use_integration.py`: use `load_dataset()` instead of `tool_use_spec["examples"]`
+- `unit_test/components/test_benchmark_registry.py`: import modules in `setUpClass` instead of removed fallbacks
+- `unit_test/components/test_auto_registration.py`: remove stale `mapeval` (non-sql) from docstring
+
+### Removed
+- `load_resource`/`load_dataset_examples` from `lits_benchmark/__init__.py`
+
+
+## 2026-02-13 v0.2.11  (Too-Use Registry)
 ### Added
 - `@register_resource` decorator for tool-use benchmarks (`lits/benchmarks/registry.py`)
 
-## 2026-02-12 v0.2.11
+## 2026-02-12 v0.2.10 (CLI Commands)
 ### Added
 - `lits-search`, `lits-eval`, `lits-chain`, `lits-eval-chain` CLI entry points (`pyproject.toml`)
 - `lits/cli/search.py` — tree search entry point
@@ -22,12 +54,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Removed
 - `lits/cli/commands.py` placeholder stubs
 
-## 2026-02-11 v0.2.10
+## 2026-02-11 v0.2.9 (BlocksWorld: From built-in to external)
 ### Changed
 - Moved `BlocksWorldTransition` from `lits/components/transition/blocksworld.py` to `lits_benchmark/blocksworld.py`
 - Moved BlocksWorld prompts (policy, reward, transition) to decorator-based registration in `lits_benchmark/blocksworld.py`
 
-## 2026-02-09 v0.2.9
+## 2026-02-09 v0.2.9 (Search Registry)
 ### Added
 - `BaseTreeSearch` ABC and `SearchResult` dataclass (`lits/agents/tree/search_base.py`)
 - `InferenceLogger.log_context()` for binding search-phase metadata to LLM call records
