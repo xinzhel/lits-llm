@@ -43,32 +43,7 @@ from lits.cli import (
 
 logger = logging.getLogger(__name__)
 
-# Model name to directory prefix mapping
-MODEL_NAME_TO_DIR_PREFIX = {
-    "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0": "claude35v1"
-}
 
-
-def get_result_dir(model_name: str, benchmark_name: str) -> tuple[str, str]:
-    """Generate result directory matching main_search.py pattern.
-    
-    Args:
-        model_name: Full model identifier (e.g., 'bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0')
-        benchmark_name: Benchmark name (e.g., 'blocksworld', 'crosswords')
-    
-    Returns:
-        Tuple of (run_id, result_dir) where result_dir is created on disk
-    """
-    if model_name in MODEL_NAME_TO_DIR_PREFIX:
-        prefix = MODEL_NAME_TO_DIR_PREFIX[model_name]
-    else:
-        prefix = model_name.split('/')[-1]
-    
-    run_id = f"{benchmark_name}_chain"
-    result_dir = f"{prefix}_results/{run_id}/run_{PACKAGE_VERSION}"
-    
-    os.makedirs(result_dir, exist_ok=True)
-    return run_id, result_dir
 
 
 def main() -> int:
@@ -185,7 +160,8 @@ def main() -> int:
     # --- Everything below only runs for real execution ---
 
     # Setup directories
-    run_id, result_dir = get_result_dir(config.policy_model_name, benchmark_name)
+    run_id = f"{benchmark_name}_chain"
+    result_dir = config.setup_directories(run_id)
     checkpoint_dir = os.path.join(result_dir, "checkpoints")
     os.makedirs(checkpoint_dir, exist_ok=True)
 
@@ -195,9 +171,6 @@ def main() -> int:
 
     # Save config
     config.save_config(result_dir)
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Results will be saved to: {result_dir}")
-    print(f"Config saved to: {os.path.join(result_dir, 'config.json')}")
 
     # Setup logging
     run_logger = setup_logging(

@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Set
 from lits.agents.tree.mcts import MCTSConfig
 from lits.agents.tree.bfs import BFSConfig
+from lits.agents.base import get_model_dir_prefix
 from lits.framework_config import PACKAGE_VERSION
 
 
@@ -199,6 +200,9 @@ class ExperimentConfig:
     limit: Optional[int] = 100
     eval_idx: List[int] = field(default_factory=list)
     
+    # === Output ===
+    save_to: Optional[str] = None
+    
     # === Logging ===
     model_verbose: bool = True
     verbose: bool = True
@@ -341,13 +345,7 @@ class ExperimentConfig:
             >>> config.get_result_dir("gsm8k_mcts")
             'Qwen3-32B-AWQ_results/Meta-Llama-3-8B-Instruct/gsm8k_mcts/run_v0.2.3'
         """
-        MODEL_NAME_TO_DIR_PREFIX = {
-            "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0": "claude35v1"
-        }
-        prefix = MODEL_NAME_TO_DIR_PREFIX.get(
-            self.policy_model_name,
-            self.policy_model_name.split('/')[-1]
-        )
+        prefix = get_model_dir_prefix(self.policy_model_name)
         
         result_dir = f"{prefix}_results/"
         if self.eval_model_name != self.policy_model_name:
