@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lits-llm"
-version = "0.2.11"
+version = "0.3.0"
 description = "LITS: LLM Inference via Tree Search — modular agentic reasoning framework."
 readme = "README.md"
 requires-python = ">=3.11"

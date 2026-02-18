@@ -34,7 +34,6 @@ from lits.registry import import_custom_modules
 from lits.lm import get_lm
 from lits.eval import _slice_dataset
 from lits.log import setup_logging
-from lits.framework_config import PACKAGE_VERSION
 from lits.benchmarks.registry import load_dataset
 from lits.cli import (
     parse_experiment_args, apply_config_overrides,
@@ -59,8 +58,6 @@ def main() -> int:
 
     # Default config — CLI flags override these values
     config = EnvChainConfig(
-        reasoning_method="env_chain",
-        package_version=PACKAGE_VERSION,
         dataset="blocksworld",
         policy_model_name="bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0",
         max_steps=30,

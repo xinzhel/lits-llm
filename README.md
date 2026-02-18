@@ -117,15 +117,14 @@ lits-search --include lits_benchmark.math_qa \
 Tree search algorithms are class-based, inheriting from `BaseTreeSearch`:
 
 ```python
-from lits.agents.tree.mcts import MCTSSearch
-from lits.agents.tree.base import BaseSearchConfig
+from lits.agents.tree.mcts import MCTSSearch, MCTSConfig
 from lits.lm import get_lm
 
 # Load model
 model = get_lm("bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
 
 # Configure search
-config = BaseSearchConfig(
+config = MCTSConfig(
     max_steps=10,
     n_actions=3,
     n_iters=50,
