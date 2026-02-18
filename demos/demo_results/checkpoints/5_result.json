@@ -1,0 +1,364 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: _____\nv2. To regain: _____\nv3. To elude: _____\nv4. One who files: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "AREFY\nREVIE\nIGALA\nSEDER\nETERN\nARISE\nREGET\nEVADE\nFILER\nYEARN",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "5_1768995086",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      0.09285714285714285
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 1,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. parch",
+          "next_state": "Current Board:\nPARCH\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: P____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: _____\nv2. To regain: _____\nv3. To elude: _____\nv4. One who files: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. parch",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "5_1768995086",
+      "indices": [
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. parch"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.27499999999999997
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 4,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. parch",
+          "next_state": "Current Board:\nPARCH\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: P____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. PRISE",
+          "next_state": "Current Board:\nPARCH\nR____\nI____\nS____\nE____\n\nUnfilled:\nh2. To outdo; to bandy words: R____\nh3. A Yoruba-speaking people: I____\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: _____\nv2. To regain: _____\nv3. To elude: _____\nv4. One who files: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v1. PRISE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "5_1768995086",
+      "indices": [
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v1. PRISE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.27999999999999997
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 7,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. parch",
+          "next_state": "Current Board:\nPARCH\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: P____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. PRISE",
+          "next_state": "Current Board:\nPARCH\nR____\nI____\nS____\nE____\n\nUnfilled:\nh2. To outdo; to bandy words: R____\nh3. A Yoruba-speaking people: I____\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. RIVAL",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nI____\nS____\nE____\n\nUnfilled:\nh3. A Yoruba-speaking people: I____\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: AI___\nv3. To elude: RV___\nv4. One who files: CA___\nv5. To crave: HL___\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: _____\nv2. To regain: _____\nv3. To elude: _____\nv4. One who files: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. RIVAL",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "5_1768995086",
+      "indices": [
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. RIVAL"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.2875
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 10,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. parch",
+          "next_state": "Current Board:\nPARCH\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: P____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. PRISE",
+          "next_state": "Current Board:\nPARCH\nR____\nI____\nS____\nE____\n\nUnfilled:\nh2. To outdo; to bandy words: R____\nh3. A Yoruba-speaking people: I____\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. RIVAL",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nI____\nS____\nE____\n\nUnfilled:\nh3. A Yoruba-speaking people: I____\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: AI___\nv3. To elude: RV___\nv4. One who files: CA___\nv5. To crave: HL___\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. IGBOS",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nIGBOS\nS____\nE____\n\nUnfilled:\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: AIG__\nv3. To elude: RVB__\nv4. One who files: CAO__\nv5. To crave: HLS__\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nh3. A Yoruba-speaking people: IGBOS\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: _____\nv2. To regain: _____\nv3. To elude: _____\nv4. One who files: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. IGBOS",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "5_1768995086",
+      "indices": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. IGBOS"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.3
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 13,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. parch",
+          "next_state": "Current Board:\nPARCH\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: P____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. PRISE",
+          "next_state": "Current Board:\nPARCH\nR____\nI____\nS____\nE____\n\nUnfilled:\nh2. To outdo; to bandy words: R____\nh3. A Yoruba-speaking people: I____\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. RIVAL",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nI____\nS____\nE____\n\nUnfilled:\nh3. A Yoruba-speaking people: I____\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: AI___\nv3. To elude: RV___\nv4. One who files: CA___\nv5. To crave: HL___\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. IGBOS",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nIGBOS\nS____\nE____\n\nUnfilled:\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: AIG__\nv3. To elude: RVB__\nv4. One who files: CAO__\nv5. To crave: HLS__\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nh3. A Yoruba-speaking people: IGBOS\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. SEDER",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nIGBOS\nSEDER\nE____\n\nUnfilled:\nh5. Eternal, everlasting: E____\nv2. To regain: AIGE_\nv3. To elude: RVBD_\nv4. One who files: CAOE_\nv5. To crave: HLSR_\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nh3. A Yoruba-speaking people: IGBOS\nh4. A Passover meal: SEDER\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: _____\nv2. To regain: _____\nv3. To elude: _____\nv4. One who files: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. SEDER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "5_1768995086",
+      "indices": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. SEDER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.32499999999999996
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 16,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. parch",
+          "next_state": "Current Board:\nPARCH\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: P____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. PRISE",
+          "next_state": "Current Board:\nPARCH\nR____\nI____\nS____\nE____\n\nUnfilled:\nh2. To outdo; to bandy words: R____\nh3. A Yoruba-speaking people: I____\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: A____\nv3. To elude: R____\nv4. One who files: C____\nv5. To crave: H____\n\nFilled:\nh1. To dry up: PARCH\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. RIVAL",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nI____\nS____\nE____\n\nUnfilled:\nh3. A Yoruba-speaking people: I____\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: AI___\nv3. To elude: RV___\nv4. One who files: CA___\nv5. To crave: HL___\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. IGBOS",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nIGBOS\nS____\nE____\n\nUnfilled:\nh4. A Passover meal: S____\nh5. Eternal, everlasting: E____\nv2. To regain: AIG__\nv3. To elude: RVB__\nv4. One who files: CAO__\nv5. To crave: HLS__\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nh3. A Yoruba-speaking people: IGBOS\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. SEDER",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nIGBOS\nSEDER\nE____\n\nUnfilled:\nh5. Eternal, everlasting: E____\nv2. To regain: AIGE_\nv3. To elude: RVBD_\nv4. One who files: CAOE_\nv5. To crave: HLSR_\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nh3. A Yoruba-speaking people: IGBOS\nh4. A Passover meal: SEDER\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. ETERN",
+          "next_state": "Current Board:\nPARCH\nRIVAL\nIGBOS\nSEDER\nETERN\n\nUnfilled:\nv2. To regain: AIGET\nv3. To elude: RVBDE\nv4. One who files: CAOER\nv5. To crave: HLSRN\n\nFilled:\nh1. To dry up: PARCH\nh2. To outdo; to bandy words: RIVAL\nh3. A Yoruba-speaking people: IGBOS\nh4. A Passover meal: SEDER\nh5. Eternal, everlasting: ETERN\nv1. To ascend; to get up; to come up: PRISE\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. To outdo; to bandy words: _____\nh3. A Yoruba-speaking people: _____\nh4. A Passover meal: _____\nh5. Eternal, everlasting: _____\nv1. To ascend; to get up; to come up: _____\nv2. To regain: _____\nv3. To elude: _____\nv4. One who files: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. ETERN",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "5_1768995086",
+      "indices": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. ETERN"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.35
+    ],
+    "from_continuation": false
+  }
+]

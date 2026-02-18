@@ -121,29 +121,37 @@ from lits.benchmarks.registry import (
 
 def import_custom_modules(module_paths: Optional[List[str]]) -> None:
     """Import Python modules to trigger @register_* decorator registration.
-    
+
     When a module containing @register_transition, @register_policy, etc. decorators
     is imported, the decorated classes/functions are automatically registered with
     the appropriate registry. This function enables CLI scripts to load user-defined
     components before running.
-    
+
+    Automatically adds cwd to sys.path so that local packages (e.g., a user's
+    custom benchmark folder) are importable via ``--include my_benchmark.module``.
+
     Args:
         module_paths: List of module paths to import (e.g., ['my_project.robot_arm']).
                       If None or empty, no modules are imported.
-        
+
     Raises:
         ImportError: If a module cannot be imported
-        
+
     Example:
         # In main_env_chain.py - user specifies --include
         import_custom_modules(["my_project.robot_arm"])
-        
+
         # Now custom Transition is available in registry
         TransitionCls = ComponentRegistry.get_transition("robot_arm")
     """
     if not module_paths:
         return
-    
+
+    import sys, os
+    cwd = os.getcwd()
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+
     for module_path in module_paths:
         try:
             importlib.import_module(module_path)
@@ -151,7 +159,7 @@ def import_custom_modules(module_paths: Optional[List[str]]) -> None:
         except ImportError as e:
             raise ImportError(
                 f"Failed to import module '{module_path}': {e}\n"
-                f"Make sure the module is in your PYTHONPATH or installed."
+                f"Make sure the module is in your current working directory or installed."
             ) from e
 
 

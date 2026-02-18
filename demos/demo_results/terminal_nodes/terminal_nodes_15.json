@@ -1,0 +1,85 @@
+{
+  "terminal_nodes": [
+    {
+      "id": 21,
+      "state": {
+        "__type__": "EnvState",
+        "steps": [
+          {
+            "__type__": "EnvStep",
+            "action": "h1. canis",
+            "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An Altaic language: _____\nh3. Ramie, an Asiatic plant yielding a rope fiber: _____\nh4. Face down; susceptible: _____\nh5. An Indian antelope: _____\nv1. A contingent: C____\nv2. The Brazilian macaw; an Australian bird: A____\nv3. A Greek province; a law; a coin: N____\nv4. An ancient British ethnic group: I____\nv5. Gloss; luster: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v2. ARARA",
+            "next_state": "Current Board:\nCANIS\n_R___\n_A___\n_R___\n_A___\n\nUnfilled:\nh2. An Altaic language: _R___\nh3. Ramie, an Asiatic plant yielding a rope fiber: _A___\nh4. Face down; susceptible: _R___\nh5. An Indian antelope: _A___\nv1. A contingent: C____\nv3. A Greek province; a law; a coin: N____\nv4. An ancient British ethnic group: I____\nv5. Gloss; luster: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv2. The Brazilian macaw; an Australian bird: ARARA\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v1. CABAL",
+            "next_state": "Current Board:\nCANIS\nAR___\nBA___\nAR___\nLA___\n\nUnfilled:\nh2. An Altaic language: AR___\nh3. Ramie, an Asiatic plant yielding a rope fiber: BA___\nh4. Face down; susceptible: AR___\nh5. An Indian antelope: LA___\nv3. A Greek province; a law; a coin: N____\nv4. An ancient British ethnic group: I____\nv5. Gloss; luster: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. A contingent: CABAL\nv2. The Brazilian macaw; an Australian bird: ARARA\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h2. ARANI",
+            "next_state": "Current Board:\nCANIS\nARANI\nBA___\nAR___\nLA___\n\nUnfilled:\nh3. Ramie, an Asiatic plant yielding a rope fiber: BA___\nh4. Face down; susceptible: AR___\nh5. An Indian antelope: LA___\nv3. A Greek province; a law; a coin: NA___\nv4. An ancient British ethnic group: IN___\nv5. Gloss; luster: SI___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Altaic language: ARANI\nv1. A contingent: CABAL\nv2. The Brazilian macaw; an Australian bird: ARARA\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h3. BASTE",
+            "next_state": "Current Board:\nCANIS\nARANI\nBASTE\nAR___\nLA___\n\nUnfilled:\nh4. Face down; susceptible: AR___\nh5. An Indian antelope: LA___\nv3. A Greek province; a law; a coin: NAS__\nv4. An ancient British ethnic group: INT__\nv5. Gloss; luster: SIE__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Altaic language: ARANI\nh3. Ramie, an Asiatic plant yielding a rope fiber: BASTE\nv1. A contingent: CABAL\nv2. The Brazilian macaw; an Australian bird: ARARA\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h4. ARENT",
+            "next_state": "Current Board:\nCANIS\nARANI\nBASTE\nARENT\nLA___\n\nUnfilled:\nh5. An Indian antelope: LA___\nv3. A Greek province; a law; a coin: NASE_\nv4. An ancient British ethnic group: INTN_\nv5. Gloss; luster: SIET_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Altaic language: ARANI\nh3. Ramie, an Asiatic plant yielding a rope fiber: BASTE\nh4. Face down; susceptible: ARENT\nv1. A contingent: CABAL\nv2. The Brazilian macaw; an Australian bird: ARARA\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h5. LAANG",
+            "next_state": "Current Board:\nCANIS\nARANI\nBASTE\nARENT\nLAANG\n\nUnfilled:\nv3. A Greek province; a law; a coin: NASEA\nv4. An ancient British ethnic group: INTNN\nv5. Gloss; luster: SIETG\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Altaic language: ARANI\nh3. Ramie, an Asiatic plant yielding a rope fiber: BASTE\nh4. Face down; susceptible: ARENT\nh5. An Indian antelope: LAANG\nv1. A contingent: CABAL\nv2. The Brazilian macaw; an Australian bird: ARARA\n\nChanged:\n"
+          }
+        ],
+        "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An Altaic language: _____\nh3. Ramie, an Asiatic plant yielding a rope fiber: _____\nh4. Face down; susceptible: _____\nh5. An Indian antelope: _____\nv1. A contingent: _____\nv2. The Brazilian macaw; an Australian bird: _____\nv3. A Greek province; a law; a coin: _____\nv4. An ancient British ethnic group: _____\nv5. Gloss; luster: _____\n\nFilled:\n\nChanged:\n"
+      },
+      "action": {
+        "action_str": "h5. LAANG",
+        "__type__": "StringAction"
+      },
+      "is_continuous": false,
+      "is_terminal": true,
+      "bn_score": -1,
+      "state_conf": -1,
+      "fast_reward": 0.25,
+      "trajectory_key": {
+        "search_id": "15_1768995888",
+        "indices": [
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          2
+        ],
+        "root_token": "q"
+      },
+      "step": {
+        "__type__": "EnvStep",
+        "error": "Validation failed after 3 retries",
+        "terminate": true,
+        "action": "h5. LAANG"
+      },
+      "from_simulate": true,
+      "is_simulated": true,
+      "from_expand": false,
+      "cum_rewards": [
+        0.225
+      ],
+      "from_continuation": false
+    }
+  ],
+  "query": "CANIS\nOROCH\nRAMEE\nPRONE\nSASIN\nCORPS\nARARA\nNOMOS\nICENI\nSHEEN",
+  "query_idx": 15
+}

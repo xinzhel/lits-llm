@@ -1,0 +1,613 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "CHESE\nRONIN\nULLET\nSLIVE\nHALER\nCRUSH\nHOLLA\nENLIL\nSIEVE\nENTER",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      0.0475
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 1,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h2. paria",
+          "next_state": "Current Board:\n_____\nPARIA\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _A___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nh2. A Japanese outcast: PARIA\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. paria",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. paria"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.1638888888888889
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 4,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h2. paria",
+          "next_state": "Current Board:\n_____\nPARIA\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _A___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nh2. A Japanese outcast: PARIA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. ALOHA",
+          "next_state": "Current Board:\n_A___\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh1. To choose: _A___\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nv2. A greeting: ALOHA\n\nChanged:\nh2. A Japanese outcast: PLRIA\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v2. ALOHA",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v2. ALOHA"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.153125
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 7,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h2. paria",
+          "next_state": "Current Board:\n_____\nPARIA\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _A___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nh2. A Japanese outcast: PARIA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. ALOHA",
+          "next_state": "Current Board:\n_A___\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh1. To choose: _A___\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nv2. A greeting: ALOHA\n\nChanged:\nh2. A Japanese outcast: PLRIA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h1. ELECT",
+          "next_state": "Current Board:\nELECT\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EP___\nv3. A Babylonian god: ER___\nv4. To sift: CI___\nv5. To come in: TA___\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLOHA\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. ELECT",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. ELECT"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.1392857142857143
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 12,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h2. paria",
+          "next_state": "Current Board:\n_____\nPARIA\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _A___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nh2. A Japanese outcast: PARIA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. ALOHA",
+          "next_state": "Current Board:\n_A___\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh1. To choose: _A___\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nv2. A greeting: ALOHA\n\nChanged:\nh2. A Japanese outcast: PLRIA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h1. ELECT",
+          "next_state": "Current Board:\nELECT\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EP___\nv3. A Babylonian god: ER___\nv4. To sift: CI___\nv5. To come in: TA___\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLOHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. EARED",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\n_H___\n_A___\n\nUnfilled:\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EPE__\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. EARED",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [
+        0,
+        0,
+        0,
+        2
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. EARED"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.12083333333333335
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 13,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h2. paria",
+          "next_state": "Current Board:\n_____\nPARIA\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _A___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nh2. A Japanese outcast: PARIA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. ALOHA",
+          "next_state": "Current Board:\n_A___\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh1. To choose: _A___\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nv2. A greeting: ALOHA\n\nChanged:\nh2. A Japanese outcast: PLRIA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h1. ELECT",
+          "next_state": "Current Board:\nELECT\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EP___\nv3. A Babylonian god: ER___\nv4. To sift: CI___\nv5. To come in: TA___\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLOHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. EARED",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\n_H___\n_A___\n\nUnfilled:\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EPE__\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. EPEEN",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEH___\nNA___\n\nUnfilled:\nh4. To slide; to skulk: EH___\nh5. More healthy; a coin: NA___\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v1. EPEEN",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.0,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [
+        0,
+        0,
+        0,
+        2,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v1. EPEEN"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.095
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 18,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h2. paria",
+          "next_state": "Current Board:\n_____\nPARIA\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _A___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nh2. A Japanese outcast: PARIA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. ALOHA",
+          "next_state": "Current Board:\n_A___\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh1. To choose: _A___\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nv2. A greeting: ALOHA\n\nChanged:\nh2. A Japanese outcast: PLRIA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h1. ELECT",
+          "next_state": "Current Board:\nELECT\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EP___\nv3. A Babylonian god: ER___\nv4. To sift: CI___\nv5. To come in: TA___\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLOHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. EARED",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\n_H___\n_A___\n\nUnfilled:\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EPE__\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. EPEEN",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEH___\nNA___\n\nUnfilled:\nh4. To slide; to skulk: EH___\nh5. More healthy; a coin: NA___\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v3. ERRAH",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEHA__\nNAH__\n\nUnfilled:\nh4. To slide; to skulk: EHA__\nh5. More healthy; a coin: NAH__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v3. ERRAH",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.25,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [
+        0,
+        0,
+        0,
+        2,
+        0,
+        2
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v3. ERRAH"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.11875
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 19,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h2. paria",
+          "next_state": "Current Board:\n_____\nPARIA\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _A___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nh2. A Japanese outcast: PARIA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. ALOHA",
+          "next_state": "Current Board:\n_A___\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh1. To choose: _A___\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nv2. A greeting: ALOHA\n\nChanged:\nh2. A Japanese outcast: PLRIA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h1. ELECT",
+          "next_state": "Current Board:\nELECT\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EP___\nv3. A Babylonian god: ER___\nv4. To sift: CI___\nv5. To come in: TA___\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLOHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. EARED",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\n_H___\n_A___\n\nUnfilled:\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EPE__\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. EPEEN",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEH___\nNA___\n\nUnfilled:\nh4. To slide; to skulk: EH___\nh5. More healthy; a coin: NA___\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v3. ERRAH",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEHA__\nNAH__\n\nUnfilled:\nh4. To slide; to skulk: EHA__\nh5. More healthy; a coin: NAH__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. EHAUL",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEHAUL\nNAH__\n\nUnfilled:\nh5. More healthy; a coin: NAH__\nv4. To sift: CIEU_\nv5. To come in: TADL_\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nh4. To slide; to skulk: EHAUL\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. EHAUL",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.0,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [
+        0,
+        0,
+        0,
+        2,
+        0,
+        2,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. EHAUL"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.11666666666666665
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 22,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h2. paria",
+          "next_state": "Current Board:\n_____\nPARIA\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _A___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nh2. A Japanese outcast: PARIA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. ALOHA",
+          "next_state": "Current Board:\n_A___\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh1. To choose: _A___\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nv2. A greeting: ALOHA\n\nChanged:\nh2. A Japanese outcast: PLRIA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h1. ELECT",
+          "next_state": "Current Board:\nELECT\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EP___\nv3. A Babylonian god: ER___\nv4. To sift: CI___\nv5. To come in: TA___\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLOHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. EARED",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\n_H___\n_A___\n\nUnfilled:\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EPE__\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. EPEEN",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEH___\nNA___\n\nUnfilled:\nh4. To slide; to skulk: EH___\nh5. More healthy; a coin: NA___\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v3. ERRAH",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEHA__\nNAH__\n\nUnfilled:\nh4. To slide; to skulk: EHA__\nh5. More healthy; a coin: NAH__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. EHAUL",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEHAUL\nNAH__\n\nUnfilled:\nh5. More healthy; a coin: NAH__\nv4. To sift: CIEU_\nv5. To come in: TADL_\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nh4. To slide; to skulk: EHAUL\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v4. SIEVE",
+          "next_state": "Current Board:\nELEST\nPLRIA\nEARED\nEHAVL\nNAHE_\n\nUnfilled:\nh5. More healthy; a coin: NAHE_\nv5. To come in: TADL_\n\nFilled:\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\nv4. To sift: SIEVE\n\nChanged:\nh1. To choose: ELEST\nh2. A Japanese outcast: PLRIA\nh4. To slide; to skulk: EHAVL\nv2. A greeting: LLAHA\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v4. SIEVE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [
+        0,
+        0,
+        0,
+        2,
+        0,
+        2,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v4. SIEVE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.175
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 25,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h2. paria",
+          "next_state": "Current Board:\n_____\nPARIA\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _A___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nh2. A Japanese outcast: PARIA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. ALOHA",
+          "next_state": "Current Board:\n_A___\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh1. To choose: _A___\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv3. A Babylonian god: _R___\nv4. To sift: _I___\nv5. To come in: _A___\n\nFilled:\nv2. A greeting: ALOHA\n\nChanged:\nh2. A Japanese outcast: PLRIA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h1. ELECT",
+          "next_state": "Current Board:\nELECT\nPLRIA\n_O___\n_H___\n_A___\n\nUnfilled:\nh3. A European owl: _O___\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EP___\nv3. A Babylonian god: ER___\nv4. To sift: CI___\nv5. To come in: TA___\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLOHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. EARED",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\n_H___\n_A___\n\nUnfilled:\nh4. To slide; to skulk: _H___\nh5. More healthy; a coin: _A___\nv1. To subdue; to crumple; a hidden romantic attraction: EPE__\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. EPEEN",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEH___\nNA___\n\nUnfilled:\nh4. To slide; to skulk: EH___\nh5. More healthy; a coin: NA___\nv3. A Babylonian god: ERR__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v3. ERRAH",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEHA__\nNAH__\n\nUnfilled:\nh4. To slide; to skulk: EHA__\nh5. More healthy; a coin: NAH__\nv4. To sift: CIE__\nv5. To come in: TAD__\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. EHAUL",
+          "next_state": "Current Board:\nELECT\nPLRIA\nEARED\nEHAUL\nNAH__\n\nUnfilled:\nh5. More healthy; a coin: NAH__\nv4. To sift: CIEU_\nv5. To come in: TADL_\n\nFilled:\nh1. To choose: ELECT\nh3. A European owl: EARED\nh4. To slide; to skulk: EHAUL\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\n\nChanged:\nh2. A Japanese outcast: PLRIA\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v4. SIEVE",
+          "next_state": "Current Board:\nELEST\nPLRIA\nEARED\nEHAVL\nNAHE_\n\nUnfilled:\nh5. More healthy; a coin: NAHE_\nv5. To come in: TADL_\n\nFilled:\nh3. A European owl: EARED\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\nv4. To sift: SIEVE\n\nChanged:\nh1. To choose: ELEST\nh2. A Japanese outcast: PLRIA\nh4. To slide; to skulk: EHAVL\nv2. A greeting: LLAHA\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. NAHER",
+          "next_state": "Current Board:\nELEST\nPLRIA\nEARED\nEHAVL\nNAHER\n\nUnfilled:\nv5. To come in: TADLR\n\nFilled:\nh3. A European owl: EARED\nh5. More healthy; a coin: NAHER\nv1. To subdue; to crumple; a hidden romantic attraction: EPEEN\nv3. A Babylonian god: ERRAH\nv4. To sift: SIEVE\n\nChanged:\nh1. To choose: ELEST\nh2. A Japanese outcast: PLRIA\nh4. To slide; to skulk: EHAVL\nv2. A greeting: LLAHA\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A Japanese outcast: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. More healthy; a coin: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. A Babylonian god: _____\nv4. To sift: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. NAHER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.0,
+    "trajectory_key": {
+      "search_id": "26_1768996757",
+      "indices": [
+        0,
+        0,
+        0,
+        2,
+        0,
+        2,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. NAHER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.05
+    ],
+    "from_continuation": false
+  }
+]

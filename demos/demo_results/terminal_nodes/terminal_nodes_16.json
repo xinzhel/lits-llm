@@ -1,0 +1,89 @@
+{
+  "terminal_nodes": [
+    {
+      "id": 23,
+      "state": {
+        "__type__": "EnvState",
+        "steps": [
+          {
+            "__type__": "EnvStep",
+            "action": "h1. canis",
+            "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Liquid body waste: _____\nh3. An Asian cape: _____\nh4. Defecates; a dice game: _____\nh5. High; high-class; pretentious: _____\nv1. A kerchief: C____\nv2. The Brazilian macaw; an Australian bird: A____\nv3. A New Zealand palm: N____\nv4. Unfit; clumsy: I____\nv5. To perceive; wisdom; reason; feeling: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v1. CAPPA",
+            "next_state": "Current Board:\nCANIS\nA____\nP____\nP____\nA____\n\nUnfilled:\nh2. Liquid body waste: A____\nh3. An Asian cape: P____\nh4. Defecates; a dice game: P____\nh5. High; high-class; pretentious: A____\nv2. The Brazilian macaw; an Australian bird: A____\nv3. A New Zealand palm: N____\nv4. Unfit; clumsy: I____\nv5. To perceive; wisdom; reason; feeling: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. A kerchief: CAPPA\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h2. URINE",
+            "next_state": "Current Board:\nCANIS\nURINE\nP____\nP____\nA____\n\nUnfilled:\nh3. An Asian cape: P____\nh4. Defecates; a dice game: P____\nh5. High; high-class; pretentious: A____\nv2. The Brazilian macaw; an Australian bird: AR___\nv3. A New Zealand palm: NI___\nv4. Unfit; clumsy: IN___\nv5. To perceive; wisdom; reason; feeling: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Liquid body waste: URINE\n\nChanged:\nv1. A kerchief: CUPPA\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v2. ARARA",
+            "next_state": "Current Board:\nCANIS\nURINE\nPA___\nPR___\nAA___\n\nUnfilled:\nh3. An Asian cape: PA___\nh4. Defecates; a dice game: PR___\nh5. High; high-class; pretentious: AA___\nv3. A New Zealand palm: NI___\nv4. Unfit; clumsy: IN___\nv5. To perceive; wisdom; reason; feeling: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Liquid body waste: URINE\nv2. The Brazilian macaw; an Australian bird: ARARA\n\nChanged:\nv1. A kerchief: CUPPA\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h3. PALAU",
+            "next_state": "Current Board:\nCANIS\nURINE\nPALAU\nPR___\nAA___\n\nUnfilled:\nh4. Defecates; a dice game: PR___\nh5. High; high-class; pretentious: AA___\nv3. A New Zealand palm: NIL__\nv4. Unfit; clumsy: INA__\nv5. To perceive; wisdom; reason; feeling: SEU__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Liquid body waste: URINE\nh3. An Asian cape: PALAU\nv2. The Brazilian macaw; an Australian bird: ARARA\n\nChanged:\nv1. A kerchief: CUPPA\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v3. NIKAU",
+            "next_state": "Current Board:\nCANIS\nURINE\nPAKAU\nPRA__\nAAU__\n\nUnfilled:\nh4. Defecates; a dice game: PRA__\nh5. High; high-class; pretentious: AAU__\nv4. Unfit; clumsy: INA__\nv5. To perceive; wisdom; reason; feeling: SEU__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Liquid body waste: URINE\nv2. The Brazilian macaw; an Australian bird: ARARA\nv3. A New Zealand palm: NIKAU\n\nChanged:\nh3. An Asian cape: PAKAU\nv1. A kerchief: CUPPA\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h4. PRAYS",
+            "next_state": "Current Board:\nCANIS\nURINE\nPAKAU\nPRAYS\nAAU__\n\nUnfilled:\nh5. High; high-class; pretentious: AAU__\nv4. Unfit; clumsy: INAY_\nv5. To perceive; wisdom; reason; feeling: SEUS_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Liquid body waste: URINE\nh4. Defecates; a dice game: PRAYS\nv2. The Brazilian macaw; an Australian bird: ARARA\nv3. A New Zealand palm: NIKAU\n\nChanged:\nh3. An Asian cape: PAKAU\nv1. A kerchief: CUPPA\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h5. HAUTE",
+            "next_state": "Current Board:\nCANIS\nURINE\nPAKAU\nPRAYS\nHAUTE\n\nUnfilled:\nv4. Unfit; clumsy: INAYT\nv5. To perceive; wisdom; reason; feeling: SEUSE\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Liquid body waste: URINE\nh4. Defecates; a dice game: PRAYS\nh5. High; high-class; pretentious: HAUTE\nv2. The Brazilian macaw; an Australian bird: ARARA\nv3. A New Zealand palm: NIKAU\n\nChanged:\nh3. An Asian cape: PAKAU\nv1. A kerchief: CUPPH\n"
+          }
+        ],
+        "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. Liquid body waste: _____\nh3. An Asian cape: _____\nh4. Defecates; a dice game: _____\nh5. High; high-class; pretentious: _____\nv1. A kerchief: _____\nv2. The Brazilian macaw; an Australian bird: _____\nv3. A New Zealand palm: _____\nv4. Unfit; clumsy: _____\nv5. To perceive; wisdom; reason; feeling: _____\n\nFilled:\n\nChanged:\n"
+      },
+      "action": {
+        "action_str": "h5. HAUTE",
+        "__type__": "StringAction"
+      },
+      "is_continuous": false,
+      "is_terminal": true,
+      "bn_score": -1,
+      "state_conf": -1,
+      "fast_reward": 0.5,
+      "trajectory_key": {
+        "search_id": "16_1768995959",
+        "indices": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "root_token": "q"
+      },
+      "step": {
+        "__type__": "EnvStep",
+        "action": "h5. HAUTE"
+      },
+      "from_simulate": true,
+      "is_simulated": true,
+      "from_expand": false,
+      "cum_rewards": [
+        0.5
+      ],
+      "from_continuation": false
+    }
+  ],
+  "query": "CANIS\nURINE\nRAKAN\nCRAPS\nHAUTE\nCURCH\nARARA\nNIKAU\nINAPT\nSENSE",
+  "query_idx": 16
+}

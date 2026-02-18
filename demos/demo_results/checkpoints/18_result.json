@@ -1,0 +1,364 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. A performance ring: _____\nv3. Not ever: _____\nv4. Unmoving; inactive: _____\nv5. Briny; profane: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "CANIS\nURENA\nREVEL\nSNERT\nTARTY\nCURST\nARENA\nNEVER\nINERT\nSALTY",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "18_1768996105",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      0.17142857142857143
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 1,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. A performance ring: _____\nv3. Not ever: _____\nv4. Unmoving; inactive: _____\nv5. Briny; profane: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. canis",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "18_1768996105",
+      "indices": [
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. canis"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.36666666666666664
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 4,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. An Indian mallow: U____\nh3. To feast; to carouse; another name for Reval: R____\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. A performance ring: _____\nv3. Not ever: _____\nv4. Unmoving; inactive: _____\nv5. Briny; profane: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v1. CURST",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "18_1768996105",
+      "indices": [
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v1. CURST"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.38
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 7,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. An Indian mallow: U____\nh3. To feast; to carouse; another name for Reval: R____\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. URENA",
+          "next_state": "Current Board:\nCANIS\nURENA\nR____\nS____\nT____\n\nUnfilled:\nh3. To feast; to carouse; another name for Reval: R____\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: AR___\nv3. Not ever: NE___\nv4. Unmoving; inactive: IN___\nv5. Briny; profane: SA___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. A performance ring: _____\nv3. Not ever: _____\nv4. Unmoving; inactive: _____\nv5. Briny; profane: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. URENA",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "18_1768996105",
+      "indices": [
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. URENA"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.3875
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 10,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. An Indian mallow: U____\nh3. To feast; to carouse; another name for Reval: R____\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. URENA",
+          "next_state": "Current Board:\nCANIS\nURENA\nR____\nS____\nT____\n\nUnfilled:\nh3. To feast; to carouse; another name for Reval: R____\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: AR___\nv3. Not ever: NE___\nv4. Unmoving; inactive: IN___\nv5. Briny; profane: SA___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. REVEL",
+          "next_state": "Current Board:\nCANIS\nURENA\nREVEL\nS____\nT____\n\nUnfilled:\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: ARE__\nv3. Not ever: NEV__\nv4. Unmoving; inactive: INE__\nv5. Briny; profane: SAL__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nh3. To feast; to carouse; another name for Reval: REVEL\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. A performance ring: _____\nv3. Not ever: _____\nv4. Unmoving; inactive: _____\nv5. Briny; profane: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. REVEL",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "18_1768996105",
+      "indices": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. REVEL"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.3833333333333333
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 13,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. An Indian mallow: U____\nh3. To feast; to carouse; another name for Reval: R____\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. URENA",
+          "next_state": "Current Board:\nCANIS\nURENA\nR____\nS____\nT____\n\nUnfilled:\nh3. To feast; to carouse; another name for Reval: R____\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: AR___\nv3. Not ever: NE___\nv4. Unmoving; inactive: IN___\nv5. Briny; profane: SA___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. REVEL",
+          "next_state": "Current Board:\nCANIS\nURENA\nREVEL\nS____\nT____\n\nUnfilled:\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: ARE__\nv3. Not ever: NEV__\nv4. Unmoving; inactive: INE__\nv5. Briny; profane: SAL__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nh3. To feast; to carouse; another name for Reval: REVEL\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. SHEER",
+          "next_state": "Current Board:\nCANIS\nURENA\nREVEL\nSHEER\nT____\n\nUnfilled:\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: AREH_\nv3. Not ever: NEVE_\nv4. Unmoving; inactive: INEE_\nv5. Briny; profane: SALR_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nh3. To feast; to carouse; another name for Reval: REVEL\nh4. A pound sterling: SHEER\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. A performance ring: _____\nv3. Not ever: _____\nv4. Unmoving; inactive: _____\nv5. Briny; profane: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. SHEER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.0,
+    "trajectory_key": {
+      "search_id": "18_1768996105",
+      "indices": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. SHEER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.35
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 17,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. An Indian mallow: U____\nh3. To feast; to carouse; another name for Reval: R____\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: A____\nv3. Not ever: N____\nv4. Unmoving; inactive: I____\nv5. Briny; profane: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. URENA",
+          "next_state": "Current Board:\nCANIS\nURENA\nR____\nS____\nT____\n\nUnfilled:\nh3. To feast; to carouse; another name for Reval: R____\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: AR___\nv3. Not ever: NE___\nv4. Unmoving; inactive: IN___\nv5. Briny; profane: SA___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. REVEL",
+          "next_state": "Current Board:\nCANIS\nURENA\nREVEL\nS____\nT____\n\nUnfilled:\nh4. A pound sterling: S____\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: ARE__\nv3. Not ever: NEV__\nv4. Unmoving; inactive: INE__\nv5. Briny; profane: SAL__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nh3. To feast; to carouse; another name for Reval: REVEL\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. SHEER",
+          "next_state": "Current Board:\nCANIS\nURENA\nREVEL\nSHEER\nT____\n\nUnfilled:\nh5. Tart or sour; like a prostitute: T____\nv2. A performance ring: AREH_\nv3. Not ever: NEVE_\nv4. Unmoving; inactive: INEE_\nv5. Briny; profane: SALR_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nh3. To feast; to carouse; another name for Reval: REVEL\nh4. A pound sterling: SHEER\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. TARTS",
+          "next_state": "Current Board:\nCANIS\nURENA\nREVEL\nSHEER\nTARTS\n\nUnfilled:\nv2. A performance ring: AREHA\nv3. Not ever: NEVER\nv4. Unmoving; inactive: INEET\nv5. Briny; profane: SALRS\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An Indian mallow: URENA\nh3. To feast; to carouse; another name for Reval: REVEL\nh4. A pound sterling: SHEER\nh5. Tart or sour; like a prostitute: TARTS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An Indian mallow: _____\nh3. To feast; to carouse; another name for Reval: _____\nh4. A pound sterling: _____\nh5. Tart or sour; like a prostitute: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. A performance ring: _____\nv3. Not ever: _____\nv4. Unmoving; inactive: _____\nv5. Briny; profane: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. TARTS",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "18_1768996105",
+      "indices": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. TARTS"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.5
+    ],
+    "from_continuation": false
+  }
+]

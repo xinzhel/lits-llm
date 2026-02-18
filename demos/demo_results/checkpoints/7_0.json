@@ -1,0 +1,293 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: _____\nv2. A synthetic textile fiber: _____\nv3. To inure; to harden: _____\nv4. A memento; a souvenir: _____\nv5. To hawk; to peddle; odd jobs: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "AVERT\nVINER\nINULA\nSARIN\nELECT\nAVISE\nVINAL\nENURE\nRELIC\nTRANT",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "7_1768995261",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      0.13333333333333333
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 1,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: S____\nv2. A synthetic textile fiber: H____\nv3. To inure; to harden: U____\nv4. A memento; a souvenir: N____\nv5. To hawk; to peddle; odd jobs: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: _____\nv2. A synthetic textile fiber: _____\nv3. To inure; to harden: _____\nv4. A memento; a souvenir: _____\nv5. To hawk; to peddle; odd jobs: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. shunt",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "7_1768995261",
+      "indices": [
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. shunt"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.36
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 5,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: S____\nv2. A synthetic textile fiber: H____\nv3. To inure; to harden: U____\nv4. A memento; a souvenir: N____\nv5. To hawk; to peddle; odd jobs: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. VINER",
+          "next_state": "Current Board:\nSHUNT\nVINER\n_____\n_____\n_____\n\nUnfilled:\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: SV___\nv2. A synthetic textile fiber: HI___\nv3. To inure; to harden: UN___\nv4. A memento; a souvenir: NE___\nv5. To hawk; to peddle; odd jobs: TR___\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: _____\nv2. A synthetic textile fiber: _____\nv3. To inure; to harden: _____\nv4. A memento; a souvenir: _____\nv5. To hawk; to peddle; odd jobs: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. VINER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "7_1768995261",
+      "indices": [
+        0,
+        1
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. VINER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.38749999999999996
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 7,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: S____\nv2. A synthetic textile fiber: H____\nv3. To inure; to harden: U____\nv4. A memento; a souvenir: N____\nv5. To hawk; to peddle; odd jobs: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. VINER",
+          "next_state": "Current Board:\nSHUNT\nVINER\n_____\n_____\n_____\n\nUnfilled:\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: SV___\nv2. A synthetic textile fiber: HI___\nv3. To inure; to harden: UN___\nv4. A memento; a souvenir: NE___\nv5. To hawk; to peddle; odd jobs: TR___\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. INULA",
+          "next_state": "Current Board:\nSHUNT\nVINER\nINULA\n_____\n_____\n\nUnfilled:\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: SVI__\nv2. A synthetic textile fiber: HIN__\nv3. To inure; to harden: UNU__\nv4. A memento; a souvenir: NEL__\nv5. To hawk; to peddle; odd jobs: TRA__\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\nh3. An herb, the elecampane plant: INULA\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: _____\nv2. A synthetic textile fiber: _____\nv3. To inure; to harden: _____\nv4. A memento; a souvenir: _____\nv5. To hawk; to peddle; odd jobs: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. INULA",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "7_1768995261",
+      "indices": [
+        0,
+        1,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. INULA"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.4166666666666667
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 10,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: S____\nv2. A synthetic textile fiber: H____\nv3. To inure; to harden: U____\nv4. A memento; a souvenir: N____\nv5. To hawk; to peddle; odd jobs: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. VINER",
+          "next_state": "Current Board:\nSHUNT\nVINER\n_____\n_____\n_____\n\nUnfilled:\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: SV___\nv2. A synthetic textile fiber: HI___\nv3. To inure; to harden: UN___\nv4. A memento; a souvenir: NE___\nv5. To hawk; to peddle; odd jobs: TR___\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. INULA",
+          "next_state": "Current Board:\nSHUNT\nVINER\nINULA\n_____\n_____\n\nUnfilled:\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: SVI__\nv2. A synthetic textile fiber: HIN__\nv3. To inure; to harden: UNU__\nv4. A memento; a souvenir: NEL__\nv5. To hawk; to peddle; odd jobs: TRA__\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\nh3. An herb, the elecampane plant: INULA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. SARIN",
+          "next_state": "Current Board:\nSHUNT\nVINER\nINULA\nSARIN\n_____\n\nUnfilled:\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: SVIS_\nv2. A synthetic textile fiber: HINA_\nv3. To inure; to harden: UNUR_\nv4. A memento; a souvenir: NELI_\nv5. To hawk; to peddle; odd jobs: TRAN_\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\nh3. An herb, the elecampane plant: INULA\nh4. A nerve gas: SARIN\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: _____\nv2. A synthetic textile fiber: _____\nv3. To inure; to harden: _____\nv4. A memento; a souvenir: _____\nv5. To hawk; to peddle; odd jobs: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. SARIN",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "7_1768995261",
+      "indices": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. SARIN"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.45
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 13,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: S____\nv2. A synthetic textile fiber: H____\nv3. To inure; to harden: U____\nv4. A memento; a souvenir: N____\nv5. To hawk; to peddle; odd jobs: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. VINER",
+          "next_state": "Current Board:\nSHUNT\nVINER\n_____\n_____\n_____\n\nUnfilled:\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: SV___\nv2. A synthetic textile fiber: HI___\nv3. To inure; to harden: UN___\nv4. A memento; a souvenir: NE___\nv5. To hawk; to peddle; odd jobs: TR___\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. INULA",
+          "next_state": "Current Board:\nSHUNT\nVINER\nINULA\n_____\n_____\n\nUnfilled:\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: SVI__\nv2. A synthetic textile fiber: HIN__\nv3. To inure; to harden: UNU__\nv4. A memento; a souvenir: NEL__\nv5. To hawk; to peddle; odd jobs: TRA__\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\nh3. An herb, the elecampane plant: INULA\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. SARIN",
+          "next_state": "Current Board:\nSHUNT\nVINER\nINULA\nSARIN\n_____\n\nUnfilled:\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: SVIS_\nv2. A synthetic textile fiber: HINA_\nv3. To inure; to harden: UNUR_\nv4. A memento; a souvenir: NELI_\nv5. To hawk; to peddle; odd jobs: TRAN_\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\nh3. An herb, the elecampane plant: INULA\nh4. A nerve gas: SARIN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. ELECT",
+          "next_state": "Current Board:\nSHUNT\nVINER\nINULA\nSARIN\nELECT\n\nUnfilled:\nv1. To advise: SVISE\nv2. A synthetic textile fiber: HINAL\nv3. To inure; to harden: UNURE\nv4. A memento; a souvenir: NELIC\nv5. To hawk; to peddle; odd jobs: TRANT\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. A machine to separate peas from their pods and the pea vine: VINER\nh3. An herb, the elecampane plant: INULA\nh4. A nerve gas: SARIN\nh5. To choose; a person chosen or destined to go to Heaven: ELECT\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. A machine to separate peas from their pods and the pea vine: _____\nh3. An herb, the elecampane plant: _____\nh4. A nerve gas: _____\nh5. To choose; a person chosen or destined to go to Heaven: _____\nv1. To advise: _____\nv2. A synthetic textile fiber: _____\nv3. To inure; to harden: _____\nv4. A memento; a souvenir: _____\nv5. To hawk; to peddle; odd jobs: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. ELECT",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "7_1768995261",
+      "indices": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. ELECT"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.5
+    ],
+    "from_continuation": false
+  }
+]

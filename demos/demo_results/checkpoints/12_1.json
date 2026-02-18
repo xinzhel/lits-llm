@@ -1,0 +1,442 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A two-legged creature: _____\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: _____\nv2. A Yoruba-speaking people: _____\nv3. A guide; a captain: _____\nv4. To avoid: _____\nv5. To delay; to put off: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "BIPED\nOGIVE\nCALIF\nCLOTE\nEATER\nBOCCE\nIGALA\nPILOT\nEVITE\nDEFER",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "12_1768995563",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      0.15833333333333333,
+      0.178125
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 2,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. human",
+          "next_state": "Current Board:\nHUMAN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: H____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nh1. A two-legged creature: HUMAN\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A two-legged creature: _____\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: _____\nv2. A Yoruba-speaking people: _____\nv3. A guide; a captain: _____\nv4. To avoid: _____\nv5. To delay; to put off: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. human",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "12_1768995563",
+      "indices": [
+        1
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. human"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": true,
+    "cum_rewards": [
+      0.3464285714285715
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 16,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. human",
+          "next_state": "Current Board:\nHUMAN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: H____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nh1. A two-legged creature: HUMAN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. BOCCE",
+          "next_state": "Current Board:\nBUMAN\nO____\nC____\nC____\nE____\n\nUnfilled:\nh2. A pointed arch: O____\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A two-legged creature: _____\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: _____\nv2. A Yoruba-speaking people: _____\nv3. A guide; a captain: _____\nv4. To avoid: _____\nv5. To delay; to put off: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v1. BOCCE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "12_1768995563",
+      "indices": [
+        1,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v1. BOCCE"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.3625
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 19,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. human",
+          "next_state": "Current Board:\nHUMAN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: H____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nh1. A two-legged creature: HUMAN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. BOCCE",
+          "next_state": "Current Board:\nBUMAN\nO____\nC____\nC____\nE____\n\nUnfilled:\nh2. A pointed arch: O____\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. OGIVE",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nC____\nC____\nE____\n\nUnfilled:\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UG___\nv3. A guide; a captain: MI___\nv4. To avoid: AV___\nv5. To delay; to put off: NE___\n\nFilled:\nh2. A pointed arch: OGIVE\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A two-legged creature: _____\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: _____\nv2. A Yoruba-speaking people: _____\nv3. A guide; a captain: _____\nv4. To avoid: _____\nv5. To delay; to put off: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. OGIVE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "12_1768995563",
+      "indices": [
+        1,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. OGIVE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.37499999999999994
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 22,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. human",
+          "next_state": "Current Board:\nHUMAN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: H____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nh1. A two-legged creature: HUMAN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. BOCCE",
+          "next_state": "Current Board:\nBUMAN\nO____\nC____\nC____\nE____\n\nUnfilled:\nh2. A pointed arch: O____\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. OGIVE",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nC____\nC____\nE____\n\nUnfilled:\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UG___\nv3. A guide; a captain: MI___\nv4. To avoid: AV___\nv5. To delay; to put off: NE___\n\nFilled:\nh2. A pointed arch: OGIVE\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. CALIF",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nC____\nE____\n\nUnfilled:\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UGA__\nv3. A guide; a captain: MIL__\nv4. To avoid: AVI__\nv5. To delay; to put off: NEF__\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A two-legged creature: _____\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: _____\nv2. A Yoruba-speaking people: _____\nv3. A guide; a captain: _____\nv4. To avoid: _____\nv5. To delay; to put off: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. CALIF",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "12_1768995563",
+      "indices": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. CALIF"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.38125000000000003
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 25,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. human",
+          "next_state": "Current Board:\nHUMAN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: H____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nh1. A two-legged creature: HUMAN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. BOCCE",
+          "next_state": "Current Board:\nBUMAN\nO____\nC____\nC____\nE____\n\nUnfilled:\nh2. A pointed arch: O____\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. OGIVE",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nC____\nC____\nE____\n\nUnfilled:\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UG___\nv3. A guide; a captain: MI___\nv4. To avoid: AV___\nv5. To delay; to put off: NE___\n\nFilled:\nh2. A pointed arch: OGIVE\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. CALIF",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nC____\nE____\n\nUnfilled:\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UGA__\nv3. A guide; a captain: MIL__\nv4. To avoid: AVI__\nv5. To delay; to put off: NEF__\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. CAREX",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nCAREX\nE____\n\nUnfilled:\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UGAA_\nv3. A guide; a captain: MILR_\nv4. To avoid: AVIE_\nv5. To delay; to put off: NEFX_\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nh4. A plant related to the burdock: CAREX\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A two-legged creature: _____\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: _____\nv2. A Yoruba-speaking people: _____\nv3. A guide; a captain: _____\nv4. To avoid: _____\nv5. To delay; to put off: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. CAREX",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "12_1768995563",
+      "indices": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. CAREX"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.375
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 28,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. human",
+          "next_state": "Current Board:\nHUMAN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: H____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nh1. A two-legged creature: HUMAN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. BOCCE",
+          "next_state": "Current Board:\nBUMAN\nO____\nC____\nC____\nE____\n\nUnfilled:\nh2. A pointed arch: O____\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. OGIVE",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nC____\nC____\nE____\n\nUnfilled:\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UG___\nv3. A guide; a captain: MI___\nv4. To avoid: AV___\nv5. To delay; to put off: NE___\n\nFilled:\nh2. A pointed arch: OGIVE\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. CALIF",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nC____\nE____\n\nUnfilled:\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UGA__\nv3. A guide; a captain: MIL__\nv4. To avoid: AVI__\nv5. To delay; to put off: NEF__\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. CAREX",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nCAREX\nE____\n\nUnfilled:\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UGAA_\nv3. A guide; a captain: MILR_\nv4. To avoid: AVIE_\nv5. To delay; to put off: NEFX_\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nh4. A plant related to the burdock: CAREX\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. UGAAS",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nCAREX\nES___\n\nUnfilled:\nh5. One who eats: ES___\nv3. A guide; a captain: MILR_\nv4. To avoid: AVIE_\nv5. To delay; to put off: NEFX_\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nh4. A plant related to the burdock: CAREX\nv1. An Italian lawn game played with wooden balls: BOCCE\nv2. A Yoruba-speaking people: UGAAS\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A two-legged creature: _____\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: _____\nv2. A Yoruba-speaking people: _____\nv3. A guide; a captain: _____\nv4. To avoid: _____\nv5. To delay; to put off: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v2. UGAAS",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.25,
+    "trajectory_key": {
+      "search_id": "12_1768995563",
+      "indices": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v2. UGAAS"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.36250000000000004
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 31,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. human",
+          "next_state": "Current Board:\nHUMAN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: H____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nh1. A two-legged creature: HUMAN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. BOCCE",
+          "next_state": "Current Board:\nBUMAN\nO____\nC____\nC____\nE____\n\nUnfilled:\nh2. A pointed arch: O____\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: U____\nv3. A guide; a captain: M____\nv4. To avoid: A____\nv5. To delay; to put off: N____\n\nFilled:\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. OGIVE",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nC____\nC____\nE____\n\nUnfilled:\nh3. A caliph: C____\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UG___\nv3. A guide; a captain: MI___\nv4. To avoid: AV___\nv5. To delay; to put off: NE___\n\nFilled:\nh2. A pointed arch: OGIVE\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. CALIF",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nC____\nE____\n\nUnfilled:\nh4. A plant related to the burdock: C____\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UGA__\nv3. A guide; a captain: MIL__\nv4. To avoid: AVI__\nv5. To delay; to put off: NEF__\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. CAREX",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nCAREX\nE____\n\nUnfilled:\nh5. One who eats: E____\nv2. A Yoruba-speaking people: UGAA_\nv3. A guide; a captain: MILR_\nv4. To avoid: AVIE_\nv5. To delay; to put off: NEFX_\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nh4. A plant related to the burdock: CAREX\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. UGAAS",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nCAREX\nES___\n\nUnfilled:\nh5. One who eats: ES___\nv3. A guide; a captain: MILR_\nv4. To avoid: AVIE_\nv5. To delay; to put off: NEFX_\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nh4. A plant related to the burdock: CAREX\nv1. An Italian lawn game played with wooden balls: BOCCE\nv2. A Yoruba-speaking people: UGAAS\n\nChanged:\nh1. A two-legged creature: BUMAN\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. EATER",
+          "next_state": "Current Board:\nBUMAN\nOGIVE\nCALIF\nCAREX\nEATER\n\nUnfilled:\nv3. A guide; a captain: MILRT\nv4. To avoid: AVIEE\nv5. To delay; to put off: NEFXR\n\nFilled:\nh2. A pointed arch: OGIVE\nh3. A caliph: CALIF\nh4. A plant related to the burdock: CAREX\nh5. One who eats: EATER\nv1. An Italian lawn game played with wooden balls: BOCCE\n\nChanged:\nh1. A two-legged creature: BUMAN\nv2. A Yoruba-speaking people: UGAAA\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A two-legged creature: _____\nh2. A pointed arch: _____\nh3. A caliph: _____\nh4. A plant related to the burdock: _____\nh5. One who eats: _____\nv1. An Italian lawn game played with wooden balls: _____\nv2. A Yoruba-speaking people: _____\nv3. A guide; a captain: _____\nv4. To avoid: _____\nv5. To delay; to put off: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. EATER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "12_1768995563",
+      "indices": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. EATER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.45
+    ],
+    "from_continuation": false
+  }
+]

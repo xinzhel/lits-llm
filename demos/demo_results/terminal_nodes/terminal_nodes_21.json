@@ -1,0 +1,95 @@
+{
+  "terminal_nodes": [
+    {
+      "id": 25,
+      "state": {
+        "__type__": "EnvState",
+        "steps": [
+          {
+            "__type__": "EnvStep",
+            "action": "h1. elect",
+            "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. British dialect for \"them\": _____\nh3. To raise up; to build: _____\nh4. An inscribed column; sap system: _____\nh5. Drier; a language: _____\nv1. A board game; a British river: E____\nv2. A heart: L____\nv3. An Arab prince: E____\nv4. A century: C____\nv5. To come in: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v1. CHESS",
+            "next_state": "Current Board:\nCLECT\nH____\nE____\nS____\nS____\n\nUnfilled:\nh2. British dialect for \"them\": H____\nh3. To raise up; to build: E____\nh4. An inscribed column; sap system: S____\nh5. Drier; a language: S____\nv2. A heart: L____\nv3. An Arab prince: E____\nv4. A century: C____\nv5. To come in: T____\n\nFilled:\nv1. A board game; a British river: CHESS\n\nChanged:\nh1. To choose: CLECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h2. HOSEN",
+            "next_state": "Current Board:\nCLECT\nHOSEN\nE____\nS____\nS____\n\nUnfilled:\nh3. To raise up; to build: E____\nh4. An inscribed column; sap system: S____\nh5. Drier; a language: S____\nv2. A heart: LO___\nv3. An Arab prince: ES___\nv4. A century: CE___\nv5. To come in: TN___\n\nFilled:\nh2. British dialect for \"them\": HOSEN\nv1. A board game; a British river: CHESS\n\nChanged:\nh1. To choose: CLECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v2. LOVED",
+            "next_state": "Current Board:\nCLECT\nHOSEN\nEV___\nSE___\nSD___\n\nUnfilled:\nh3. To raise up; to build: EV___\nh4. An inscribed column; sap system: SE___\nh5. Drier; a language: SD___\nv3. An Arab prince: ES___\nv4. A century: CE___\nv5. To come in: TN___\n\nFilled:\nh2. British dialect for \"them\": HOSEN\nv1. A board game; a British river: CHESS\nv2. A heart: LOVED\n\nChanged:\nh1. To choose: CLECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h3. ERECT",
+            "next_state": "Current Board:\nCLECT\nHOSEN\nERECT\nSE___\nSD___\n\nUnfilled:\nh4. An inscribed column; sap system: SE___\nh5. Drier; a language: SD___\nv3. An Arab prince: ESE__\nv4. A century: CEC__\nv5. To come in: TNT__\n\nFilled:\nh2. British dialect for \"them\": HOSEN\nh3. To raise up; to build: ERECT\nv1. A board game; a British river: CHESS\n\nChanged:\nh1. To choose: CLECT\nv2. A heart: LORED\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v3. ESEIR",
+            "next_state": "Current Board:\nCLECT\nHOSEN\nERECT\nSEI__\nSDR__\n\nUnfilled:\nh4. An inscribed column; sap system: SEI__\nh5. Drier; a language: SDR__\nv4. A century: CEC__\nv5. To come in: TNT__\n\nFilled:\nh2. British dialect for \"them\": HOSEN\nh3. To raise up; to build: ERECT\nv1. A board game; a British river: CHESS\nv3. An Arab prince: ESEIR\n\nChanged:\nh1. To choose: CLECT\nv2. A heart: LORED\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v4. CENTO",
+            "next_state": "Current Board:\nCLECT\nHOSEN\nERENT\nSEIT_\nSDRO_\n\nUnfilled:\nh4. An inscribed column; sap system: SEIT_\nh5. Drier; a language: SDRO_\nv5. To come in: TNT__\n\nFilled:\nh2. British dialect for \"them\": HOSEN\nv1. A board game; a British river: CHESS\nv3. An Arab prince: ESEIR\nv4. A century: CENTO\n\nChanged:\nh1. To choose: CLECT\nh3. To raise up; to build: ERENT\nv2. A heart: LORED\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h4. STELE",
+            "next_state": "Current Board:\nCLECT\nHOSEN\nERENT\nSTELE\nSDRO_\n\nUnfilled:\nh5. Drier; a language: SDRO_\nv5. To come in: TNTE_\n\nFilled:\nh2. British dialect for \"them\": HOSEN\nh4. An inscribed column; sap system: STELE\nv1. A board game; a British river: CHESS\n\nChanged:\nh1. To choose: CLECT\nh3. To raise up; to build: ERENT\nv2. A heart: LORTD\nv3. An Arab prince: ESEER\nv4. A century: CENLO\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h5. SDROY",
+            "next_state": "Current Board:\nCLECT\nHOSEN\nERENT\nSTELE\nSDROY\n\nUnfilled:\nv5. To come in: TNTEY\n\nFilled:\nh2. British dialect for \"them\": HOSEN\nh4. An inscribed column; sap system: STELE\nh5. Drier; a language: SDROY\nv1. A board game; a British river: CHESS\n\nChanged:\nh1. To choose: CLECT\nh3. To raise up; to build: ERENT\nv2. A heart: LORTD\nv3. An Arab prince: ESEER\nv4. A century: CENLO\n"
+          }
+        ],
+        "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. British dialect for \"them\": _____\nh3. To raise up; to build: _____\nh4. An inscribed column; sap system: _____\nh5. Drier; a language: _____\nv1. A board game; a British river: _____\nv2. A heart: _____\nv3. An Arab prince: _____\nv4. A century: _____\nv5. To come in: _____\n\nFilled:\n\nChanged:\n"
+      },
+      "action": {
+        "action_str": "h5. SDROY",
+        "__type__": "StringAction"
+      },
+      "is_continuous": false,
+      "is_terminal": true,
+      "bn_score": -1,
+      "state_conf": -1,
+      "fast_reward": 0.0,
+      "trajectory_key": {
+        "search_id": "21_1768996343",
+        "indices": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0
+        ],
+        "root_token": "q"
+      },
+      "step": {
+        "__type__": "EnvStep",
+        "action": "h5. SDROY"
+      },
+      "from_simulate": true,
+      "is_simulated": true,
+      "from_expand": false,
+      "cum_rewards": [
+        0.1
+      ],
+      "from_continuation": false
+    }
+  ],
+  "query": "CHESE\nHEMEN\nERECT\nSTELE\nSERER\nCHESS\nHERTE\nEMEER\nSECLE\nENTER",
+  "query_idx": 21
+}

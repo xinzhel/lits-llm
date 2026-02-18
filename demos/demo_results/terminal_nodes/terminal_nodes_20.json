@@ -1,0 +1,95 @@
+{
+  "terminal_nodes": [
+    {
+      "id": 25,
+      "state": {
+        "__type__": "EnvState",
+        "steps": [
+          {
+            "__type__": "EnvStep",
+            "action": "h1. elect",
+            "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A spiral, usually three dimensional: _____\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): _____\nh4. A drinker; a sedative: _____\nh5. A pound sterling: _____\nv1. A board game; a British river: E____\nv2. A wading bird: L____\nv3. To run away together to get married: E____\nv4. Cider; sicer: C____\nv5. To put into action: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v1. ESSEX",
+            "next_state": "Current Board:\nELECT\nS____\nS____\nE____\nX____\n\nUnfilled:\nh2. A spiral, usually three dimensional: S____\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): S____\nh4. A drinker; a sedative: E____\nh5. A pound sterling: X____\nv2. A wading bird: L____\nv3. To run away together to get married: E____\nv4. Cider; sicer: C____\nv5. To put into action: T____\n\nFilled:\nh1. To choose: ELECT\nv1. A board game; a British river: ESSEX\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h2. SCREW",
+            "next_state": "Current Board:\nELECT\nSCREW\nS____\nE____\nX____\n\nUnfilled:\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): S____\nh4. A drinker; a sedative: E____\nh5. A pound sterling: X____\nv2. A wading bird: LC___\nv3. To run away together to get married: ER___\nv4. Cider; sicer: CE___\nv5. To put into action: TW___\n\nFilled:\nh1. To choose: ELECT\nh2. A spiral, usually three dimensional: SCREW\nv1. A board game; a British river: ESSEX\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h3. SERGE",
+            "next_state": "Current Board:\nELECT\nSCREW\nSERGE\nE____\nX____\n\nUnfilled:\nh4. A drinker; a sedative: E____\nh5. A pound sterling: X____\nv2. A wading bird: LCE__\nv3. To run away together to get married: ERR__\nv4. Cider; sicer: CEG__\nv5. To put into action: TWE__\n\nFilled:\nh1. To choose: ELECT\nh2. A spiral, usually three dimensional: SCREW\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): SERGE\nv1. A board game; a British river: ESSEX\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v2. LCERN",
+            "next_state": "Current Board:\nELECT\nSCREW\nSERGE\nER___\nXN___\n\nUnfilled:\nh4. A drinker; a sedative: ER___\nh5. A pound sterling: XN___\nv3. To run away together to get married: ERR__\nv4. Cider; sicer: CEG__\nv5. To put into action: TWE__\n\nFilled:\nh1. To choose: ELECT\nh2. A spiral, usually three dimensional: SCREW\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): SERGE\nv1. A board game; a British river: ESSEX\nv2. A wading bird: LCERN\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v3. ELOPE",
+            "next_state": "Current Board:\nELECT\nSCLEW\nSEOGE\nERP__\nXNE__\n\nUnfilled:\nh4. A drinker; a sedative: ERP__\nh5. A pound sterling: XNE__\nv4. Cider; sicer: CEG__\nv5. To put into action: TWE__\n\nFilled:\nh1. To choose: ELECT\nv1. A board game; a British river: ESSEX\nv2. A wading bird: LCERN\nv3. To run away together to get married: ELOPE\n\nChanged:\nh2. A spiral, usually three dimensional: SCLEW\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): SEOGE\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h4. ERPER",
+            "next_state": "Current Board:\nELECT\nSCLEW\nSEOGE\nERPER\nXNE__\n\nUnfilled:\nh5. A pound sterling: XNE__\nv4. Cider; sicer: CEGE_\nv5. To put into action: TWER_\n\nFilled:\nh1. To choose: ELECT\nh4. A drinker; a sedative: ERPER\nv1. A board game; a British river: ESSEX\nv2. A wading bird: LCERN\nv3. To run away together to get married: ELOPE\n\nChanged:\nh2. A spiral, usually three dimensional: SCLEW\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): SEOGE\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v4. CIDER",
+            "next_state": "Current Board:\nELECT\nSCLIW\nSEODE\nERPER\nXNER_\n\nUnfilled:\nh5. A pound sterling: XNER_\nv5. To put into action: TWER_\n\nFilled:\nh1. To choose: ELECT\nh4. A drinker; a sedative: ERPER\nv1. A board game; a British river: ESSEX\nv2. A wading bird: LCERN\nv3. To run away together to get married: ELOPE\nv4. Cider; sicer: CIDER\n\nChanged:\nh2. A spiral, usually three dimensional: SCLIW\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): SEODE\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h5. XNERT",
+            "next_state": "Current Board:\nELECT\nSCLIW\nSEODE\nERPER\nXNERT\n\nUnfilled:\nv5. To put into action: TWERT\n\nFilled:\nh1. To choose: ELECT\nh4. A drinker; a sedative: ERPER\nh5. A pound sterling: XNERT\nv1. A board game; a British river: ESSEX\nv2. A wading bird: LCERN\nv3. To run away together to get married: ELOPE\nv4. Cider; sicer: CIDER\n\nChanged:\nh2. A spiral, usually three dimensional: SCLIW\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): SEODE\n"
+          }
+        ],
+        "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A spiral, usually three dimensional: _____\nh3. Notched or uneven, as if gnawed away (cognate with \"erode\"): _____\nh4. A drinker; a sedative: _____\nh5. A pound sterling: _____\nv1. A board game; a British river: _____\nv2. A wading bird: _____\nv3. To run away together to get married: _____\nv4. Cider; sicer: _____\nv5. To put into action: _____\n\nFilled:\n\nChanged:\n"
+      },
+      "action": {
+        "action_str": "h5. XNERT",
+        "__type__": "StringAction"
+      },
+      "is_continuous": false,
+      "is_terminal": true,
+      "bn_score": -1,
+      "state_conf": -1,
+      "fast_reward": 0.0,
+      "trajectory_key": {
+        "search_id": "20_1768996252",
+        "indices": [
+          0,
+          2,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "root_token": "q"
+      },
+      "step": {
+        "__type__": "EnvStep",
+        "action": "h5. XNERT"
+      },
+      "from_simulate": true,
+      "is_simulated": true,
+      "from_expand": false,
+      "cum_rewards": [
+        0.05
+      ],
+      "from_continuation": false
+    }
+  ],
+  "query": "CHESE\nHELIX\nEROSE\nSOPER\nSNERT\nCHESS\nHERON\nELOPE\nSISER\nEXERT",
+  "query_idx": 20
+}

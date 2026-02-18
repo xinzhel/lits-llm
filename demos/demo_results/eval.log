@@ -1,0 +1,124 @@
+[2026-02-16 22:41:27.675] [INFO] [root] Evaluating crosswords results (goal checking via registry)
+[2026-02-16 22:41:27.675] [INFO] [root] Found 30 terminal node files
+[2026-02-16 22:41:27.675] [INFO] [root] Processing 30 files (offset=0, limit=None)
+[2026-02-16 22:41:27.678] [INFO] [root] Query 0: Pred='incorrect', Truth='correct'
+[2026-02-16 22:41:27.679] [WARNING] [root] Query 1: No terminal nodes found
+[2026-02-16 22:41:27.679] [INFO] [root] Query 1: Pred='incorrect', Truth='correct'
+[2026-02-16 22:41:27.679] [INFO] [root] Query 10: Pred='incorrect', Truth='correct'
+[2026-02-16 22:41:27.679] [WARNING] [root] Query 11: No terminal nodes found
+[2026-02-16 22:41:27.679] [INFO] [root] Query 11: Pred='incorrect', Truth='correct'
+[2026-02-16 22:41:27.680] [DEBUG] [root] Query 12: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.680] [DEBUG] [root] Query 13: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.680] [DEBUG] [root] Query 14: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.681] [DEBUG] [root] Query 15: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.681] [DEBUG] [root] Query 16: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.681] [DEBUG] [root] Query 17: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.681] [DEBUG] [root] Query 18: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.681] [DEBUG] [root] Query 19: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.681] [DEBUG] [root] Query 2: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.682] [DEBUG] [root] Query 20: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.682] [DEBUG] [root] Query 21: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.682] [WARNING] [root] Query 22: No terminal nodes found
+[2026-02-16 22:41:27.682] [DEBUG] [root] Query 22: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.682] [DEBUG] [root] Query 23: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.683] [DEBUG] [root] Query 24: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.683] [DEBUG] [root] Query 25: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.683] [DEBUG] [root] Query 26: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.683] [WARNING] [root] Query 27: No terminal nodes found
+[2026-02-16 22:41:27.683] [DEBUG] [root] Query 27: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.684] [WARNING] [root] Query 28: No terminal nodes found
+[2026-02-16 22:41:27.684] [DEBUG] [root] Query 28: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.684] [DEBUG] [root] Query 29: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.684] [WARNING] [root] Query 3: No terminal nodes found
+[2026-02-16 22:41:27.684] [DEBUG] [root] Query 3: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.684] [DEBUG] [root] Query 4: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.685] [DEBUG] [root] Query 5: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.685] [DEBUG] [root] Query 6: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.685] [DEBUG] [root] Query 7: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.685] [WARNING] [root] Query 8: No terminal nodes found
+[2026-02-16 22:41:27.685] [DEBUG] [root] Query 8: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.685] [WARNING] [root] Query 9: No terminal nodes found
+[2026-02-16 22:41:27.685] [DEBUG] [root] Query 9: Pred=incorrect, Truth=correct
+[2026-02-16 22:41:27.685] [INFO] [root] ========================================
+[2026-02-16 22:41:27.685] [INFO] [root] Detailed comparison (first 10):
+[2026-02-16 22:41:27.685] [INFO] [root]   [0] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root]   [1] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root]   [2] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root]   [3] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root]   [4] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root]   [5] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root]   [6] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root]   [7] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root]   [8] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root]   [9] Pred='incorrect' (type=str), Truth='correct' (type=str), Correct=False
+[2026-02-16 22:41:27.685] [INFO] [root] ========================================
+[2026-02-16 22:41:27.685] [INFO] [root] ================================================================================
+[2026-02-16 22:41:27.685] [INFO] [root] Evaluation Results for demo_results
+[2026-02-16 22:41:27.685] [INFO] [root] Dataset: crosswords
+[2026-02-16 22:41:27.686] [INFO] [root] Total Examples: 30
+[2026-02-16 22:41:27.686] [INFO] [root] Correct: 0
+[2026-02-16 22:41:27.686] [INFO] [root] Accuracy (exact match): 0.0000 (0.00%)
+[2026-02-16 22:41:27.686] [INFO] [root] Soft Accuracy (word-level): 0.2267 (22.67%)
+[2026-02-16 22:41:27.686] [INFO] [root] ================================================================================
+[2026-02-16 22:41:27.686] [INFO] [root] Token Usage Metrics:
+[2026-02-16 22:41:27.722] [INFO] [root] ================================================================================
+                        INFERENCE USAGE REPORT
+================================================================================
+
+SUMMARY:
+  Total Calls:    1,942
+  Input Tokens:   736616
+  Output Tokens:  13906
+  Est. Cost:      $2.42
+
+BY COMPONENT:
+┌─────────┬───────┬───────────┬────────────┬───────┬─────────┐
+│   Name  │ Calls │ Input Tok │ Output Tok │  Cost │ % Total │
+├─────────┼───────┼───────────┼────────────┼───────┼─────────┤
+│  policy │  1303 │   434706  │   11350    │ $1.47 │  59.0%  │
+│ prm_env │  639  │   301910  │    2556    │ $0.94 │  41.0%  │
+├─────────┼───────┼───────────┼────────────┼───────┼─────────┤
+│  TOTAL  │  1942 │   736616  │   13906    │ $2.42 │  100.0% │
+└─────────┴───────┴───────────┴────────────┴───────┴─────────┘
+
+BY SEARCH PHASE:
+┌──────────┬───────┬───────────┬────────────┬─────────┐
+│   Name   │ Calls │ Input Tok │ Output Tok │ % Total │
+├──────────┼───────┼───────────┼────────────┼─────────┤
+│ simulate │  1583 │   603544  │   11529    │  81.9%  │
+│  expand  │  359  │   133072  │    2377    │  18.1%  │
+├──────────┼───────┼───────────┼────────────┼─────────┤
+│  TOTAL   │  1942 │   736616  │   13906    │  100.0% │
+└──────────┴───────┴───────────┴────────────┴─────────┘
+
+BY COMPONENT × PHASE:
+┌──────────────────┬───────┬───────────┬────────────┬─────────┐
+│       Name       │ Calls │ Input Tok │ Output Tok │ % Total │
+├──────────────────┼───────┼───────────┼────────────┼─────────┤
+│ policy_simulate  │  1055 │   353331  │    9417    │  48.0%  │
+│ prm_env_simulate │  528  │   250213  │    2112    │  34.0%  │
+│  policy_expand   │  248  │   81375   │    1933    │  11.0%  │
+│  prm_env_expand  │  111  │   51697   │    444     │   7.0%  │
+├──────────────────┼───────┼───────────┼────────────┼─────────┤
+│      TOTAL       │  1942 │   736616  │   13906    │  100.0% │
+└──────────────────┴───────┴───────────┴────────────┴─────────┘
+
+BY INSTANCE (Top 10 of 30):
+┌───────┬───────┬───────────┬────────────┬───────┐
+│  Name │ Calls │ Input Tok │ Output Tok │  Cost │
+├───────┼───────┼───────────┼────────────┼───────┤
+│   25  │  126  │   47121   │    887     │ $0.15 │
+│   12  │  109  │   40185   │    810     │ $0.13 │
+│   26  │   98  │   36285   │    706     │ $0.12 │
+│   14  │   82  │   31002   │    599     │ $0.10 │
+│   2   │   83  │   30965   │    570     │ $0.10 │
+│   6   │   81  │   30304   │    595     │ $0.10 │
+│   20  │   77  │   30155   │    559     │ $0.10 │
+│   10  │   74  │   28796   │    517     │ $0.09 │
+│   0   │   74  │   28242   │    532     │ $0.09 │
+│   1   │   73  │   27523   │    527     │ $0.09 │
+├───────┼───────┼───────────┼────────────┼───────┤
+│ TOTAL │  877  │   330578  │    6302    │ $1.09 │
+└───────┴───────┴───────────┴────────────┴───────┘
+
+================================================================================

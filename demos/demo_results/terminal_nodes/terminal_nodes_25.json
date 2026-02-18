@@ -1,0 +1,166 @@
+{
+  "terminal_nodes": [
+    {
+      "id": 19,
+      "state": {
+        "__type__": "EnvState",
+        "steps": [
+          {
+            "__type__": "EnvStep",
+            "action": "h2. penny",
+            "next_state": "Current Board:\n_____\nPENNY\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. One who uses a hose; a good guy: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _P___\nv2. A greeting: _E___\nv3. The Islamic name for Satan: _N___\nv4. To sift: _N___\nv5. One who eats: _Y___\n\nFilled:\nh2. A coin: PENNY\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v1. PINES",
+            "next_state": "Current Board:\nP____\nIENNY\nN____\nE____\nS____\n\nUnfilled:\nh1. To choose: P____\nh3. A European owl: N____\nh4. To slide; to skulk: E____\nh5. One who uses a hose; a good guy: S____\nv2. A greeting: _E___\nv3. The Islamic name for Satan: _N___\nv4. To sift: _N___\nv5. One who eats: _Y___\n\nFilled:\nv1. To subdue; to crumple; a hidden romantic attraction: PINES\n\nChanged:\nh2. A coin: IENNY\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h1. PLUCK",
+            "next_state": "Current Board:\nPLUCK\nIENNY\nN____\nE____\nS____\n\nUnfilled:\nh3. A European owl: N____\nh4. To slide; to skulk: E____\nh5. One who uses a hose; a good guy: S____\nv2. A greeting: LE___\nv3. The Islamic name for Satan: UN___\nv4. To sift: CN___\nv5. One who eats: KY___\n\nFilled:\nh1. To choose: PLUCK\nv1. To subdue; to crumple; a hidden romantic attraction: PINES\n\nChanged:\nh2. A coin: IENNY\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v2. HELLO",
+            "next_state": "Current Board:\nPHUCK\nIENNY\nNL___\nEL___\nSO___\n\nUnfilled:\nh3. A European owl: NL___\nh4. To slide; to skulk: EL___\nh5. One who uses a hose; a good guy: SO___\nv3. The Islamic name for Satan: UN___\nv4. To sift: CN___\nv5. One who eats: KY___\n\nFilled:\nv1. To subdue; to crumple; a hidden romantic attraction: PINES\nv2. A greeting: HELLO\n\nChanged:\nh1. To choose: PHUCK\nh2. A coin: IENNY\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h3. NLOOK",
+            "next_state": "Current Board:\nPHUCK\nIENNY\nNLOOK\nEL___\nSO___\n\nUnfilled:\nh4. To slide; to skulk: EL___\nh5. One who uses a hose; a good guy: SO___\nv3. The Islamic name for Satan: UNO__\nv4. To sift: CNO__\nv5. One who eats: KYK__\n\nFilled:\nh3. A European owl: NLOOK\nv1. To subdue; to crumple; a hidden romantic attraction: PINES\nv2. A greeting: HELLO\n\nChanged:\nh1. To choose: PHUCK\nh2. A coin: IENNY\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h4. ELIDE",
+            "next_state": "Current Board:\nPHUCK\nIENNY\nNLOOK\nELIDE\nSO___\n\nUnfilled:\nh5. One who uses a hose; a good guy: SO___\nv3. The Islamic name for Satan: UNOI_\nv4. To sift: CNOD_\nv5. One who eats: KYKE_\n\nFilled:\nh3. A European owl: NLOOK\nh4. To slide; to skulk: ELIDE\nv1. To subdue; to crumple; a hidden romantic attraction: PINES\nv2. A greeting: HELLO\n\nChanged:\nh1. To choose: PHUCK\nh2. A coin: IENNY\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h5. SOSER",
+            "next_state": "Current Board:\nPHUCK\nIENNY\nNLOOK\nELIDE\nSOSER\n\nUnfilled:\nv3. The Islamic name for Satan: UNOIS\nv4. To sift: CNODE\nv5. One who eats: KYKER\n\nFilled:\nh3. A European owl: NLOOK\nh4. To slide; to skulk: ELIDE\nh5. One who uses a hose; a good guy: SOSER\nv1. To subdue; to crumple; a hidden romantic attraction: PINES\nv2. A greeting: HELLO\n\nChanged:\nh1. To choose: PHUCK\nh2. A coin: IENNY\n"
+          }
+        ],
+        "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A coin: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. One who uses a hose; a good guy: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. The Islamic name for Satan: _____\nv4. To sift: _____\nv5. One who eats: _____\n\nFilled:\n\nChanged:\n"
+      },
+      "action": {
+        "action_str": "h5. SOSER",
+        "__type__": "StringAction"
+      },
+      "is_continuous": false,
+      "is_terminal": true,
+      "bn_score": -1,
+      "state_conf": -1,
+      "fast_reward": 0.0,
+      "trajectory_key": {
+        "search_id": "25_1768996604",
+        "indices": [
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "root_token": "q"
+      },
+      "step": {
+        "__type__": "EnvStep",
+        "action": "h5. SOSER"
+      },
+      "from_simulate": true,
+      "is_simulated": true,
+      "from_expand": false,
+      "cum_rewards": [
+        0.05
+      ],
+      "from_continuation": false
+    },
+    {
+      "id": 40,
+      "state": {
+        "__type__": "EnvState",
+        "steps": [
+          {
+            "__type__": "EnvStep",
+            "action": "h1. elect",
+            "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A coin: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. One who uses a hose; a good guy: _____\nv1. To subdue; to crumple; a hidden romantic attraction: E____\nv2. A greeting: L____\nv3. The Islamic name for Satan: E____\nv4. To sift: C____\nv5. One who eats: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v2. HELLO",
+            "next_state": "Current Board:\nEHECT\n_E___\n_L___\n_L___\n_O___\n\nUnfilled:\nh2. A coin: _E___\nh3. A European owl: _L___\nh4. To slide; to skulk: _L___\nh5. One who uses a hose; a good guy: _O___\nv1. To subdue; to crumple; a hidden romantic attraction: E____\nv3. The Islamic name for Satan: E____\nv4. To sift: C____\nv5. One who eats: T____\n\nFilled:\nv2. A greeting: HELLO\n\nChanged:\nh1. To choose: EHECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h2. PENNY",
+            "next_state": "Current Board:\nEHECT\nPENNY\n_L___\n_L___\n_O___\n\nUnfilled:\nh3. A European owl: _L___\nh4. To slide; to skulk: _L___\nh5. One who uses a hose; a good guy: _O___\nv1. To subdue; to crumple; a hidden romantic attraction: EP___\nv3. The Islamic name for Satan: EN___\nv4. To sift: CN___\nv5. One who eats: TY___\n\nFilled:\nh2. A coin: PENNY\nv2. A greeting: HELLO\n\nChanged:\nh1. To choose: EHECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h3. EAGLE",
+            "next_state": "Current Board:\nEHECT\nPENNY\nEAGLE\n_L___\n_O___\n\nUnfilled:\nh4. To slide; to skulk: _L___\nh5. One who uses a hose; a good guy: _O___\nv1. To subdue; to crumple; a hidden romantic attraction: EPE__\nv3. The Islamic name for Satan: ENG__\nv4. To sift: CNL__\nv5. One who eats: TYE__\n\nFilled:\nh2. A coin: PENNY\nh3. A European owl: EAGLE\n\nChanged:\nh1. To choose: EHECT\nv2. A greeting: HEALO\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v3. EBLIS",
+            "next_state": "Current Board:\nEHECT\nPEBNY\nEALLE\n_LI__\n_OS__\n\nUnfilled:\nh4. To slide; to skulk: _LI__\nh5. One who uses a hose; a good guy: _OS__\nv1. To subdue; to crumple; a hidden romantic attraction: EPE__\nv4. To sift: CNL__\nv5. One who eats: TYE__\n\nFilled:\nv3. The Islamic name for Satan: EBLIS\n\nChanged:\nh1. To choose: EHECT\nh2. A coin: PEBNY\nh3. A European owl: EALLE\nv2. A greeting: HEALO\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v1. EPEES",
+            "next_state": "Current Board:\nEHECT\nPEBNY\nEALLE\nELI__\nSOS__\n\nUnfilled:\nh4. To slide; to skulk: ELI__\nh5. One who uses a hose; a good guy: SOS__\nv4. To sift: CNL__\nv5. One who eats: TYE__\n\nFilled:\nv1. To subdue; to crumple; a hidden romantic attraction: EPEES\nv3. The Islamic name for Satan: EBLIS\n\nChanged:\nh1. To choose: EHECT\nh2. A coin: PEBNY\nh3. A European owl: EALLE\nv2. A greeting: HEALO\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h4. ELIDE",
+            "next_state": "Current Board:\nEHECT\nPEBNY\nEALLE\nELIDE\nSOS__\n\nUnfilled:\nh5. One who uses a hose; a good guy: SOS__\nv4. To sift: CNLD_\nv5. One who eats: TYEE_\n\nFilled:\nh4. To slide; to skulk: ELIDE\nv1. To subdue; to crumple; a hidden romantic attraction: EPEES\nv3. The Islamic name for Satan: EBLIS\n\nChanged:\nh1. To choose: EHECT\nh2. A coin: PEBNY\nh3. A European owl: EALLE\nv2. A greeting: HEALO\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h5. SOSER",
+            "next_state": "Current Board:\nEHECT\nPEBNY\nEALLE\nELIDE\nSOSER\n\nUnfilled:\nv4. To sift: CNLDE\nv5. One who eats: TYEER\n\nFilled:\nh4. To slide; to skulk: ELIDE\nh5. One who uses a hose; a good guy: SOSER\nv1. To subdue; to crumple; a hidden romantic attraction: EPEES\nv3. The Islamic name for Satan: EBLIS\n\nChanged:\nh1. To choose: EHECT\nh2. A coin: PEBNY\nh3. A European owl: EALLE\nv2. A greeting: HEALO\n"
+          }
+        ],
+        "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A coin: _____\nh3. A European owl: _____\nh4. To slide; to skulk: _____\nh5. One who uses a hose; a good guy: _____\nv1. To subdue; to crumple; a hidden romantic attraction: _____\nv2. A greeting: _____\nv3. The Islamic name for Satan: _____\nv4. To sift: _____\nv5. One who eats: _____\n\nFilled:\n\nChanged:\n"
+      },
+      "action": {
+        "action_str": "h5. SOSER",
+        "__type__": "StringAction"
+      },
+      "is_continuous": false,
+      "is_terminal": true,
+      "bn_score": -1,
+      "state_conf": -1,
+      "fast_reward": 0.0,
+      "trajectory_key": {
+        "search_id": "25_1768996604",
+        "indices": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "root_token": "q"
+      },
+      "step": {
+        "__type__": "EnvStep",
+        "action": "h5. SOSER"
+      },
+      "from_simulate": true,
+      "is_simulated": true,
+      "from_expand": false,
+      "cum_rewards": [
+        0.05
+      ],
+      "from_continuation": false
+    }
+  ],
+  "query": "CHESE\nREBIA\nULLET\nSLIVE\nHOSER\nCRUSH\nHELLO\nEBLIS\nSIEVE\nEATER",
+  "query_idx": 25
+}

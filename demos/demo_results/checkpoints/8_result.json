@@ -1,0 +1,367 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: _____\nv2. An anatomical valve: _____\nv3. A bishop's permission for a priest to leave a diocese: _____\nv4. A cigarette: _____\nv5. Wooden; wooden dishes and utensils: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "AVERT\nWAXER\nFLETE\nUVATE\nLATEN\nAWFUL\nVALVA\nEXEAT\nRETTE\nTREEN",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "8_1768995321",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      0.0,
+      -0.0625
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 1,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: S____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: _____\nv2. An anatomical valve: _____\nv3. A bishop's permission for a priest to leave a diocese: _____\nv4. A cigarette: _____\nv5. Wooden; wooden dishes and utensils: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. shunt",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "8_1768995321",
+      "indices": [
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. shunt"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.16666666666666666
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 4,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: S____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. SUPER",
+          "next_state": "Current Board:\nSHUNT\nU____\nP____\nE____\nR____\n\nUnfilled:\nh2. One who waxes: U____\nh3. To float; to swim: P____\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: _____\nv2. An anatomical valve: _____\nv3. A bishop's permission for a priest to leave a diocese: _____\nv4. A cigarette: _____\nv5. Wooden; wooden dishes and utensils: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v1. SUPER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "8_1768995321",
+      "indices": [
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v1. SUPER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.15
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 7,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: S____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. SUPER",
+          "next_state": "Current Board:\nSHUNT\nU____\nP____\nE____\nR____\n\nUnfilled:\nh2. One who waxes: U____\nh3. To float; to swim: P____\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. ULLER",
+          "next_state": "Current Board:\nSHUNT\nULLER\nP____\nE____\nR____\n\nUnfilled:\nh3. To float; to swim: P____\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HL___\nv3. A bishop's permission for a priest to leave a diocese: UL___\nv4. A cigarette: NE___\nv5. Wooden; wooden dishes and utensils: TR___\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: _____\nv2. An anatomical valve: _____\nv3. A bishop's permission for a priest to leave a diocese: _____\nv4. A cigarette: _____\nv5. Wooden; wooden dishes and utensils: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. ULLER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.0,
+    "trajectory_key": {
+      "search_id": "8_1768995321",
+      "indices": [
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. ULLER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.125
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 10,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: S____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. SUPER",
+          "next_state": "Current Board:\nSHUNT\nU____\nP____\nE____\nR____\n\nUnfilled:\nh2. One who waxes: U____\nh3. To float; to swim: P____\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. ULLER",
+          "next_state": "Current Board:\nSHUNT\nULLER\nP____\nE____\nR____\n\nUnfilled:\nh3. To float; to swim: P____\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HL___\nv3. A bishop's permission for a priest to leave a diocese: UL___\nv4. A cigarette: NE___\nv5. Wooden; wooden dishes and utensils: TR___\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. PLASH",
+          "next_state": "Current Board:\nSHUNT\nULLER\nPLASH\nE____\nR____\n\nUnfilled:\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HLL__\nv3. A bishop's permission for a priest to leave a diocese: ULA__\nv4. A cigarette: NES__\nv5. Wooden; wooden dishes and utensils: TRH__\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nh3. To float; to swim: PLASH\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: _____\nv2. An anatomical valve: _____\nv3. A bishop's permission for a priest to leave a diocese: _____\nv4. A cigarette: _____\nv5. Wooden; wooden dishes and utensils: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. PLASH",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "8_1768995321",
+      "indices": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. PLASH"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.16666666666666666
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 13,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: S____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. SUPER",
+          "next_state": "Current Board:\nSHUNT\nU____\nP____\nE____\nR____\n\nUnfilled:\nh2. One who waxes: U____\nh3. To float; to swim: P____\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. ULLER",
+          "next_state": "Current Board:\nSHUNT\nULLER\nP____\nE____\nR____\n\nUnfilled:\nh3. To float; to swim: P____\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HL___\nv3. A bishop's permission for a priest to leave a diocese: UL___\nv4. A cigarette: NE___\nv5. Wooden; wooden dishes and utensils: TR___\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. PLASH",
+          "next_state": "Current Board:\nSHUNT\nULLER\nPLASH\nE____\nR____\n\nUnfilled:\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HLL__\nv3. A bishop's permission for a priest to leave a diocese: ULA__\nv4. A cigarette: NES__\nv5. Wooden; wooden dishes and utensils: TRH__\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nh3. To float; to swim: PLASH\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. ELLEE",
+          "next_state": "Current Board:\nSHUNT\nULLER\nPLASH\nELLEE\nR____\n\nUnfilled:\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HLLL_\nv3. A bishop's permission for a priest to leave a diocese: ULAL_\nv4. A cigarette: NESE_\nv5. Wooden; wooden dishes and utensils: TRHE_\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nh3. To float; to swim: PLASH\nh4. Grape jam: ELLEE\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: _____\nv2. An anatomical valve: _____\nv3. A bishop's permission for a priest to leave a diocese: _____\nv4. A cigarette: _____\nv5. Wooden; wooden dishes and utensils: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. ELLEE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.0,
+    "trajectory_key": {
+      "search_id": "8_1768995321",
+      "indices": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. ELLEE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.125
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 16,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. shunt",
+          "next_state": "Current Board:\nSHUNT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: S____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. SUPER",
+          "next_state": "Current Board:\nSHUNT\nU____\nP____\nE____\nR____\n\nUnfilled:\nh2. One who waxes: U____\nh3. To float; to swim: P____\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: H____\nv3. A bishop's permission for a priest to leave a diocese: U____\nv4. A cigarette: N____\nv5. Wooden; wooden dishes and utensils: T____\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. ULLER",
+          "next_state": "Current Board:\nSHUNT\nULLER\nP____\nE____\nR____\n\nUnfilled:\nh3. To float; to swim: P____\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HL___\nv3. A bishop's permission for a priest to leave a diocese: UL___\nv4. A cigarette: NE___\nv5. Wooden; wooden dishes and utensils: TR___\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. PLASH",
+          "next_state": "Current Board:\nSHUNT\nULLER\nPLASH\nE____\nR____\n\nUnfilled:\nh4. Grape jam: E____\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HLL__\nv3. A bishop's permission for a priest to leave a diocese: ULA__\nv4. A cigarette: NES__\nv5. Wooden; wooden dishes and utensils: TRH__\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nh3. To float; to swim: PLASH\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. ELLEE",
+          "next_state": "Current Board:\nSHUNT\nULLER\nPLASH\nELLEE\nR____\n\nUnfilled:\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HLLL_\nv3. A bishop's permission for a priest to leave a diocese: ULAL_\nv4. A cigarette: NESE_\nv5. Wooden; wooden dishes and utensils: TRHE_\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nh3. To float; to swim: PLASH\nh4. Grape jam: ELLEE\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. RETARD",
+          "next_state": "Current Board:\nSHUNT\nULLER\nPLASH\nELLEE\nR____\n\nUnfilled:\nh5. To become late; to cause to become late: R____\nv2. An anatomical valve: HLLL_\nv3. A bishop's permission for a priest to leave a diocese: ULAL_\nv4. A cigarette: NESE_\nv5. Wooden; wooden dishes and utensils: TRHE_\n\nFilled:\nh1. To avoid; to turn away: SHUNT\nh2. One who waxes: ULLER\nh3. To float; to swim: PLASH\nh4. Grape jam: ELLEE\nv1. Terrible; very: SUPER\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To avoid; to turn away: _____\nh2. One who waxes: _____\nh3. To float; to swim: _____\nh4. Grape jam: _____\nh5. To become late; to cause to become late: _____\nv1. Terrible; very: _____\nv2. An anatomical valve: _____\nv3. A bishop's permission for a priest to leave a diocese: _____\nv4. A cigarette: _____\nv5. Wooden; wooden dishes and utensils: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. RETARD",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "8_1768995321",
+      "indices": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "error": "Validation failed after 3 retries",
+      "terminate": true,
+      "action": "h5. RETARD"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.25
+    ],
+    "from_continuation": false
+  }
+]

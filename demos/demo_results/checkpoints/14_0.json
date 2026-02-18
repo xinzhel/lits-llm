@@ -1,0 +1,613 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "CANIS\nAMINE\nPAGOD\nETUDE\nLINER\nCAPEL\nAMATI\nNIGUN\nINODE\nSEDER",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      0.28250000000000003
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 1,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: C____\nv2. A violin: A____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. canis",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. canis"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.42500000000000004
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 6,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: C____\nv2. A violin: A____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. AMATI",
+          "next_state": "Current Board:\nCANIS\n_M___\n_A___\n_T___\n_I___\n\nUnfilled:\nh2. An ammonia compound: _M___\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: C____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv2. A violin: AMATI\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v2. AMATI",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [
+        0,
+        2
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v2. AMATI"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.44062499999999993
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 7,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: C____\nv2. A violin: A____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. AMATI",
+          "next_state": "Current Board:\nCANIS\n_M___\n_A___\n_T___\n_I___\n\nUnfilled:\nh2. An ammonia compound: _M___\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: C____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. AMINE",
+          "next_state": "Current Board:\nCANIS\nAMINE\n_A___\n_T___\n_I___\n\nUnfilled:\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: CA___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv2. A violin: AMATI\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. AMINE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [
+        0,
+        2,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. AMINE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.4535714285714286
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 10,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: C____\nv2. A violin: A____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. AMATI",
+          "next_state": "Current Board:\nCANIS\n_M___\n_A___\n_T___\n_I___\n\nUnfilled:\nh2. An ammonia compound: _M___\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: C____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. AMINE",
+          "next_state": "Current Board:\nCANIS\nAMINE\n_A___\n_T___\n_I___\n\nUnfilled:\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: CA___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CAMEL",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMA___\nET___\nLI___\n\nUnfilled:\nh3. A pagoda; an Indian idol: MA___\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v1. CAMEL",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [
+        0,
+        2,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v1. CAMEL"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.46249999999999997
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 15,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: C____\nv2. A violin: A____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. AMATI",
+          "next_state": "Current Board:\nCANIS\n_M___\n_A___\n_T___\n_I___\n\nUnfilled:\nh2. An ammonia compound: _M___\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: C____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. AMINE",
+          "next_state": "Current Board:\nCANIS\nAMINE\n_A___\n_T___\n_I___\n\nUnfilled:\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: CA___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CAMEL",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMA___\nET___\nLI___\n\nUnfilled:\nh3. A pagoda; an Indian idol: MA___\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. MANAS",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMANAS\nET___\nLI___\n\nUnfilled:\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NIN__\nv4. A UNIX file system structure: INA__\nv5. A Passover meal: SES__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh3. A pagoda; an Indian idol: MANAS\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. MANAS",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.25,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [
+        0,
+        2,
+        0,
+        0,
+        2
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. MANAS"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.475
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 16,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: C____\nv2. A violin: A____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. AMATI",
+          "next_state": "Current Board:\nCANIS\n_M___\n_A___\n_T___\n_I___\n\nUnfilled:\nh2. An ammonia compound: _M___\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: C____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. AMINE",
+          "next_state": "Current Board:\nCANIS\nAMINE\n_A___\n_T___\n_I___\n\nUnfilled:\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: CA___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CAMEL",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMA___\nET___\nLI___\n\nUnfilled:\nh3. A pagoda; an Indian idol: MA___\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. MANAS",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMANAS\nET___\nLI___\n\nUnfilled:\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NIN__\nv4. A UNIX file system structure: INA__\nv5. A Passover meal: SES__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh3. A pagoda; an Indian idol: MANAS\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. ETUDE",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMANAS\nETUDE\nLI___\n\nUnfilled:\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NINU_\nv4. A UNIX file system structure: INAD_\nv5. A Passover meal: SESE_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh3. A pagoda; an Indian idol: MANAS\nh4. A piano piece: ETUDE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. ETUDE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [
+        0,
+        2,
+        0,
+        0,
+        2,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. ETUDE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.525
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 19,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: C____\nv2. A violin: A____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. AMATI",
+          "next_state": "Current Board:\nCANIS\n_M___\n_A___\n_T___\n_I___\n\nUnfilled:\nh2. An ammonia compound: _M___\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: C____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. AMINE",
+          "next_state": "Current Board:\nCANIS\nAMINE\n_A___\n_T___\n_I___\n\nUnfilled:\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: CA___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CAMEL",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMA___\nET___\nLI___\n\nUnfilled:\nh3. A pagoda; an Indian idol: MA___\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. MANAS",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMANAS\nET___\nLI___\n\nUnfilled:\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NIN__\nv4. A UNIX file system structure: INA__\nv5. A Passover meal: SES__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh3. A pagoda; an Indian idol: MANAS\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. ETUDE",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMANAS\nETUDE\nLI___\n\nUnfilled:\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NINU_\nv4. A UNIX file system structure: INAD_\nv5. A Passover meal: SESE_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh3. A pagoda; an Indian idol: MANAS\nh4. A piano piece: ETUDE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v3. NIGUN",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMAGAS\nETUDE\nLIN__\n\nUnfilled:\nh5. A shim; a vessel; a lining: LIN__\nv4. A UNIX file system structure: INAD_\nv5. A Passover meal: SESE_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh4. A piano piece: ETUDE\nv1. A horse: CAMEL\nv2. A violin: AMATI\nv3. A traditional folk or synagogue melody: NIGUN\n\nChanged:\nh3. A pagoda; an Indian idol: MAGAS\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v3. NIGUN",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [
+        0,
+        2,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v3. NIGUN"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.5499999999999999
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 22,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: C____\nv2. A violin: A____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. AMATI",
+          "next_state": "Current Board:\nCANIS\n_M___\n_A___\n_T___\n_I___\n\nUnfilled:\nh2. An ammonia compound: _M___\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: C____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. AMINE",
+          "next_state": "Current Board:\nCANIS\nAMINE\n_A___\n_T___\n_I___\n\nUnfilled:\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: CA___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CAMEL",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMA___\nET___\nLI___\n\nUnfilled:\nh3. A pagoda; an Indian idol: MA___\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. MANAS",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMANAS\nET___\nLI___\n\nUnfilled:\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NIN__\nv4. A UNIX file system structure: INA__\nv5. A Passover meal: SES__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh3. A pagoda; an Indian idol: MANAS\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. ETUDE",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMANAS\nETUDE\nLI___\n\nUnfilled:\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NINU_\nv4. A UNIX file system structure: INAD_\nv5. A Passover meal: SESE_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh3. A pagoda; an Indian idol: MANAS\nh4. A piano piece: ETUDE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v3. NIGUN",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMAGAS\nETUDE\nLIN__\n\nUnfilled:\nh5. A shim; a vessel; a lining: LIN__\nv4. A UNIX file system structure: INAD_\nv5. A Passover meal: SESE_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh4. A piano piece: ETUDE\nv1. A horse: CAMEL\nv2. A violin: AMATI\nv3. A traditional folk or synagogue melody: NIGUN\n\nChanged:\nh3. A pagoda; an Indian idol: MAGAS\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v4. INODE",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMAGOS\nETUDE\nLINE_\n\nUnfilled:\nh5. A shim; a vessel; a lining: LINE_\nv5. A Passover meal: SESE_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh4. A piano piece: ETUDE\nv1. A horse: CAMEL\nv2. A violin: AMATI\nv3. A traditional folk or synagogue melody: NIGUN\nv4. A UNIX file system structure: INODE\n\nChanged:\nh3. A pagoda; an Indian idol: MAGOS\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v4. INODE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [
+        0,
+        2,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v4. INODE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.575
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 25,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: C____\nv2. A violin: A____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. AMATI",
+          "next_state": "Current Board:\nCANIS\n_M___\n_A___\n_T___\n_I___\n\nUnfilled:\nh2. An ammonia compound: _M___\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: C____\nv3. A traditional folk or synagogue melody: N____\nv4. A UNIX file system structure: I____\nv5. A Passover meal: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. AMINE",
+          "next_state": "Current Board:\nCANIS\nAMINE\n_A___\n_T___\n_I___\n\nUnfilled:\nh3. A pagoda; an Indian idol: _A___\nh4. A piano piece: _T___\nh5. A shim; a vessel; a lining: _I___\nv1. A horse: CA___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CAMEL",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMA___\nET___\nLI___\n\nUnfilled:\nh3. A pagoda; an Indian idol: MA___\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NI___\nv4. A UNIX file system structure: IN___\nv5. A Passover meal: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. MANAS",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMANAS\nET___\nLI___\n\nUnfilled:\nh4. A piano piece: ET___\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NIN__\nv4. A UNIX file system structure: INA__\nv5. A Passover meal: SES__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh3. A pagoda; an Indian idol: MANAS\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. ETUDE",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMANAS\nETUDE\nLI___\n\nUnfilled:\nh5. A shim; a vessel; a lining: LI___\nv3. A traditional folk or synagogue melody: NINU_\nv4. A UNIX file system structure: INAD_\nv5. A Passover meal: SESE_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh3. A pagoda; an Indian idol: MANAS\nh4. A piano piece: ETUDE\nv1. A horse: CAMEL\nv2. A violin: AMATI\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v3. NIGUN",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMAGAS\nETUDE\nLIN__\n\nUnfilled:\nh5. A shim; a vessel; a lining: LIN__\nv4. A UNIX file system structure: INAD_\nv5. A Passover meal: SESE_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh4. A piano piece: ETUDE\nv1. A horse: CAMEL\nv2. A violin: AMATI\nv3. A traditional folk or synagogue melody: NIGUN\n\nChanged:\nh3. A pagoda; an Indian idol: MAGAS\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v4. INODE",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMAGOS\nETUDE\nLINE_\n\nUnfilled:\nh5. A shim; a vessel; a lining: LINE_\nv5. A Passover meal: SESE_\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh4. A piano piece: ETUDE\nv1. A horse: CAMEL\nv2. A violin: AMATI\nv3. A traditional folk or synagogue melody: NIGUN\nv4. A UNIX file system structure: INODE\n\nChanged:\nh3. A pagoda; an Indian idol: MAGOS\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. LINER",
+          "next_state": "Current Board:\nCANIS\nAMINE\nMAGOS\nETUDE\nLINER\n\nUnfilled:\nv5. A Passover meal: SESER\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. An ammonia compound: AMINE\nh4. A piano piece: ETUDE\nh5. A shim; a vessel; a lining: LINER\nv1. A horse: CAMEL\nv2. A violin: AMATI\nv3. A traditional folk or synagogue melody: NIGUN\nv4. A UNIX file system structure: INODE\n\nChanged:\nh3. A pagoda; an Indian idol: MAGOS\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. An ammonia compound: _____\nh3. A pagoda; an Indian idol: _____\nh4. A piano piece: _____\nh5. A shim; a vessel; a lining: _____\nv1. A horse: _____\nv2. A violin: _____\nv3. A traditional folk or synagogue melody: _____\nv4. A UNIX file system structure: _____\nv5. A Passover meal: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. LINER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "14_1768995786",
+      "indices": [
+        0,
+        2,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. LINER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.6
+    ],
+    "from_continuation": false
+  }
+]

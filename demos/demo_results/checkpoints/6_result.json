@@ -1,0 +1,365 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: _____\nv2. A block for polishing marble or other rocks: _____\nv3. To run away together to get married: _____\nv4. One who fumes: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "AREFY\nVALUE\nABOMA\nLOPER\nETERN\nAVALE\nRABOT\nELOPE\nFUMER\nYEARN",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "6_1768995158",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      -0.030000000000000006,
+      0.014285714285714282
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 2,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. wizen",
+          "next_state": "Current Board:\nWIZEN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: W____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: _____\nv2. A block for polishing marble or other rocks: _____\nv3. To run away together to get married: _____\nv4. One who fumes: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. wizen",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "6_1768995158",
+      "indices": [
+        1
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. wizen"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": true,
+    "cum_rewards": [
+      0.18333333333333335
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 13,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. wizen",
+          "next_state": "Current Board:\nWIZEN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: W____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. WIELD",
+          "next_state": "Current Board:\nWIZEN\nI____\nE____\nL____\nD____\n\nUnfilled:\nh2. Worth; usefulness; desirability: I____\nh3. A South American boa constrictor: E____\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\nv1. To let fall: WIELD\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: _____\nv2. A block for polishing marble or other rocks: _____\nv3. To run away together to get married: _____\nv4. One who fumes: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v1. WIELD",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.0,
+    "trajectory_key": {
+      "search_id": "6_1768995158",
+      "indices": [
+        1,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v1. WIELD"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.17
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 16,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. wizen",
+          "next_state": "Current Board:\nWIZEN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: W____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. WIELD",
+          "next_state": "Current Board:\nWIZEN\nI____\nE____\nL____\nD____\n\nUnfilled:\nh2. Worth; usefulness; desirability: I____\nh3. A South American boa constrictor: E____\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\nv1. To let fall: WIELD\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. MERIT",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nE____\nL____\nD____\n\nUnfilled:\nh3. A South American boa constrictor: E____\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: IE___\nv3. To run away together to get married: ZR___\nv4. One who fumes: EI___\nv5. To crave: NT___\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\n\nChanged:\nv1. To let fall: WMELD\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: _____\nv2. A block for polishing marble or other rocks: _____\nv3. To run away together to get married: _____\nv4. One who fumes: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. MERIT",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "6_1768995158",
+      "indices": [
+        1,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. MERIT"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.21250000000000002
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 19,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. wizen",
+          "next_state": "Current Board:\nWIZEN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: W____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. WIELD",
+          "next_state": "Current Board:\nWIZEN\nI____\nE____\nL____\nD____\n\nUnfilled:\nh2. Worth; usefulness; desirability: I____\nh3. A South American boa constrictor: E____\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\nv1. To let fall: WIELD\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. MERIT",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nE____\nL____\nD____\n\nUnfilled:\nh3. A South American boa constrictor: E____\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: IE___\nv3. To run away together to get married: ZR___\nv4. One who fumes: EI___\nv5. To crave: NT___\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\n\nChanged:\nv1. To let fall: WMELD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. EUNOA",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nEUNOA\nL____\nD____\n\nUnfilled:\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: IEU__\nv3. To run away together to get married: ZRN__\nv4. One who fumes: EIO__\nv5. To crave: NTA__\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\nh3. A South American boa constrictor: EUNOA\n\nChanged:\nv1. To let fall: WMELD\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: _____\nv2. A block for polishing marble or other rocks: _____\nv3. To run away together to get married: _____\nv4. One who fumes: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. EUNOA",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.0,
+    "trajectory_key": {
+      "search_id": "6_1768995158",
+      "indices": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. EUNOA"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.19999999999999998
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 22,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. wizen",
+          "next_state": "Current Board:\nWIZEN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: W____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. WIELD",
+          "next_state": "Current Board:\nWIZEN\nI____\nE____\nL____\nD____\n\nUnfilled:\nh2. Worth; usefulness; desirability: I____\nh3. A South American boa constrictor: E____\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\nv1. To let fall: WIELD\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. MERIT",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nE____\nL____\nD____\n\nUnfilled:\nh3. A South American boa constrictor: E____\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: IE___\nv3. To run away together to get married: ZR___\nv4. One who fumes: EI___\nv5. To crave: NT___\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\n\nChanged:\nv1. To let fall: WMELD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. EUNOA",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nEUNOA\nL____\nD____\n\nUnfilled:\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: IEU__\nv3. To run away together to get married: ZRN__\nv4. One who fumes: EIO__\nv5. To crave: NTA__\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\nh3. A South American boa constrictor: EUNOA\n\nChanged:\nv1. To let fall: WMELD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. LOPER",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nEUNOA\nLOPER\nD____\n\nUnfilled:\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: IEUO_\nv3. To run away together to get married: ZRNP_\nv4. One who fumes: EIOE_\nv5. To crave: NTAR_\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\nh3. A South American boa constrictor: EUNOA\nh4. One who lopes: LOPER\n\nChanged:\nv1. To let fall: WMELD\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: _____\nv2. A block for polishing marble or other rocks: _____\nv3. To run away together to get married: _____\nv4. One who fumes: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. LOPER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "6_1768995158",
+      "indices": [
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. LOPER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.3
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 25,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. wizen",
+          "next_state": "Current Board:\nWIZEN\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: W____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. WIELD",
+          "next_state": "Current Board:\nWIZEN\nI____\nE____\nL____\nD____\n\nUnfilled:\nh2. Worth; usefulness; desirability: I____\nh3. A South American boa constrictor: E____\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: I____\nv3. To run away together to get married: Z____\nv4. One who fumes: E____\nv5. To crave: N____\n\nFilled:\nh1. To dry up: WIZEN\nv1. To let fall: WIELD\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. MERIT",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nE____\nL____\nD____\n\nUnfilled:\nh3. A South American boa constrictor: E____\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: IE___\nv3. To run away together to get married: ZR___\nv4. One who fumes: EI___\nv5. To crave: NT___\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\n\nChanged:\nv1. To let fall: WMELD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. EUNOA",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nEUNOA\nL____\nD____\n\nUnfilled:\nh4. One who lopes: L____\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: IEU__\nv3. To run away together to get married: ZRN__\nv4. One who fumes: EIO__\nv5. To crave: NTA__\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\nh3. A South American boa constrictor: EUNOA\n\nChanged:\nv1. To let fall: WMELD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. LOPER",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nEUNOA\nLOPER\nD____\n\nUnfilled:\nh5. Eternal, everlasting: D____\nv2. A block for polishing marble or other rocks: IEUO_\nv3. To run away together to get married: ZRNP_\nv4. One who fumes: EIOE_\nv5. To crave: NTAR_\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\nh3. A South American boa constrictor: EUNOA\nh4. One who lopes: LOPER\n\nChanged:\nv1. To let fall: WMELD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. DEIFY",
+          "next_state": "Current Board:\nWIZEN\nMERIT\nEUNOA\nLOPER\nDEIFY\n\nUnfilled:\nv2. A block for polishing marble or other rocks: IEUOE\nv3. To run away together to get married: ZRNPI\nv4. One who fumes: EIOEF\nv5. To crave: NTARY\n\nFilled:\nh1. To dry up: WIZEN\nh2. Worth; usefulness; desirability: MERIT\nh3. A South American boa constrictor: EUNOA\nh4. One who lopes: LOPER\nh5. Eternal, everlasting: DEIFY\n\nChanged:\nv1. To let fall: WMELD\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To dry up: _____\nh2. Worth; usefulness; desirability: _____\nh3. A South American boa constrictor: _____\nh4. One who lopes: _____\nh5. Eternal, everlasting: _____\nv1. To let fall: _____\nv2. A block for polishing marble or other rocks: _____\nv3. To run away together to get married: _____\nv4. One who fumes: _____\nv5. To crave: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. DEIFY",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "6_1768995158",
+      "indices": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. DEIFY"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.3
+    ],
+    "from_continuation": false
+  }
+]

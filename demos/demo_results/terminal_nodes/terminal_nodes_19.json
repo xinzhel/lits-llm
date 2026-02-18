@@ -1,0 +1,89 @@
+{
+  "terminal_nodes": [
+    {
+      "id": 22,
+      "state": {
+        "__type__": "EnvState",
+        "steps": [
+          {
+            "__type__": "EnvStep",
+            "action": "h1. elect",
+            "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. A spiral, usually three dimensional: _____\nh3. To emulate: _____\nh4. A Passover meal: _____\nh5. A pound sterling: _____\nv1. A board game; a British river: E____\nv2. British dialect for \"them\": L____\nv3. To avoid capture or detection: E____\nv4. One who strains; one who runs heavily: C____\nv5. To put into action: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v1. CHESS",
+            "next_state": "Current Board:\nCLECT\nH____\nE____\nS____\nS____\n\nUnfilled:\nh2. A spiral, usually three dimensional: H____\nh3. To emulate: E____\nh4. A Passover meal: S____\nh5. A pound sterling: S____\nv2. British dialect for \"them\": L____\nv3. To avoid capture or detection: E____\nv4. One who strains; one who runs heavily: C____\nv5. To put into action: T____\n\nFilled:\nv1. A board game; a British river: CHESS\n\nChanged:\nh1. To choose: CLECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h2. HELIX",
+            "next_state": "Current Board:\nCLECT\nHELIX\nE____\nS____\nS____\n\nUnfilled:\nh3. To emulate: E____\nh4. A Passover meal: S____\nh5. A pound sterling: S____\nv2. British dialect for \"them\": LE___\nv3. To avoid capture or detection: EL___\nv4. One who strains; one who runs heavily: CI___\nv5. To put into action: TX___\n\nFilled:\nh2. A spiral, usually three dimensional: HELIX\nv1. A board game; a British river: CHESS\n\nChanged:\nh1. To choose: CLECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h3. ENACT",
+            "next_state": "Current Board:\nCLECT\nHELIX\nENACT\nS____\nS____\n\nUnfilled:\nh4. A Passover meal: S____\nh5. A pound sterling: S____\nv2. British dialect for \"them\": LEN__\nv3. To avoid capture or detection: ELA__\nv4. One who strains; one who runs heavily: CIC__\nv5. To put into action: TXT__\n\nFilled:\nh2. A spiral, usually three dimensional: HELIX\nh3. To emulate: ENACT\nv1. A board game; a British river: CHESS\n\nChanged:\nh1. To choose: CLECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h4. SEDER",
+            "next_state": "Current Board:\nCLECT\nHELIX\nENACT\nSEDER\nS____\n\nUnfilled:\nh5. A pound sterling: S____\nv2. British dialect for \"them\": LENE_\nv3. To avoid capture or detection: ELAD_\nv4. One who strains; one who runs heavily: CICE_\nv5. To put into action: TXTR_\n\nFilled:\nh2. A spiral, usually three dimensional: HELIX\nh3. To emulate: ENACT\nh4. A Passover meal: SEDER\nv1. A board game; a British river: CHESS\n\nChanged:\nh1. To choose: CLECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v2. LENEM",
+            "next_state": "Current Board:\nCLECT\nHELIX\nENACT\nSEDER\nSM___\n\nUnfilled:\nh5. A pound sterling: SM___\nv3. To avoid capture or detection: ELAD_\nv4. One who strains; one who runs heavily: CICE_\nv5. To put into action: TXTR_\n\nFilled:\nh2. A spiral, usually three dimensional: HELIX\nh3. To emulate: ENACT\nh4. A Passover meal: SEDER\nv1. A board game; a British river: CHESS\nv2. British dialect for \"them\": LENEM\n\nChanged:\nh1. To choose: CLECT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "v3. ELUDE",
+            "next_state": "Current Board:\nCLECT\nHELIX\nENUCT\nSEDER\nSME__\n\nUnfilled:\nh5. A pound sterling: SME__\nv4. One who strains; one who runs heavily: CICE_\nv5. To put into action: TXTR_\n\nFilled:\nh2. A spiral, usually three dimensional: HELIX\nh4. A Passover meal: SEDER\nv1. A board game; a British river: CHESS\nv2. British dialect for \"them\": LENEM\nv3. To avoid capture or detection: ELUDE\n\nChanged:\nh1. To choose: CLECT\nh3. To emulate: ENUCT\n"
+          },
+          {
+            "__type__": "EnvStep",
+            "action": "h5. SMELT",
+            "next_state": "Current Board:\nCLECT\nHELIX\nENUCT\nSEDER\nSMELT\n\nUnfilled:\nv4. One who strains; one who runs heavily: CICEL\nv5. To put into action: TXTRT\n\nFilled:\nh2. A spiral, usually three dimensional: HELIX\nh4. A Passover meal: SEDER\nh5. A pound sterling: SMELT\nv1. A board game; a British river: CHESS\nv2. British dialect for \"them\": LENEM\nv3. To avoid capture or detection: ELUDE\n\nChanged:\nh1. To choose: CLECT\nh3. To emulate: ENUCT\n"
+          }
+        ],
+        "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. A spiral, usually three dimensional: _____\nh3. To emulate: _____\nh4. A Passover meal: _____\nh5. A pound sterling: _____\nv1. A board game; a British river: _____\nv2. British dialect for \"them\": _____\nv3. To avoid capture or detection: _____\nv4. One who strains; one who runs heavily: _____\nv5. To put into action: _____\n\nFilled:\n\nChanged:\n"
+      },
+      "action": {
+        "action_str": "h5. SMELT",
+        "__type__": "StringAction"
+      },
+      "is_continuous": false,
+      "is_terminal": true,
+      "bn_score": -1,
+      "state_conf": -1,
+      "fast_reward": 0.0,
+      "trajectory_key": {
+        "search_id": "19_1768996167",
+        "indices": [
+          0,
+          1,
+          0,
+          2,
+          1,
+          0,
+          0,
+          0
+        ],
+        "root_token": "q"
+      },
+      "step": {
+        "__type__": "EnvStep",
+        "action": "h5. SMELT"
+      },
+      "from_simulate": true,
+      "is_simulated": true,
+      "from_expand": false,
+      "cum_rewards": [
+        0.2
+      ],
+      "from_continuation": false
+    }
+  ],
+  "query": "CHESE\nHELIX\nEMULE\nSEDER\nSNERT\nCHESS\nHEMEN\nELUDE\nSILER\nEXERT",
+  "query_idx": 19
+}

@@ -1,229 +1,257 @@
-# LITS-LLM
+# LiTS — Language Inference via Tree Search
 
-A modular toolkit for LLM-based search, planning, and tool-use workflows.
+A modular Python framework for building LLM agents with tree search (MCTS, BFS) and chain reasoning (ReAct), supporting multi-provider LLMs and tool use.
 
-## Overview
-
-LITS-LLM is a production-ready wrapper around LITS (Language Inference via Tree Search) that implements modular LLM search algorithms including Tree-of-Thoughts and Reasoning via Planning (RAP).
-
-**Why LiTS?**
-
-LiTS addresses key challenges in building and optimizing LLM reasoning agents:
+## Why LiTS?
 
 | Concern | Challenge | LiTS Solution |
 |---------|-----------|---------------|
-| **Reusability** | Reimplementing search algorithms for each new task | Task-agnostic data structures (`Action → Step → State → Node`) that hide complex search procedures (MCTS, BFS, RAP) from task-specific logic |
-| **Extensibility** | Adding new tasks requires modifying many files | Modular components (`Policy`, `Transition`, `RewardModel`) + `PromptRegistry` with task-type fallback enable adding tasks by registering prompts |
-| **Observability** | Tree search is expensive and hard to debug | Built-in `InferenceLogger` tracks token usage and latency at component, instance, and search-phase levels; incremental checkpointing enables fault-tolerant experiments |
+| **Reusability** | Reimplementing search algorithms for each new task | Task-agnostic data structures (`Action → Step → State → Node`) that hide search procedures from task-specific logic |
+| **Extensibility** | Adding new tasks requires modifying many files | Modular components (`Policy`, `Transition`, `RewardModel`) + decorator-based registry — add a task by registering prompts and a transition |
+| **Observability** | Tree search is expensive and hard to debug | Built-in `InferenceLogger` tracks token usage at component, instance, and search-phase levels; incremental checkpointing for fault tolerance |
 
 ## Installation
 
 ```bash
-# Normal install
-pip install .
-
-# Editable mode (changes take effect instantly)
-pip install -e .
-
-# Editable mode with development extras
-pip install -e .[dev]
+pip install -e .          # editable install
+pip install -e .[dev]     # with dev extras
 ```
 
-**Install from Test PyPI:**
+Requires Python >= 3.11.
+
+## Quick Start — CLI
+
+LiTS provides four CLI commands installed via `pip install`:
+
 ```bash
-pip install --index-url https://test.pypi.org/simple/ \
-    --extra-index-url https://pypi.org/simple lits-llm==0.2.2
+lits-search       # Run tree search experiments
+lits-eval         # Evaluate tree search results
+lits-chain        # Run chain agents (ReAct, EnvChain)
+lits-eval-chain   # Evaluate chain results
 ```
 
-## Quick Start
+All example CLI commands below assume you are in the `demos/` directory, which contains `lits_benchmark` (example benchmarks) and sample data files:
 
-### Basic Usage
+<!-- ```
+demos/                   # Demo data and example benchmarks
+├── lits_benchmark/     # Benchmark implementations (importable via --include)
+├── blocksworld/        # BlocksWorld data files
+├── crosswords/         # Crosswords data files
+└── demo_results/       # Pre-run results for evaluation demos
 
-See `lits_llm/examples/math_qa/main_search.py` for a complete example:
+lits_benchmark/          # Example benchmarks (in demos/)
+├── formulations/       # Custom frameworks (RAP)
+├── math_qa.py          # GSM8K, MATH500
+├── blocksworld.py      # BlocksWorld
+├── crosswords.py       # Crosswords
+└── mapeval.py          # MapEval (SQL tool use)
+``` -->
+
+```bash
+cd demos
+```
+
+### Run MCTS on MATH500
+
+```bash
+lits-search --include lits_benchmark.math_qa \
+    --dataset math500 \
+    --policy concat --transition concat --reward generative \
+    --search-arg n_iters=50 n_actions=3 max_steps=10 \
+    --var limit=5
+```
+
+### Swap to RAP (different components, same algorithm)
+
+```bash
+lits-search --include lits_benchmark.math_qa lits_benchmark.formulations.rap \
+    --dataset math500 \
+    --policy rap --transition rap --reward rap \
+    --search-arg n_iters=10 n_confidence=3
+```
+
+### Swap to BFS (different algorithm, same components)
+
+```bash
+lits-search --include lits_benchmark.math_qa \
+    --dataset math500 \
+    --cfg search_algorithm=bfs \
+    --policy concat --transition concat --reward generative \
+    --search-arg roll_out_steps=2 n_actions=3 max_steps=10
+```
+
+### Environment-grounded task (BlocksWorld)
+
+```bash
+lits-search --include lits_benchmark.blocksworld \
+    --dataset blocksworld \
+    --transition blocksworld \
+    --search-arg max_steps=6 n_iters=50
+```
+
+### Tool-use task (MapEval-SQL)
+
+```bash
+lits-search --include lits_benchmark.mapeval \
+    --dataset mapeval-sql
+```
+
+No component flags needed — the framework auto-selects tool-use components.
+
+### Evaluate results
+
+```bash
+lits-eval --result_dir <result_dir>
+```
+
+### Dry run (validate config without inference)
+
+```bash
+lits-search --include lits_benchmark.math_qa \
+    --dataset math500 --dry-run
+```
+
+
+## Quick Start — Python API
+
+Tree search algorithms are class-based, inheriting from `BaseTreeSearch`:
 
 ```python
-main(
-    dataset_name="math500", 
-    model_name=model_name,
-    eval_model_name=eval_model_name, 
-    reasoning_method="bfs", 
-    add_continuation=False, 
-    bn_method=None, 
-    bn_model_name=bn_model_name, 
-    eval_idx=eval_idx
+from lits.agents.tree.mcts import MCTSSearch
+from lits.agents.tree.base import BaseSearchConfig
+from lits.lm import get_lm
+
+# Load model
+model = get_lm("bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
+
+# Configure search
+config = BaseSearchConfig(
+    max_steps=10,
+    n_actions=3,
+    n_iters=50,
+)
+
+# Create search instance with components
+search = MCTSSearch(
+    config=config,
+    policy=policy,           # generates candidate actions
+    world_model=transition,  # executes actions, produces new states
+    reward_model=reward,     # evaluates action quality
+)
+
+# Run search
+result = search.run(query="What is 25 * 17?", query_idx=0)
+
+# Extract answers from terminal nodes
+from lits.agents.tree.common import extract_answers_from_terminal_nodes
+vote_answers, answer_rewards, best_node, trace = extract_answers_from_terminal_nodes(
+    terminal_nodes_collected=result.terminal_nodes_collected,
+    retrieve_answer=retrieve_answer_fn,
+    question="What is 25 * 17?"
 )
 ```
 
-**Parameters:**
-- `dataset_name`: "math500", "gsm8k"
-- `model_name`: Model for search
-- `eval_model_name`: Model for evaluation
-- `reasoning_method`: "bfs", "rap", "rest"
-- `add_continuation`: Enable chaining in search
-- `bn_method`: "direct", "entropy" (sc1), "sc" (sc2)
-- `bn_model_name`: Model for continuation
-- `eval_idx`: Example indices to evaluate (default: all 100)
+### ReAct Agent (tool use)
 
-### LLM Interface
+```python
+from lits.agents import create_tool_use_agent
 
-Unified interface for loading different LLM types:
+agent = create_tool_use_agent(tools=tool_list, max_iter=50)
+state = agent.run(query="Find restaurants near Sydney Opera House")
+```
+
+### Supported LLM Providers
 
 ```python
 from lits.lm import get_lm
 
-# HuggingFace models
-model = get_lm("Qwen/Qwen2.5-0.5B-Instruct", device="cuda")
-
-# AWS Bedrock models (requires AWS credentials)
-model = get_lm("bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
-
-# OpenAI models
-model = get_lm("openai/gpt-4")
-
-# Use the model
-output = model("Hello, how are you?")
-print(output.text)
+model = get_lm("bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")  # AWS Bedrock
+model = get_lm("openai/gpt-4")                                         # OpenAI
+model = get_lm("Qwen/Qwen2.5-0.5B-Instruct", device="cuda")           # HuggingFace
+model = get_lm("groq/llama-3.1-8b-instant")                            # Groq
+model = get_lm("tgi:///meta-llama/Meta-Llama-3-8B")                    # TGI
 ```
 
-**Supported LLM Providers:**
-- HuggingFace models (e.g., `Qwen/*`, `meta-llama/*`)
-- AWS Bedrock (prefix: `bedrock/`)
-- OpenAI (prefix: `openai/`)
-- Azure OpenAI (prefix: `azure_openai/`)
-- Moonshot (prefix: `moonshot/`)
-- Groq (prefix: `groq/`)
+## Architecture
 
-### RewardModel Interface
+Three core component abstractions compose into agents:
 
-The package provides a modular reward model interface for evaluating actions in tree search:
+```
+Policy          →  generates candidate actions from states
+Transition      →  executes actions, produces new states
+RewardModel     →  evaluates action quality (optional)
+```
+
+Search frameworks bundle these with an algorithm:
+
+| Framework | Algorithm | Components |
+|-----------|-----------|------------|
+| ReST-MCTS* | MCTS | ConcatPolicy + ConcatTransition + GenerativePRM |
+| RAP | MCTS | RAPPolicy + RAPTransition + RapPRM |
+| ToT-BFS | BFS | ConcatPolicy + ConcatTransition + GenerativePRM |
+
+### Extending with Custom Components
+
+Register components via decorators — no core code changes needed:
 
 ```python
-from lits.components.base import RewardModel
+from lits.components.registry import register_transition, register_dataset
 
-class MyRewardModel(RewardModel):
-    def __init__(self, base_model, task_prompt_spec, **kwargs):
-        super().__init__(base_model, task_prompt_spec, **kwargs)
-    
-    def _fast_reward(self, example, example_idx, state, action, from_phase=""):
-        # Evaluate action without execution
-        return usefulness_score
-    
-    def reward(self, state, action, **kwargs):
-        # Evaluate action after execution
-        return reward_value, auxiliary_dict
+@register_transition("my_domain")
+class MyTransition(Transition):
+    def step(self, example, state, action, **kwargs):
+        ...
+    def is_terminal(self, state, example, **kwargs):
+        ...
+
+@register_dataset("my_dataset", task_type="env_grounded")
+def load_my_dataset(**kwargs):
+    ...
 ```
 
-**Key Methods:**
-- `fast_reward()` - Evaluate action quality without execution (for pruning)
-- `reward()` - Evaluate action after execution (for scoring)
-- `task_prompt_spec` - Unified prompt template/dictionary for all reward models
-
-For detailed documentation, see [RewardModel Interface Guide](docs/REWARD_MODEL_INTERFACE.md).
-
-### Prompt Injection
-
-LITS-LLM supports flexible prompt customization for all LLM-based components (Policy, RewardModel, Transition). You can inject custom prompts directly or use the registry system for shared prompts across components.
-
-For detailed documentation, see [Prompt Injection Design](docs/PROMPT_INJECTION_DESIGN.md).
-
-### Tree Visualization
-
-LITS-LLM provides unified visualization tools for analyzing MCTS and BFS search trees:
-
-```python
-from lits.visualize import visualize_mcts_result, visualize_bfs_result, get_tree_from_result
-
-# Visualize MCTS result
-mcts_result = mcts(question, idx, config, world_model, policy, evaluator)
-visualize_mcts_result(mcts_result, 'output/mcts_tree', format='pdf')
-
-# Visualize BFS result
-bfs_result = bfs_topk(question, idx, config, world_model, policy, 
-                      evaluator, retrieve_answer, return_buckets=True)
-visualize_bfs_result(bfs_result, 'output/bfs_tree', format='pdf')
-
-# Unified interface for both
-paths = get_tree_from_result(result, idx, full_dataset)
-plot_save_tree(paths, 'output/tree', format='pdf')
-```
-
-**Requirements:**
-```bash
-pip install anytree
-# For PDF/PNG rendering, also install system graphviz:
-# macOS:   brew install graphviz
-# Ubuntu:  sudo apt-get install graphviz
-```
-
-**Unified Result Structure:**
-Both `MCTSResult` and `BFSResult` share common attributes:
-- `trace_of_nodes` - Best path from root to terminal node
-- `root` - Root node of the search tree
-
-For examples, see `lits_llm/unit_test/test_visualization_demo.py`.
-
-## Documentation
-
-- [Prompt Injection Design](docs/PROMPT_INJECTION_DESIGN.md) - Guide on customizing prompts for components
-- [RewardModel Interface Guide](docs/REWARD_MODEL_INTERFACE.md) - Comprehensive guide on implementing and using reward models
-- [AWS Bedrock Setup & Inference Profiles](docs/AWS_BEDROCK_INFERENCE_PROFILES.md) - Detailed guide on using AWS Bedrock models, inference profiles, and AWS configuration
-
-## Development
-
-### Running Tests
+Then use via CLI:
 
 ```bash
-# Run all tests
-cd lits_llm/unit_test
-python test_load_models.py
-
-# Or with pytest
-pytest test_load_models.py -v -s
+lits-search --include my_package \
+    --dataset my_dataset --transition my_domain
 ```
 
-<!-- ### Building & Distribution
+## Task Types
 
-**Build package:**
-```bash
-rm -rf dist lits_llm.egg-info
-python -m build
-```
-
-**Upload to Test PyPI:**
-```bash
-pip install twine
-twine upload --repository testpypi dist/*
-```
-
-**Upload to PyPI:**
-```bash
-twine upload dist/*
-``` -->
+| Task Type | State Space | Examples |
+|-----------|-------------|----------|
+| `language_grounded` | Text context | Math reasoning (GSM8K, MATH500) |
+| `env_grounded` | Symbolic/physical state | BlocksWorld, Crosswords |
+| `tool_use` | Context + tool state | SQL queries, web search, APIs |
 
 ## Project Structure
 
 ```
-lits_llm/
-├── lits/                   # Core package
-│   ├── agents/            # Agent implementations (MCTS, BFS, chains)
-│   ├── components/        # Modular components (policy, evaluator, world model)
-│   ├── lm/               # LLM interface (HF, Bedrock, OpenAI)
-│   ├── structures/       # State and step structures
-│   └── benchmarks/       # Evaluation utilities
-├── examples/             # Example scripts and configs
-├── unit_test/           # Unit tests
-├── docs/                # Documentation
-└── README.md           # This file
+lits/                    # Core framework
+├── agents/             # MCTS, BFS, ReAct, EnvChain
+├── components/         # Policy, Transition, RewardModel
+├── lm/                 # Multi-provider LLM interface
+├── structures/         # State, Action, Step, Node
+├── cli/                # CLI entry points
+├── eval/               # Evaluation utilities
+└── tools/              # Tool implementations
 ```
+
+## Documentation
+<!-- ```
+docs/                    # Documentation
+├── agents/             # Agent guides
+├── components/         # Component API reference
+├── cli/                # CLI reference
+└── LITS_DESIGN.md      # Architecture overview
+``` -->
+- [Architecture Overview](docs/LITS_DESIGN.md)
+- [Tree Search Guide](docs/agents/TREE_SEARCH_GUIDE.md)
+- [CLI Reference](docs/cli/search.md)
+- [ReAct Agent](docs/agents/ReAct.md)
+- [Component API](docs/components/)
+- [Tree Visualization](docs/TREE_VISUALIZATION.md)
 
 ## License
 
-Apache License 2.0 (see `LICENSE` file for details)
-
-## Roadmap
-
-- [ ] CLI tools (`lits-llm init`, `lits-llm run`, `lits-llm eval`)
-- [ ] Additional search algorithms
-- [ ] Enhanced memory backends
-- [ ] More evaluation benchmarks
-- [ ] Web UI for visualization
+Apache License 2.0

@@ -1,0 +1,364 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. An old fashioned term for various medical remedies: _____\nv3. An Australian river: _____\nv4. Ancient Troy: _____\nv5. A shekel: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "CANIS\nURALI\nROMIC\nSPOOL\nTHINE\nCURST\nAROPH\nNAMOI\nILION\nSICLE",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "17_1768996039",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      0.17142857142857143
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 1,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. An old fashioned term for various medical remedies: _____\nv3. An Australian river: _____\nv4. Ancient Troy: _____\nv5. A shekel: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. canis",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "17_1768996039",
+      "indices": [
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. canis"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.3666666666666667
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 5,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: U____\nh3. A phonetic notation: R____\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. An old fashioned term for various medical remedies: _____\nv3. An Australian river: _____\nv4. Ancient Troy: _____\nv5. A shekel: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v1. CURST",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "17_1768996039",
+      "indices": [
+        0,
+        1
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v1. CURST"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.37999999999999995
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 7,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: U____\nh3. A phonetic notation: R____\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. URARE",
+          "next_state": "Current Board:\nCANIS\nURARE\nR____\nS____\nT____\n\nUnfilled:\nh3. A phonetic notation: R____\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: AR___\nv3. An Australian river: NA___\nv4. Ancient Troy: IR___\nv5. A shekel: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. An old fashioned term for various medical remedies: _____\nv3. An Australian river: _____\nv4. Ancient Troy: _____\nv5. A shekel: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. URARE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "17_1768996039",
+      "indices": [
+        0,
+        1,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. URARE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.3875
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 10,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: U____\nh3. A phonetic notation: R____\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. URARE",
+          "next_state": "Current Board:\nCANIS\nURARE\nR____\nS____\nT____\n\nUnfilled:\nh3. A phonetic notation: R____\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: AR___\nv3. An Australian river: NA___\nv4. Ancient Troy: IR___\nv5. A shekel: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. RHYME",
+          "next_state": "Current Board:\nCANIS\nURARE\nRHYME\nS____\nT____\n\nUnfilled:\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: ARH__\nv3. An Australian river: NAY__\nv4. Ancient Troy: IRM__\nv5. A shekel: SEE__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nh3. A phonetic notation: RHYME\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. An old fashioned term for various medical remedies: _____\nv3. An Australian river: _____\nv4. Ancient Troy: _____\nv5. A shekel: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. RHYME",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "17_1768996039",
+      "indices": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. RHYME"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.39999999999999997
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 13,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: U____\nh3. A phonetic notation: R____\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. URARE",
+          "next_state": "Current Board:\nCANIS\nURARE\nR____\nS____\nT____\n\nUnfilled:\nh3. A phonetic notation: R____\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: AR___\nv3. An Australian river: NA___\nv4. Ancient Troy: IR___\nv5. A shekel: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. RHYME",
+          "next_state": "Current Board:\nCANIS\nURARE\nRHYME\nS____\nT____\n\nUnfilled:\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: ARH__\nv3. An Australian river: NAY__\nv4. Ancient Troy: IRM__\nv5. A shekel: SEE__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nh3. A phonetic notation: RHYME\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. THINE",
+          "next_state": "Current Board:\nCANIS\nURARE\nRHYME\nS____\nTHINE\n\nUnfilled:\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nv2. An old fashioned term for various medical remedies: ARH_H\nv3. An Australian river: NAY_I\nv4. Ancient Troy: IRM_N\nv5. A shekel: SEE_E\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nh3. A phonetic notation: RHYME\nh5. Belonging to you: THINE\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. An old fashioned term for various medical remedies: _____\nv3. An Australian river: _____\nv4. Ancient Troy: _____\nv5. A shekel: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. THINE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "17_1768996039",
+      "indices": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. THINE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.42500000000000004
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 16,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. canis",
+          "next_state": "Current Board:\nCANIS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: C____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CURST",
+          "next_state": "Current Board:\nCANIS\nU____\nR____\nS____\nT____\n\nUnfilled:\nh2. Oorali, a poison used on arrows: U____\nh3. A phonetic notation: R____\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: A____\nv3. An Australian river: N____\nv4. Ancient Troy: I____\nv5. A shekel: S____\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. URARE",
+          "next_state": "Current Board:\nCANIS\nURARE\nR____\nS____\nT____\n\nUnfilled:\nh3. A phonetic notation: R____\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: AR___\nv3. An Australian river: NA___\nv4. Ancient Troy: IR___\nv5. A shekel: SE___\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. RHYME",
+          "next_state": "Current Board:\nCANIS\nURARE\nRHYME\nS____\nT____\n\nUnfilled:\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nh5. Belonging to you: T____\nv2. An old fashioned term for various medical remedies: ARH__\nv3. An Australian river: NAY__\nv4. Ancient Troy: IRM__\nv5. A shekel: SEE__\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nh3. A phonetic notation: RHYME\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. THINE",
+          "next_state": "Current Board:\nCANIS\nURARE\nRHYME\nS____\nTHINE\n\nUnfilled:\nh4. A small wheel or spindle; to transfer to a peripheral device: S____\nv2. An old fashioned term for various medical remedies: ARH_H\nv3. An Australian river: NAY_I\nv4. Ancient Troy: IRM_N\nv5. A shekel: SEE_E\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nh3. A phonetic notation: RHYME\nh5. Belonging to you: THINE\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. SPOOL",
+          "next_state": "Current Board:\nCANIS\nURARE\nRHYME\nSPOOL\nTHINE\n\nUnfilled:\nv2. An old fashioned term for various medical remedies: ARHPH\nv3. An Australian river: NAYOI\nv4. Ancient Troy: IRMON\nv5. A shekel: SEELE\n\nFilled:\nh1. The genus to which the dog and wolf belong: CANIS\nh2. Oorali, a poison used on arrows: URARE\nh3. A phonetic notation: RHYME\nh4. A small wheel or spindle; to transfer to a peripheral device: SPOOL\nh5. Belonging to you: THINE\nv1. Poetic \"cursed\"; peevish: CURST\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. The genus to which the dog and wolf belong: _____\nh2. Oorali, a poison used on arrows: _____\nh3. A phonetic notation: _____\nh4. A small wheel or spindle; to transfer to a peripheral device: _____\nh5. Belonging to you: _____\nv1. Poetic \"cursed\"; peevish: _____\nv2. An old fashioned term for various medical remedies: _____\nv3. An Australian river: _____\nv4. Ancient Troy: _____\nv5. A shekel: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. SPOOL",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "17_1768996039",
+      "indices": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. SPOOL"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.45
+    ],
+    "from_continuation": false
+  }
+]

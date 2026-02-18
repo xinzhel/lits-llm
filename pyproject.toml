@@ -95,7 +95,7 @@ Issues = "https://github.com/xinzhel/langagent/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lits*"]
+include = ["lits", "lits.*"]
 
 [tool.setuptools]
 license-files = []

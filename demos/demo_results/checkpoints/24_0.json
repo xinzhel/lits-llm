@@ -1,0 +1,364 @@
+[
+  {
+    "id": 0,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: _____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: _____\nv3. To happen: _____\nv4. Dried cassia leaves: _____\nv5. Anatomically toward the inside: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": "CHESE\nRIVEN\nOLENT\nWANNA\nDREAD\nCROWD\nHILAR\nEVENE\nSENNA\nENTAD",
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": -1.0,
+    "trajectory_key": {
+      "search_id": "24_1768996537",
+      "indices": [],
+      "root_token": "q"
+    },
+    "from_simulate": false,
+    "is_simulated": false,
+    "from_expand": false,
+    "cum_rewards": [
+      0.09999999999999999
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 1,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. elect",
+          "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: E____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: _____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: _____\nv3. To happen: _____\nv4. Dried cassia leaves: _____\nv5. Anatomically toward the inside: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h1. elect",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "24_1768996537",
+      "indices": [
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h1. elect"
+    },
+    "from_simulate": false,
+    "is_simulated": true,
+    "from_expand": true,
+    "cum_rewards": [
+      0.2833333333333334
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 4,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. elect",
+          "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: E____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CROWD",
+          "next_state": "Current Board:\nCLECT\nR____\nO____\nW____\nD____\n\nUnfilled:\nh2. Rent; split: R____\nh3. Odorous; fragrant: O____\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nv1. A mob; a Welsh violin: CROWD\n\nChanged:\nh1. To choose: CLECT\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: _____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: _____\nv3. To happen: _____\nv4. Dried cassia leaves: _____\nv5. Anatomically toward the inside: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "v1. CROWD",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "24_1768996537",
+      "indices": [
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "v1. CROWD"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.29000000000000004
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 7,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. elect",
+          "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: E____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CROWD",
+          "next_state": "Current Board:\nCLECT\nR____\nO____\nW____\nD____\n\nUnfilled:\nh2. Rent; split: R____\nh3. Odorous; fragrant: O____\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nv1. A mob; a Welsh violin: CROWD\n\nChanged:\nh1. To choose: CLECT\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. SHARE",
+          "next_state": "Current Board:\nCLECT\nSHARE\nO____\nW____\nD____\n\nUnfilled:\nh3. Odorous; fragrant: O____\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LH___\nv3. To happen: EA___\nv4. Dried cassia leaves: CR___\nv5. Anatomically toward the inside: TE___\n\nFilled:\nh2. Rent; split: SHARE\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: _____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: _____\nv3. To happen: _____\nv4. Dried cassia leaves: _____\nv5. Anatomically toward the inside: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h2. SHARE",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "24_1768996537",
+      "indices": [
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h2. SHARE"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.2875
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 10,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. elect",
+          "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: E____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CROWD",
+          "next_state": "Current Board:\nCLECT\nR____\nO____\nW____\nD____\n\nUnfilled:\nh2. Rent; split: R____\nh3. Odorous; fragrant: O____\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nv1. A mob; a Welsh violin: CROWD\n\nChanged:\nh1. To choose: CLECT\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. SHARE",
+          "next_state": "Current Board:\nCLECT\nSHARE\nO____\nW____\nD____\n\nUnfilled:\nh3. Odorous; fragrant: O____\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LH___\nv3. To happen: EA___\nv4. Dried cassia leaves: CR___\nv5. Anatomically toward the inside: TE___\n\nFilled:\nh2. Rent; split: SHARE\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. ODORS",
+          "next_state": "Current Board:\nCLECT\nSHARE\nODORS\nW____\nD____\n\nUnfilled:\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LHD__\nv3. To happen: EAO__\nv4. Dried cassia leaves: CRR__\nv5. Anatomically toward the inside: TES__\n\nFilled:\nh2. Rent; split: SHARE\nh3. Odorous; fragrant: ODORS\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: _____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: _____\nv3. To happen: _____\nv4. Dried cassia leaves: _____\nv5. Anatomically toward the inside: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h3. ODORS",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "24_1768996537",
+      "indices": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h3. ODORS"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.3
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 13,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. elect",
+          "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: E____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CROWD",
+          "next_state": "Current Board:\nCLECT\nR____\nO____\nW____\nD____\n\nUnfilled:\nh2. Rent; split: R____\nh3. Odorous; fragrant: O____\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nv1. A mob; a Welsh violin: CROWD\n\nChanged:\nh1. To choose: CLECT\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. SHARE",
+          "next_state": "Current Board:\nCLECT\nSHARE\nO____\nW____\nD____\n\nUnfilled:\nh3. Odorous; fragrant: O____\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LH___\nv3. To happen: EA___\nv4. Dried cassia leaves: CR___\nv5. Anatomically toward the inside: TE___\n\nFilled:\nh2. Rent; split: SHARE\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. ODORS",
+          "next_state": "Current Board:\nCLECT\nSHARE\nODORS\nW____\nD____\n\nUnfilled:\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LHD__\nv3. To happen: EAO__\nv4. Dried cassia leaves: CRR__\nv5. Anatomically toward the inside: TES__\n\nFilled:\nh2. Rent; split: SHARE\nh3. Odorous; fragrant: ODORS\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. WANNA",
+          "next_state": "Current Board:\nCLECT\nSHARE\nODORS\nWANNA\nD____\n\nUnfilled:\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LHDA_\nv3. To happen: EAON_\nv4. Dried cassia leaves: CRRN_\nv5. Anatomically toward the inside: TESA_\n\nFilled:\nh2. Rent; split: SHARE\nh3. Odorous; fragrant: ODORS\nh4. Slang for \"want to\": WANNA\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: _____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: _____\nv3. To happen: _____\nv4. Dried cassia leaves: _____\nv5. Anatomically toward the inside: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h4. WANNA",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": false,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "24_1768996537",
+      "indices": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h4. WANNA"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.32499999999999996
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 16,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. elect",
+          "next_state": "Current Board:\nELECT\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: E____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nh1. To choose: ELECT\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. CROWD",
+          "next_state": "Current Board:\nCLECT\nR____\nO____\nW____\nD____\n\nUnfilled:\nh2. Rent; split: R____\nh3. Odorous; fragrant: O____\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: L____\nv3. To happen: E____\nv4. Dried cassia leaves: C____\nv5. Anatomically toward the inside: T____\n\nFilled:\nv1. A mob; a Welsh violin: CROWD\n\nChanged:\nh1. To choose: CLECT\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. SHARE",
+          "next_state": "Current Board:\nCLECT\nSHARE\nO____\nW____\nD____\n\nUnfilled:\nh3. Odorous; fragrant: O____\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LH___\nv3. To happen: EA___\nv4. Dried cassia leaves: CR___\nv5. Anatomically toward the inside: TE___\n\nFilled:\nh2. Rent; split: SHARE\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. ODORS",
+          "next_state": "Current Board:\nCLECT\nSHARE\nODORS\nW____\nD____\n\nUnfilled:\nh4. Slang for \"want to\": W____\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LHD__\nv3. To happen: EAO__\nv4. Dried cassia leaves: CRR__\nv5. Anatomically toward the inside: TES__\n\nFilled:\nh2. Rent; split: SHARE\nh3. Odorous; fragrant: ODORS\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. WANNA",
+          "next_state": "Current Board:\nCLECT\nSHARE\nODORS\nWANNA\nD____\n\nUnfilled:\nh5. Prolonged and deep fear: D____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LHDA_\nv3. To happen: EAON_\nv4. Dried cassia leaves: CRRN_\nv5. Anatomically toward the inside: TESA_\n\nFilled:\nh2. Rent; split: SHARE\nh3. Odorous; fragrant: ODORS\nh4. Slang for \"want to\": WANNA\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. DREAD",
+          "next_state": "Current Board:\nCLECT\nSHARE\nODORS\nWANNA\nDREAD\n\nUnfilled:\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: LHDAR\nv3. To happen: EAONE\nv4. Dried cassia leaves: CRRNA\nv5. Anatomically toward the inside: TESAD\n\nFilled:\nh2. Rent; split: SHARE\nh3. Odorous; fragrant: ODORS\nh4. Slang for \"want to\": WANNA\nh5. Prolonged and deep fear: DREAD\n\nChanged:\nh1. To choose: CLECT\nv1. A mob; a Welsh violin: CSOWD\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. To choose: _____\nh2. Rent; split: _____\nh3. Odorous; fragrant: _____\nh4. Slang for \"want to\": _____\nh5. Prolonged and deep fear: _____\nv1. A mob; a Welsh violin: _____\nv2. Pertaining to a hilum, the mark or scar on a seed produced by separation: _____\nv3. To happen: _____\nv4. Dried cassia leaves: _____\nv5. Anatomically toward the inside: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. DREAD",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.5,
+    "trajectory_key": {
+      "search_id": "24_1768996537",
+      "indices": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. DREAD"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.35
+    ],
+    "from_continuation": false
+  }
+]
