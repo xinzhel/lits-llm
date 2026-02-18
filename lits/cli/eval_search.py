@@ -118,7 +118,9 @@ def evaluate_from_checkpoints(
     eval_model_name: str,
     offset: int = 0,
     limit: int = None,
-    dataset_kwargs: dict = None
+    dataset_kwargs: dict = None,
+    input_price_per_m: float = None,
+    output_price_per_m: float = None
 ):
     """
     Evaluate tree search results from checkpoint files.
@@ -365,7 +367,12 @@ def evaluate_from_checkpoints(
     
     # Log token usage metrics from existing inference log
     eval_logger.info("Token Usage Metrics:")
-    report = generate_report(str(result_dir))
+    report_kwargs = {}
+    if input_price_per_m is not None:
+        report_kwargs["input_price_per_m"] = input_price_per_m
+    if output_price_per_m is not None:
+        report_kwargs["output_price_per_m"] = output_price_per_m
+    report = generate_report(str(result_dir), **report_kwargs)
     eval_logger.info(report)
     
     # Save evaluation results
@@ -430,6 +437,8 @@ Examples:
         metavar="MODULE",
         help="Python module(s)/package(s) to include for custom component registration. Auto-loaded from config if not specified."
     )
+    parser.add_argument("--input-price", type=float, default=None, help="Price per 1M input tokens (for cost estimation)")
+    parser.add_argument("--output-price", type=float, default=None, help="Price per 1M output tokens (for cost estimation)")
     
     args = parser.parse_args()
     
@@ -486,7 +495,9 @@ Examples:
             eval_model_name=eval_model_name,
             offset=args.offset,
             limit=args.limit,
-            dataset_kwargs=dataset_kwargs
+            dataset_kwargs=dataset_kwargs,
+            input_price_per_m=args.input_price,
+            output_price_per_m=args.output_price
         )
     except Exception as e:
         print(f"Error during evaluation: {e}", file=sys.stderr)

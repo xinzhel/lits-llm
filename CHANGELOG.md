@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-02-16 v0.2.11 (Inference Report Improvements and Dry-run Fix)
+
+- inference_report.py: add Cost to BY INSTANCE; auto-hide zero Time columns
+- eval_search.py: add --input-price/--output-price CLI args; print eval log path
+- search.py: skip load_resource() in --dry-run mode for tool-use tasks
 
 ## 2026-02-15 v0.2.11
 

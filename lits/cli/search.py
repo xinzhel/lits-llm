@@ -356,11 +356,14 @@ def main() -> int:
     task_name = config.dataset
     dataset_kwargs = parse_dataset_kwargs(cli_args)
 
-    # Load tool use spec if applicable
-    if has_resource(config.dataset):
+    # Load tool use spec if applicable (skip DB connection in dry-run mode)
+    if has_resource(config.dataset) and not cli_args.dry_run:
         if os.path.exists("mapeval/.env"):
             load_dotenv("mapeval/.env")
         tool_use_spec = load_resource(config.dataset)
+        is_tool_use = True
+    elif has_resource(config.dataset):
+        tool_use_spec = None
         is_tool_use = True
     else:
         tool_use_spec = None

@@ -30,9 +30,18 @@ def _format_table(
     show_percentage: bool = False,
     total_input_tokens: int = 0
 ) -> str:
-    """Format data as an ASCII table."""
+    """Format data as an ASCII table.
+    
+    Automatically hides the running_time column if all values are 0.0.
+    """
     if not data:
         return f"\n{title}:\n  No data available.\n"
+    
+    # Hide running_time column if all values are 0.0
+    if "running_time" in columns:
+        all_zero = all(m.get("running_time", 0) == 0.0 for m in data.values())
+        if all_zero:
+            columns = [c for c in columns if c != "running_time"]
     
     col_headers = {
         "num_calls": "Calls",
@@ -157,7 +166,8 @@ def generate_report(
     lines.append(f"  Total Calls:    {total['num_calls']:,}")
     lines.append(f"  Input Tokens:   {format_large_number(total['input_tokens'])}")
     lines.append(f"  Output Tokens:  {format_large_number(total['output_tokens'])}")
-    lines.append(f"  Total Time:     {total['running_time']:.1f}s ({total['running_time']/3600:.2f}h)")
+    if total['running_time'] > 0:
+        lines.append(f"  Total Time:     {total['running_time']:.1f}s ({total['running_time']/3600:.2f}h)")
     lines.append(f"  Est. Cost:      ${total_cost:.2f}")
     
     # By component
@@ -190,11 +200,17 @@ def generate_report(
     
     # By instance (top N)
     if by_instance:
+        # Add cost to instance metrics
+        for inst, metrics in by_instance.items():
+            metrics["cost"] = calculate_cost(
+                metrics["input_tokens"], metrics["output_tokens"],
+                input_price_per_m, output_price_per_m
+            )
         sorted_instances = sorted(by_instance.items(), key=lambda x: -x[1]["input_tokens"])
         top_data = dict(sorted_instances[:top_instances])
         lines.append(_format_table(
             top_data,
-            columns=["num_calls", "input_tokens", "output_tokens", "running_time"],
+            columns=["num_calls", "input_tokens", "output_tokens", "running_time", "cost"],
             title=f"BY INSTANCE (Top {min(top_instances, len(by_instance))} of {len(by_instance)})"
         ))
     
