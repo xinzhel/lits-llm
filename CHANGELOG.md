@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-02-18 v0.3.1
+
+### Added
+- PyPI publish workflow (`.github/workflows/publish.yml`)
+
+### Fixed
+- `lits/cli/chain.py`: remove stale `reasoning_method` kwarg from `EnvChainConfig`
+- `README.md`: correct Python API imports (`MCTSConfig` instead of `BaseSearchConfig`)
+- `pyproject.toml`: fix project URLs to point to `lits-llm` repo
+
+### Changed
+- Bump version to 0.3.1
+
 ## 2026-02-16 v0.2.11 (Inference Report Improvements and Dry-run Fix)
 
 - inference_report.py: add Cost to BY INSTANCE; auto-hide zero Time columns

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lits-llm"
-version = "0.3.0"
+version = "0.3.1"
 description = "LITS: LLM Inference via Tree Search — modular agentic reasoning framework."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -89,9 +89,9 @@ lits-chain = "lits.cli.chain:main"
 lits-eval-chain = "lits.cli.eval_chain:main"
 
 [project.urls]
-Homepage = "https://github.com/xinzhel/langagent"
-Repository = "https://github.com/xinzhel/langagent"
-Issues = "https://github.com/xinzhel/langagent/issues"
+Homepage = "https://github.com/xinzhel/lits-llm"
+Repository = "https://github.com/xinzhel/lits-llm"
+Issues = "https://github.com/xinzhel/lits-llm/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
