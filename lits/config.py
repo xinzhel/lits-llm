@@ -407,6 +407,12 @@ class ExperimentConfig:
         config_dict = {k: v for k, v in search_args.items() 
                        if k not in _EXCLUDE_FROM_SEARCH_CONFIG}
         
+        # Add top-level fields from ExperimentConfig (not in search_args)
+        config_dict["policy_model_name"] = self.policy_model_name
+        config_dict["eval_model_name"] = self.eval_model_name
+        config_dict["dataset"] = self.dataset
+        config_dict["output_dir"] = self.output_dir
+        
         if self.search_algorithm == "mcts":
             return MCTSConfig(
                 cum_reward=np.mean,
