@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-02-21 Unreleased (Tree Search Log Metadata)
+
+### Added
+- `set_log_field()` method in `BaseTreeSearch` (`lits/agents/tree/search_base.py`)
+- `on_step` callback parameter in `_continuation()` (`lits/agents/tree/continuation.py`)
+- `on_step` callback parameter in `_simulate()` (`lits/agents/tree/mcts.py`)
+- `get_metrics_by_depth()` method in `InferenceLogger` (`lits/lm/base.py`)
+- Tree metadata logging: `iteration` and `trajectory_key` fields in inference logs
+
 ## 2026-02-18 v0.3.1
 
 ### Added
@@ -78,6 +87,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Moved BlocksWorld prompts (policy, reward, transition) to decorator-based registration in `lits_benchmark/blocksworld.py`
 
 ## 2026-02-09 v0.2.9 (Search Registry)
+See details in `.kiro/specs/x-base-tree-search`
+
 ### Added
 - `BaseTreeSearch` ABC and `SearchResult` dataclass (`lits/agents/tree/search_base.py`)
 - `InferenceLogger.log_context()` for binding search-phase metadata to LLM call records

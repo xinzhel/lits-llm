@@ -200,6 +200,14 @@ class BFSSearch(BaseTreeSearch):
                 log_event(logger, "BFS", f"Runtime limit exceeded: {config.runtime_limit_before_iter}", level="debug")
                 break
             log_phase(logger, "BFS", f"Depth {depth} Begin")
+            
+            # Set iteration (depth) field for all LLM calls at this depth
+            self.set_log_field("iteration", depth)
+            
+            # Define callback to update trajectory_key at each hop
+            def update_traj_key(node):
+                if node.trajectory_key:
+                    self.set_log_field("trajectory_key", node.trajectory_key.path_str)
 
             # 1) Take all candidates scheduled at this depth, then beam-prune
             frontier = frontier_buckets.get(depth, [])
@@ -221,6 +229,9 @@ class BFSSearch(BaseTreeSearch):
 
             # 2) Loop each node in the frontier at this depth (Begin)
             for node in frontier:
+                # Update trajectory_key for current node
+                update_traj_key(node)
+                
                 if _is_terminal_with_depth_limit(node, config.max_steps, config.force_terminating_on_depth_limit):
                     if node not in terminal_nodes:
                         terminal_nodes.append(node)
@@ -254,7 +265,8 @@ class BFSSearch(BaseTreeSearch):
                         threshold_gamma=config.reward_gamma,
                         threshold_gamma1=config.reward_gamma1,
                         n_actions_for_bne=config.n_actions_for_bne,
-                        use_critic=False
+                        use_critic=False,
+                        on_step=update_traj_key
                     )
 
                     # Place each continuation hop at correct future depth
@@ -270,6 +282,9 @@ class BFSSearch(BaseTreeSearch):
                             frontier_buckets[cnode.depth].append(cnode)
                         buckets_with_terminal[cnode.depth].append(cnode)
                     node = cont_trace[-1]
+                    
+                    # Update trajectory_key after continuation
+                    update_traj_key(node)
 
                     if _is_terminal_with_depth_limit(node, config.max_steps, config.force_terminating_on_depth_limit):
                         if node not in terminal_nodes:

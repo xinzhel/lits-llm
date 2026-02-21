@@ -401,6 +401,23 @@ class InferenceLogger:
                 return (component, phase)
             return None
         return self._get_grouped_metrics(group_fn)
+
+    def get_metrics_by_depth(self) -> dict:
+        """Aggregate metrics by tree depth (derived from trajectory_key).
+
+        Depth is computed as the number of "/" separators in trajectory_key.
+        For example, "q/0/1/2" has depth 3.
+
+        Returns:
+            Dict mapping depth (int) to aggregated metrics.
+        """
+        def depth_from_record(rec):
+            tk = rec.get("trajectory_key")
+            if tk is None:
+                return None
+            return tk.count("/")
+        return self._get_grouped_metrics(depth_from_record)
+
             
 
     def __str__(self):

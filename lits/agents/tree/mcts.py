@@ -344,9 +344,15 @@ def _simulate(
     policy, 
     reward_model, 
     use_critic=False, 
-    roll_out_steps=10000
+    roll_out_steps=10000,
+    on_step: callable=None
 ):
+    """Simulate phase of MCTS.
     
+    Args:
+        on_step: Optional callback called with each new node during simulation.
+                 Used to update trajectory_key in inference logs at each step.
+    """
     assert path[-1].state is not None, "node.state should not be None for rollout"
 
     log_phase(logger, "Simulate", "Begin")
@@ -377,6 +383,11 @@ def _simulate(
         selected_idx = mcts_search_config.simulate_choice(fast_rewards)
         node = node.children[selected_idx]
         node.is_simulated = True
+        
+        # Update trajectory_key before LLM calls
+        if on_step is not None:
+            on_step(node)
+        
         _world_modeling(query_or_goals, query_idx, node, transition_model=world_model, reward_model=reward_model, from_phase="simulate")
         logger.debug(f"NEW NODE Transfer with the action: {node.action}. The resulting state: {node.state}")
         path.append(node)
@@ -504,7 +515,19 @@ class MCTSSearch(BaseTreeSearch):
         for idx_iter in trange(config.n_iters, desc='MCTS iteration', leave=False):
             self.check_runtime_limit()
             log_phase(logger, "MCTS", f"Iteration {idx_iter}")
+            
+            # Set iteration field for all LLM calls in this iteration
+            self.set_log_field("iteration", idx_iter)
+            
+            # Define callback to update trajectory_key at each hop
+            def update_traj_key(node):
+                if node.trajectory_key:
+                    self.set_log_field("trajectory_key", node.trajectory_key.path_str)
+            
             path = _select(config.w_exp, self.root, config.max_steps, config.force_terminating_on_depth_limit)
+            
+            # Update trajectory_key after select
+            update_traj_key(path[-1])
 
             # ====== Terminate Check (after select) ======
             if _is_terminal_with_depth_limit_and_r_threshold(path[-1], config.max_steps, config.force_terminating_on_depth_limit, config.r_terminating):
@@ -529,8 +552,12 @@ class MCTSSearch(BaseTreeSearch):
                     threshold_gamma=config.reward_gamma,
                     threshold_gamma1=config.reward_gamma1,
                     n_actions_for_bne=config.n_actions_for_bne,
-                    use_critic=config.use_critic)
+                    use_critic=config.use_critic,
+                    on_step=update_traj_key)
                 path.extend(continuous_trace[1:])
+                
+                # Update trajectory_key after continuation (path[-1] changed)
+                update_traj_key(path[-1])
 
                 if _is_terminal_with_depth_limit_and_r_threshold(path[-1], config.max_steps, config.force_terminating_on_depth_limit, config.r_terminating):
                     trace_in_each_iter.append(deepcopy(path))
@@ -627,7 +654,8 @@ class MCTSSearch(BaseTreeSearch):
             is_terminal_for_repeat, unselected_terminal_paths = _simulate(
                 query, query_idx, path, config,
                 self.world_model, self.policy, self.reward_model,
-                use_critic=config.use_critic, roll_out_steps=config.roll_out_steps
+                use_critic=config.use_critic, roll_out_steps=config.roll_out_steps,
+                on_step=update_traj_key
             )
 
             # ====== Terminate on First Solution ======

@@ -276,6 +276,22 @@ class BaseTreeSearch(ABC):
             return self.inference_logger.log_context(**fields)
         return contextlib.nullcontext()
 
+    def set_log_field(self, key: str, value):
+        """Set a persistent field for all subsequent LLM call records.
+
+        Unlike ``log_context()`` which is a context manager, this method
+        sets a field that persists until explicitly changed or cleared.
+        Useful for fields like ``iteration`` that remain constant across
+        multiple LLM calls within a phase.
+
+        Args:
+            key: Field name (e.g., "iteration", "trajectory_key")
+            value: Field value to attach to all subsequent records
+        """
+        if self.inference_logger is not None:
+            self.inference_logger._extra_fields[key] = value
+
+
     # ------------------------------------------------------------------
     # Abstract interface
     # ------------------------------------------------------------------

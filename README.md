@@ -1,6 +1,6 @@
 # LiTS — Language Inference via Tree Search
 
-A modular Python framework for building LLM agents with tree search (MCTS, BFS) and chain reasoning (ReAct), supporting multi-provider LLMs and tool use.
+A modular Python framework for LLM reasoning and planning with tree search (e.g., MCTS, BFS and other custom search algorithms) and chain reasoning (e.g.,ReAct).
 
 ## Why LiTS?
 
