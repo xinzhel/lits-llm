@@ -211,7 +211,7 @@ def _assign_fast_reward(node, reward_model, query_or_goals, query_idx, from_phas
     fast_reward, fast_reward_details = reward_model.fast_reward(
         node.parent.state, step_or_action, query_or_goals=query_or_goals, query_idx=query_idx, from_phase=from_phase
     )
-    assert isinstance(fast_reward, float), f"fast_reward should be a float, got {type(fast_reward)} from {reward_model.__class__}"
+    assert isinstance(fast_reward, (int, float)), f"fast_reward should be a number, got {type(fast_reward)} from {reward_model.__class__}"
     assert isinstance(fast_reward_details, dict), f"fast_reward_details should be a dict, got {type(fast_reward_details)} from {reward_model.__class__}"
     
     node.fast_reward = fast_reward
