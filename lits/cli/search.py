@@ -418,8 +418,10 @@ def main() -> int:
         search_config.dataset_kwargs = dataset_kwargs
     search_config.save_config(result_dir)
 
-    # Login to Hugging Face
-    login(token=os.getenv("HF_TOKEN"))
+    # Login to Hugging Face (only if HF_TOKEN is set)
+    hf_token = os.getenv("HF_TOKEN")
+    if hf_token:
+        login(token=hf_token)
 
     # Load models
     search_args = config.get_search_args()
