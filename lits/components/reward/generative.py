@@ -169,7 +169,7 @@ class GenerativePRM(RewardModel):
                     probs = np.exp(logits) / np.sum(np.exp(logits))
                     score = float(probs[0])
                     if score_type == "correctness":
-                        score = 1 if score > 0.6 else 0
+                        score = 1.0 if score > 0.6 else 0.0
                     logger.debug(f"Logit {score_type} score: {score}")
                     logger.debug(e)
                 
@@ -178,7 +178,7 @@ class GenerativePRM(RewardModel):
                     
                 if "correctness" in role_prefix and score == 0:
                     log_phase(logger, f"Sample-{score_type}", f"End (early stop)")
-                    return 0
+                    return 0.0
             log_event(logger, "SAMPLE", f"Sampled {n_sample} {score_type} scores: {sampled_scores}", level="debug")
             log_phase(logger, f"Sample-{score_type}", "End")
             assert len(sampled_scores) == n_sample
@@ -188,7 +188,7 @@ class GenerativePRM(RewardModel):
         correctness_score = generate_score(self._call_model_with_role, "evaluator_correctness", user_message, enable_thinking=self.think_for_correctness)
         
         if correctness_score == 0:
-            return 0
+            return 0.0
         else:
             self.base_model.sys_prompt = self.usefulness_instruction
             usefulness_score = generate_score(self._call_model_with_role, "evaluator_usefulness", user_message, enable_thinking=self.think_for_usefulness)
