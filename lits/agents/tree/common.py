@@ -283,8 +283,28 @@ def extract_answers_from_terminal_nodes(
     check_nodes = terminal_nodes_collected
     logger.debug(f"Processing {len(check_nodes)} terminal nodes")
     
+    def get_state_for_extraction(node):
+        """Get state for answer extraction, falling back to action if state is empty."""
+        state = node.state
+        # Check if state is empty or contains only empty ThoughtSteps
+        if state and len(state) > 0:
+            # Check if state has actual content (not just type markers)
+            has_content = any(
+                hasattr(step, 'action') and step.action 
+                for step in state if hasattr(step, 'action')
+            )
+            if has_content:
+                return state
+        
+        # Fallback: create a synthetic state from node.action if available
+        if hasattr(node, 'action') and node.action:
+            from lits.structures.qa import ThoughtStep
+            return [ThoughtStep(action=node.action)]
+        
+        return state
+    
     # Extract answers and rewards
-    extracted_answers = [retrieve_answer(node.state, query) for node in check_nodes]
+    extracted_answers = [retrieve_answer(get_state_for_extraction(node), query) for node in check_nodes]
     extracted_rewards = [float(node.fast_reward) for node in check_nodes]
     logger.debug(f"Extracted answers: {extracted_answers}")
     logger.debug(f"Extracted rewards: {extracted_rewards}")

@@ -26,6 +26,12 @@ class ThoughtStep(Step):
         """Convert the step into a chat message."""
         return [{"role": "assistant", "content": str(self.action)}]
     
+    def to_dict(self) -> dict:
+        """Serialize the step for checkpointing, including the action field."""
+        data = super().to_dict()
+        data["action"] = self.action
+        return data
+
     @classmethod
     def verbalize_state(cls, question: str, state: list["ThoughtStep"]) -> str:
         """Verbalize ThoughtStep state into a prompt string.

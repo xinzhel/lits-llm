@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Callable
 
 from dotenv import load_dotenv, find_dotenv
+from tqdm import tqdm
 
 from lits.agents.tree.node import SearchNode, MCTSNode
 from lits.agents.tree.common import extract_answers_from_terminal_nodes
@@ -120,7 +121,8 @@ def evaluate_from_checkpoints(
     limit: int = None,
     dataset_kwargs: dict = None,
     input_price_per_m: float = None,
-    output_price_per_m: float = None
+    output_price_per_m: float = None,
+    verbose: bool = False
 ):
     """
     Evaluate tree search results from checkpoint files.
@@ -132,14 +134,15 @@ def evaluate_from_checkpoints(
         offset: Dataset offset used during search
         limit: Dataset limit used during search
         dataset_kwargs: Dataset-specific arguments (loaded from config)
+        verbose: If True, print detailed output to console
     """
     result_dir = Path(result_dir)
     
-    # Setup logging
+    # Setup logging - only log to file, not console (unless verbose)
     eval_logger = setup_logging(
         run_id="eval",
         result_dir=result_dir,
-        add_console_handler=True,
+        add_console_handler=verbose,
         verbose=True
     )
     
@@ -245,7 +248,8 @@ def evaluate_from_checkpoints(
     ground_truths = []
     soft_scores = []  # For env_grounded tasks: word-level accuracy scores
     
-    for filepath in filtered_files:
+    # Use tqdm progress bar for console feedback
+    for filepath in tqdm(filtered_files, desc="Evaluating", unit="file"):
         try:
             # Load terminal nodes
             data = load_terminal_nodes_from_file(filepath)
@@ -309,11 +313,8 @@ def evaluate_from_checkpoints(
             predictions.append(answer_pred)
             ground_truths.append(ground_truth)
             
-            # Use info level for first few examples to help debug
-            if len(predictions) < 5:
-                eval_logger.info(f"Query {query_idx}: Pred='{answer_pred}', Truth='{ground_truth}'")
-            else:
-                eval_logger.debug(f"Query {query_idx}: Pred={answer_pred}, Truth={ground_truth}")
+            # Log to file only
+            eval_logger.debug(f"Query {query_idx}: Pred='{answer_pred}', Truth='{ground_truth}'")
             
         except Exception as e:
             eval_logger.error(f"Error processing {filepath}: {e}")
@@ -327,7 +328,7 @@ def evaluate_from_checkpoints(
     
     correct_count = 0
     eval_logger.info("=" * 40)
-    eval_logger.info("Detailed comparison (first 10):")
+    eval_logger.info("Detailed comparison:")
     for i, (pred, truth) in enumerate(zip(predictions, ground_truths)):
         if is_env_grounded:
             # Exact string match for env_grounded tasks
@@ -339,10 +340,8 @@ def evaluate_from_checkpoints(
             except (AssertionError, ValueError) as e:
                 # Fallback to exact match if eval_output fails
                 correct = (pred == truth)
-                if i < 10:
-                    eval_logger.info(f"  [{i}] eval_output failed: {e}")
-        if i < 10:
-            eval_logger.info(f"  [{i}] Pred='{pred}' (type={type(pred).__name__}), Truth='{truth}' (type={type(truth).__name__}), Correct={correct}")
+                eval_logger.debug(f"  [{i}] eval_output failed: {e}")
+        eval_logger.info(f"  [{i}] Pred='{pred}', Truth='{truth}', Correct={correct}")
         if correct:
             correct_count += 1
     eval_logger.info("=" * 40)
@@ -355,6 +354,7 @@ def evaluate_from_checkpoints(
     if is_env_grounded and soft_scores:
         soft_accuracy = sum(soft_scores) / len(soft_scores)
     
+    # Log detailed results to file
     eval_logger.info("=" * 80)
     eval_logger.info(f"Evaluation Results for {result_dir.name}")
     eval_logger.info(f"Dataset: {dataset_name}")
@@ -374,6 +374,20 @@ def evaluate_from_checkpoints(
         report_kwargs["output_price_per_m"] = output_price_per_m
     report = generate_report(str(result_dir), **report_kwargs)
     eval_logger.info(report)
+    
+    # Print concise summary to console
+    print()
+    print("=" * 60)
+    print(f"  Evaluation Results: {result_dir.name}")
+    print("=" * 60)
+    print(f"  Dataset:    {dataset_name}")
+    print(f"  Examples:   {total_count}")
+    print(f"  Correct:    {correct_count}")
+    print(f"  Accuracy:   {accuracy:.4f} ({accuracy*100:.2f}%)")
+    if soft_accuracy is not None:
+        print(f"  Soft Acc:   {soft_accuracy:.4f} ({soft_accuracy*100:.2f}%)")
+    print("=" * 60)
+    print()
     
     # Save evaluation results
     eval_results = {
@@ -439,6 +453,7 @@ Examples:
     )
     parser.add_argument("--input-price", type=float, default=None, help="Price per 1M input tokens (for cost estimation)")
     parser.add_argument("--output-price", type=float, default=None, help="Price per 1M output tokens (for cost estimation)")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print detailed output to console (default: progress bar + summary only)")
     
     args = parser.parse_args()
     
@@ -497,7 +512,8 @@ Examples:
             limit=args.limit,
             dataset_kwargs=dataset_kwargs,
             input_price_per_m=args.input_price,
-            output_price_per_m=args.output_price
+            output_price_per_m=args.output_price,
+            verbose=args.verbose
         )
     except Exception as e:
         print(f"Error during evaluation: {e}", file=sys.stderr)

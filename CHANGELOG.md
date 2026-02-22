@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-02-22 Unreleased (Eval CLI Improvements)
+
+### Fixed
+- `ThoughtStep.to_dict()` now includes `action` field for proper serialization (`lits/structures/qa.py`)
+- `extract_answers_from_terminal_nodes` falls back to `node.action` when state is empty (`lits/agents/tree/common.py`)
+
+### Changed
+- `lits-eval` now shows progress bar + concise summary by default (`lits/cli/eval_search.py`)
+- Added `-v`/`--verbose` flag for detailed console output
+- Detailed logs saved to `eval.log` in result directory
+
+### Docs
+- Added `lits-eval` usage section to `docs/CAVEAT.md`
+
 ## 2026-02-22 Unreleased (ExperimentConfig Serialization)
 
 ### Added
