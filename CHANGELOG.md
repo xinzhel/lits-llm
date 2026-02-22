@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-02-22 Unreleased (ThinkPRM TGI Support)
+
+### Changed
+- `ThinkPRM` now uses `base_model` from `--eval-model` instead of creating its own TGI/SageMaker wrapper (`lits/components/reward/thinkprm.py`)
+- Deleted `ThinkPRMTGI` wrapper class - functionality moved to `ThinkPRM`
+
+### Fixed
+- `ThinkPRM` now properly passes `base_model` to parent `RewardModel` class
+
 ## 2026-02-22 Unreleased (Eval CLI Improvements)
 
 ### Fixed

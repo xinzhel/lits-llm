@@ -43,11 +43,13 @@ Usage:
 """
 
 import json
+import os
 import re
 import logging
 from typing import Dict, List, Literal, Optional, Union
 
 from ..base import RewardModel
+from ..registry import register_reward_model
 from ...structures import StateT, ActionT
 from ...structures.base import Step
 from ...log import log_event
@@ -405,23 +407,30 @@ class ThinkPRMSageMaker:
 # ThinkPRM - RewardModel interface for LiTS tree search
 # =============================================================================
 
+@register_reward_model("thinkprm", task_type="language_grounded")
 class ThinkPRM(RewardModel):
-    """Process Reward Model using ThinkPRM-14B deployed on AWS SageMaker.
+    """Process Reward Model using ThinkPRM-14B.
     
     ThinkPRM is a 14B parameter model (based on Qwen2.5-14B-Instruct) trained to 
     verify mathematical reasoning steps. It outputs \\boxed{correct} or \\boxed{incorrect} 
     for each step, along with an overall assessment of solution correctness.
     
-    This class wraps the SageMaker endpoint to provide the standard RewardModel interface
-    for use with LITS tree search algorithms (MCTS, BFS, etc.).
+    This class uses the base_model passed from create_components() (via --eval-model CLI flag).
+    For TGI deployment, use: --eval-model tgi://http://thinkprm-server:8080
     
     Config Args (via --component-arg):
-        thinkprm_endpoint: SageMaker endpoint name (default: 'thinkprm-14b-endpoint')
-        thinkprm_region: AWS region where endpoint is deployed (default: 'us-east-1')
         thinkprm_scoring_mode: How to compute reward from step labels (default: 'last_step')
             - 'last_step': Use only the new step's correctness (best for tree search)
             - 'prefix': All steps must be correct (best for complete solutions)
             - 'average': Average of all step labels (softer scoring)
+    
+    Usage:
+        # TGI deployment
+        lits-search --eval-model tgi://http://thinkprm:8080 --reward thinkprm
+        
+        # With custom scoring mode
+        lits-search --eval-model tgi://http://thinkprm:8080 --reward thinkprm \\
+            --component-arg thinkprm_scoring_mode=prefix
     
     Attributes:
         TASK_TYPE: "language_grounded" - for math QA and reasoning tasks
@@ -429,92 +438,166 @@ class ThinkPRM(RewardModel):
     
     TASK_TYPE: str = "language_grounded"
     
+    # Prompt template for ThinkPRM verification
+    DEFAULT_INSTRUCTION = (
+        "Review and critique each step in the proposed solution to determine "
+        "whether each step is correct. If the solution is incomplete, only verify "
+        "the provided steps. For EACH step, output \\boxed{correct} if that step "
+        "is correct or \\boxed{incorrect} if that step is wrong. You must provide "
+        "exactly one \\boxed{} judgment for each step."
+    )
+    
     @classmethod
     def from_config(cls, base_model, search_args: dict, component_args: dict, **kwargs):
         """Create ThinkPRM from configuration dicts.
         
-        Note: ThinkPRM does not use base_model - it uses its own SageMaker endpoint.
-        
         Args:
-            base_model: Ignored (ThinkPRM uses SageMaker endpoint)
-            search_args: Search algorithm parameters (not used)
+            base_model: LLM model for verification (e.g., TGIChatModel from --eval-model)
+            search_args: Search algorithm parameters
             component_args: Component parameters:
-                - thinkprm_endpoint: SageMaker endpoint name (default: "thinkprm-14b-endpoint")
-                - thinkprm_region: AWS region (default: "us-east-1")
                 - thinkprm_scoring_mode: Scoring mode (default: "last_step")
-            **kwargs: Additional arguments (ignored)
+            **kwargs: Additional arguments
         
         Returns:
             ThinkPRM instance
         """
         return cls(
-            endpoint_name=component_args.get('thinkprm_endpoint', 'thinkprm-14b-endpoint'),
-            region_name=component_args.get('thinkprm_region', 'us-east-1'),
+            base_model=base_model,
             scoring_mode=component_args.get('thinkprm_scoring_mode', 'last_step'),
+            reward_alpha=search_args.get('reward_alpha', 1.0),
         )
     
     def __init__(
         self,
-        endpoint_name: str = "thinkprm-14b-endpoint",
-        region_name: str = "us-east-1",
-        max_new_tokens: int = 4096,
-        temperature: float = 0.01,
-        reward_alpha: float = 1.0,
+        base_model,
         scoring_mode: Literal["last_step", "prefix", "average"] = "last_step",
+        reward_alpha: float = 1.0,
+        temperature: float = 0.01,
+        max_new_tokens: int = 4096,
         **kwargs
     ) -> None:
         """
-        Initialize ThinkPRM with SageMaker endpoint configuration.
+        Initialize ThinkPRM.
         
         Args:
-            endpoint_name: Name of the deployed SageMaker endpoint.
-                          Default: "thinkprm-14b-endpoint"
-            region_name: AWS region where endpoint is deployed.
-                        Default: "us-east-1"
-            max_new_tokens: Maximum tokens for verification generation.
-                           Use 2048+ for complex multi-step problems.
-                           Default: 2048
-            temperature: Sampling temperature. TGI requires > 0.
-                        Use 0.01 for near-deterministic output.
-                        Default: 0.01
-            reward_alpha: Exponent for reward transformation.
-                         reward = score ** reward_alpha
-                         Default: 1.0 (no transformation)
+            base_model: LLM model for verification (e.g., TGIChatModel, BedrockChatModel)
             scoring_mode: How to compute reward from step labels:
                 - "last_step": Use only the new step's correctness (best for tree search)
                 - "prefix": All steps must be correct (best for complete solutions)
                 - "average": Average of all step labels (softer scoring)
-                Default: "last_step"
-            **kwargs: Additional RewardModel arguments.
-                     Note: base_model and task_prompt_spec are ignored as ThinkPRM
-                     uses its own model via SageMaker.
+            reward_alpha: Exponent for reward transformation (reward = score ** reward_alpha)
+            temperature: Sampling temperature (use 0.01 for near-deterministic)
+            max_new_tokens: Maximum tokens for verification generation
+            **kwargs: Additional RewardModel arguments
         """
-        # Remove unused base RewardModel args
-        kwargs.pop('base_model', None)
+        # Remove unused args that might be passed
         kwargs.pop('task_prompt_spec', None)
         
         super().__init__(
-            base_model=None,
+            base_model=base_model,
             task_prompt_spec=None,
             reward_alpha=reward_alpha,
             **kwargs
         )
         
         self.scoring_mode = scoring_mode
+        self.temperature = max(temperature, 0.01)  # TGI requires > 0
+        self.max_new_tokens = max_new_tokens
         
-        # Initialize the SageMaker wrapper
-        self._prm = ThinkPRMSageMaker(
-            endpoint_name=endpoint_name,
-            region_name=region_name,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-        )
-        
+        model_name = getattr(base_model, 'model_name', str(type(base_model).__name__))
         logger.info(
-            f"Initialized ThinkPRM RewardModel: "
-            f"endpoint={endpoint_name}, scoring_mode={scoring_mode}"
+            f"Initialized ThinkPRM: model={model_name}, scoring_mode={scoring_mode}"
         )
     
+    # =========================================================================
+    # Prompt Formatting and Output Parsing
+    # =========================================================================
+    
+    def _format_prompt(self, question: str, steps: List[str]) -> str:
+        """
+        Format the verification prompt content.
+        
+        Args:
+            question: The math problem statement
+            steps: List of reasoning steps to verify
+            
+        Returns:
+            Formatted prompt string
+        """
+        formatted_steps = ""
+        for i, step in enumerate(steps):
+            formatted_steps += f"Step {i+1}: {step}\n"
+        formatted_steps = formatted_steps.strip()
+        
+        content = f"""You are given a math problem and a proposed step-by-step solution:
+
+[Math Problem]
+{question}
+
+[Solution]
+{formatted_steps}
+{self.DEFAULT_INSTRUCTION}"""
+        
+        return content
+    
+    def _extract_step_labels(self, output: str, expected_steps: int) -> List[int]:
+        """
+        Extract step correctness labels from model output.
+        
+        The model outputs labels in two possible formats:
+        1. \\boxed{correct} or \\boxed{incorrect} - simple format
+        2. \\boxed{\\text{correct}} or \\boxed{\\text{incorrect}} - LaTeX format
+        
+        Args:
+            output: Raw model output text
+            expected_steps: Number of steps we expect labels for
+            
+        Returns:
+            List of labels (1=correct, 0=incorrect), length <= expected_steps
+        """
+        pattern = r'\\boxed\{(?:\\text\{)?(correct|incorrect)(?:\})?\}'
+        matches = re.findall(pattern, output, re.IGNORECASE)
+        
+        step_labels = []
+        for match in matches:
+            if match.lower() == "correct":
+                step_labels.append(1)
+            else:
+                step_labels.append(0)
+        
+        # Only take the first N matches to avoid counting repeated outputs
+        step_labels = step_labels[:expected_steps]
+        return step_labels
+    
+    def _extract_overall_correctness(self, output: str) -> Optional[bool]:
+        """Extract overall solution correctness from model output."""
+        output_lower = output.lower()
+        
+        if 'is the solution correct? no' in output_lower:
+            return False
+        elif 'is the solution correct? yes' in output_lower:
+            return True
+        
+        return None
+    
+    def _compute_prefix_score(self, step_labels: List[int], output: str) -> float:
+        """Compute overall correctness score from step labels and output."""
+        if step_labels:
+            return 1.0 if all(label == 1 for label in step_labels) else 0.0
+        
+        overall = self._extract_overall_correctness(output)
+        if overall is not None:
+            return 1.0 if overall else 0.0
+        
+        # Fallback heuristic
+        output_lower = output.lower()
+        correct_count = output_lower.count('correct')
+        incorrect_count = output_lower.count('incorrect')
+        
+        if correct_count + incorrect_count == 0:
+            return 0.5
+        
+        return correct_count / (correct_count + incorrect_count)
     # =========================================================================
     # State/Action Processing
     # =========================================================================
@@ -563,7 +646,7 @@ class ThinkPRM(RewardModel):
         This is the main entry point for tree search algorithms. It:
         1. Extracts existing steps from state
         2. Adds the new action/step
-        3. Calls ThinkPRM to verify all steps
+        3. Calls the base_model to verify all steps
         4. Computes reward based on scoring_mode
         
         Args:
@@ -593,36 +676,46 @@ class ThinkPRM(RewardModel):
         
         log_event(logger, "THINKPRM", f"Evaluating {len(all_steps)} steps (query_idx={query_idx}, phase={from_phase})", level="debug")
         
-        # Call ThinkPRM
-        results = self._prm.predict_correctness_batch(
-            questions=[query],
-            prefix_steps_batch=[all_steps]
-        )
+        # Format prompt and call model
+        prompt = self._format_prompt(query, all_steps)
         
-        result = results[0]
+        try:
+            response = self.base_model(
+                prompt,
+                role="thinkprm",
+                temperature=self.temperature,
+                max_new_tokens=self.max_new_tokens,
+            )
+            output = response.text
+        except Exception as e:
+            logger.error(f"Error calling ThinkPRM model: {e}")
+            output = ""
         
         # Extract step labels
-        step_labels = result['step_labels'][0] if result['step_labels'] else []
+        step_labels = self._extract_step_labels(output, expected_steps=len(all_steps))
+        
+        # Pad step_labels if model stopped early
+        if len(step_labels) < len(all_steps):
+            logger.debug(
+                f"Model returned {len(step_labels)}/{len(all_steps)} labels. "
+                f"Padding with 0s (may indicate early stop on incorrect step)"
+            )
+            step_labels = step_labels + [0] * (len(all_steps) - len(step_labels))
+        
         new_step_label = step_labels[-1] if step_labels else 0
         
         # Compute score based on scoring_mode
         if step_labels:
             if self.scoring_mode == "last_step":
-                # Only care about the new step's correctness
-                # This is best for tree search where we evaluate partial solutions
                 score = float(new_step_label)
             elif self.scoring_mode == "prefix":
-                # All steps must be correct
-                # This is best for evaluating complete solutions
                 score = 1.0 if all(label == 1 for label in step_labels) else 0.0
             elif self.scoring_mode == "average":
-                # Average of all step labels (softer scoring)
                 score = sum(step_labels) / len(step_labels)
             else:
                 raise ValueError(f"Unknown scoring_mode: {self.scoring_mode}")
         else:
-            # Fallback to prefix_score if no step labels extracted
-            score = result['prefix_score']
+            score = self._compute_prefix_score(step_labels, output)
         
         # Build details dict for debugging/logging
         details = {
@@ -630,9 +723,9 @@ class ThinkPRM(RewardModel):
             'new_step_label': new_step_label,
             'score': score,
             'scoring_mode': self.scoring_mode,
-            'outputs': result['outputs'],
+            'outputs': [output],
             'n_steps': len(all_steps),
-            'prefix_score': result['prefix_score'],
+            'prefix_score': self._compute_prefix_score(step_labels, output),
         }
         
         log_event(logger, "THINKPRM", f"Result: score={score:.3f} (mode={self.scoring_mode}), labels={step_labels}", level="debug")
