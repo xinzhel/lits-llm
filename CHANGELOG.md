@@ -12,6 +12,9 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `ThinkPRM` now uses `base_model` from `--eval-model` instead of creating its own TGI/SageMaker wrapper (`lits/components/reward/thinkprm.py`)
 - Deleted `ThinkPRMTGI` wrapper class - functionality moved to `ThinkPRM`
 
+### Added
+- Import `ThinkPRM` in `factory.py` to trigger `@register_reward_model` decorator (`lits/components/factory.py`)
+
 ### Fixed
 - `ThinkPRM` now properly passes `base_model` to parent `RewardModel` class
 

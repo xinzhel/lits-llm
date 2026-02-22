@@ -25,6 +25,7 @@ from ..lm.base import HfChatModel
 from .transition.concat import ConcatTransition  # noqa: F401
 from .policy.concat import ConcatPolicy  # noqa: F401
 from .reward.generative import GenerativePRM  # noqa: F401
+from .reward.thinkprm import ThinkPRM  # noqa: F401
 
 
 def create_components_language_grounded(
