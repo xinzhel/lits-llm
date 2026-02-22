@@ -411,12 +411,19 @@ def main() -> int:
     configure_hf_model_logging()
     run_id, result_dir = config.setup_directories(is_running_in_jupyter())
 
+    # Store import_modules and dataset_kwargs in config for reproducibility
+    if cli_args.import_modules:
+        config.import_modules = cli_args.import_modules
+    if dataset_kwargs:
+        config.dataset_kwargs = dataset_kwargs
+    config.save_config(result_dir)
+
+    # Create SearchConfig for the search algorithm (pure search params only)
     search_config = config.create_search_config()
     if cli_args.import_modules:
         search_config.import_modules = cli_args.import_modules
     if dataset_kwargs:
         search_config.dataset_kwargs = dataset_kwargs
-    search_config.save_config(result_dir)
 
     # Login to Hugging Face (only if HF_TOKEN is set)
     hf_token = os.getenv("HF_TOKEN")

@@ -73,6 +73,8 @@ _DEFAULT_COMPONENT_ARGS: Dict[str, Any] = {
     "thinkprm_scoring_mode": "last_step",
     "max_eval_rollout_steps": 10,
     "max_length": 32768,
+    # Policy generation limits (prevents infinite output from models like Qwen3)
+    "max_new_tokens": None,  # None = no limit; set via --component-arg max_new_tokens=1024
 }
 
 # Fields excluded from saved search config (not passed to MCTSConfig/BFSConfig)
@@ -145,6 +147,7 @@ class ExperimentConfig:
         - thinkprm_endpoint: SageMaker endpoint for ThinkPRM
         - thinkprm_region: AWS region for ThinkPRM
         - max_eval_rollout_steps: Max steps for ToolUsePRM trajectory completion
+        - max_new_tokens: Max tokens per policy generation (None = no limit, prevents infinite output)
     
     Result Directory Structure:
         The result directory follows this hierarchical pattern:
@@ -190,6 +193,10 @@ class ExperimentConfig:
     # === Parameter dicts (from CLI --search-arg and --component-arg) ===
     search_args: Dict[str, Any] = field(default_factory=dict)
     component_args: Dict[str, Any] = field(default_factory=dict)
+    
+    # === Environment/Execution (for reproducibility) ===
+    import_modules: Optional[List[str]] = None  # Custom modules to import (--include)
+    dataset_kwargs: Dict[str, Any] = field(default_factory=dict)  # Dataset-specific args (--dataset-arg)
     
     # === Memory (feature toggle) ===
     enable_memory: bool = False
@@ -394,6 +401,9 @@ class ExperimentConfig:
         Creates either MCTSConfig or BFSConfig with all search parameters
         from get_search_args(). The config is ready to pass to mcts() or bfs_topk().
         
+        Note: SearchConfig only contains search algorithm parameters. Component args
+        and experiment metadata are saved separately via ExperimentConfig.save_config().
+        
         Returns:
             MCTSConfig if search_algorithm == "mcts"
             BFSConfig if search_algorithm == "bfs"
@@ -424,3 +434,60 @@ class ExperimentConfig:
             return BFSConfig(**config_dict)
         else:
             raise ValueError(f"Unknown search algorithm: {self.search_algorithm}")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert ExperimentConfig to a dictionary for serialization.
+        
+        Returns a complete experiment configuration including:
+        - Orchestration params (dataset, models, framework, algorithm)
+        - Search args (merged with defaults)
+        - Component args (merged with defaults)
+        - Environment params (import_modules, dataset_kwargs)
+        - Package version for reproducibility
+        
+        Excludes execution-only fields (offset, limit, eval_idx) that don't
+        affect experiment reproducibility.
+        
+        Returns:
+            Dict containing all experiment configuration for config.json
+        """
+        return {
+            # Orchestration
+            "dataset": self.dataset,
+            "policy_model_name": self.policy_model_name,
+            "eval_model_name": self.eval_model_name,
+            "search_framework": self.search_framework,
+            "search_algorithm": self.search_algorithm,
+            # Component overrides
+            "policy": self.policy,
+            "transition": self.transition,
+            "reward": self.reward,
+            # Parameter dicts (merged with defaults)
+            "search_args": self.get_search_args(),
+            "component_args": self.get_component_args(),
+            # Environment (for reproducibility)
+            "import_modules": self.import_modules,
+            "dataset_kwargs": self.dataset_kwargs,
+            # Memory
+            "enable_memory": self.enable_memory,
+            "memory_config": self.memory_config,
+            # Output
+            "output_dir": self.output_dir,
+            # Version
+            "package_version": self.package_version,
+        }
+    
+    def save_config(self, result_dir: str, filename: str = "config.json") -> None:
+        """Save experiment configuration to JSON file.
+        
+        Saves the complete ExperimentConfig (including search_args and component_args)
+        to config.json for experiment reproducibility.
+        
+        Args:
+            result_dir: Directory where the config file will be saved
+            filename: Name of the config file (default: "config.json")
+        """
+        import json
+        save_config_path = os.path.join(result_dir, filename)
+        with open(save_config_path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, indent=4)

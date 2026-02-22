@@ -450,13 +450,13 @@ Examples:
     # Load config from result_dir if available (for auto-loading import_modules)
     config = load_config_from_result_dir(args.result_dir, config_filename="config.json")
     
-    # Determine import_modules: CLI args override config
+    # Determine import_modules: CLI args override config (top-level field)
     import_modules = args.import_modules
     if not import_modules and config.get("import_modules"):
         import_modules = config["import_modules"]
         print(f"Auto-loaded import_modules from config: {import_modules}")
     
-    # Load dataset_kwargs from config
+    # Load dataset_kwargs from config (top-level field)
     dataset_kwargs = config.get("dataset_kwargs", {})
     if dataset_kwargs:
         print(f"Auto-loaded dataset_kwargs from config: {dataset_kwargs}")

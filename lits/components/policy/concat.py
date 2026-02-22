@@ -79,6 +79,7 @@ class ConcatPolicy(Policy):
                 - max_steps: Maximum depth (default: 10)
                 - force_terminating_on_depth_limit: Force termination at max_steps (default: False)
                 - max_length: Maximum sequence length (default: 32768)
+                - max_new_tokens: Maximum new tokens per generation (default: None, no limit)
                 - check_action_sim: Enable action similarity checking (default: False)
             component_args: Component parameters (not used for ConcatPolicy)
             **kwargs: Additional arguments (task_name, task_prompt_spec)
@@ -95,6 +96,7 @@ class ConcatPolicy(Policy):
             force_terminating_on_depth_limit=search_args.get('force_terminating_on_depth_limit', False),
             max_steps=search_args.get('max_steps', 10),
             max_length=component_args.get('max_length', 32768),
+            max_new_tokens=component_args.get('max_new_tokens'),
             check_action_sim=search_args.get('check_action_sim', False),
         )
     

@@ -126,6 +126,16 @@ python eval_search.py \
 | `env_grounded` | blocksworld, crosswords | Goal satisfaction checking |
 | `tool_use` | mapeval, mapeval-sql, clue | Answer extraction from tool outputs |
 
+## QA
+### Question 1: How is a component argument  (e.g., `max_new_tokens=1024`) paased to `Policy.from_config` (e.g., ConcatPolicy)？
+
+1. CLI: `--component-arg max_new_tokens=1024`
+2. `cli/search.py` line 280: `config.component_args.update(parse_component_args(cli_args))`
+3. `cli/search.py` line 340: `create_components(..., config=config)`
+4. `factory.py` line 296: `component_args = config.get_component_args()`
+5. `factory.py` line 85: `PolicyCls.from_config(..., component_args=component_args, ...)`
+6. `concat.py` line 68: `max_new_tokens=component_args.get('max_new_tokens')`
+
 ## Limitations (TODO)
 
 - **Tool-use dataset registration**: Currently tool-use datasets (mapeval, clue) are not registered via `@register_dataset`. Users cannot add custom tool-use benchmarks through the registry. Consider renaming to "benchmark" since it includes tool configuration, not just data.

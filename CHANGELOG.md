@@ -6,7 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-02-22 Unreleased (ExperimentConfig Serialization)
+
+### Added
+- `ExperimentConfig.to_dict()` and `save_config()` methods (`lits/config.py`)
+- `import_modules` and `dataset_kwargs` as top-level fields in `ExperimentConfig`
+- `max_new_tokens` in `_DEFAULT_COMPONENT_ARGS` (`lits/config.py`)
+
+### Changed
+- `cli/search.py` uses `config.save_config()` instead of `search_config.save_config()`
+- `cli/eval_search.py` reads `import_modules`/`dataset_kwargs` from top-level config
+
 ## 2026-02-21 Unreleased (Tree Search Log Metadata)
+
+### Fixed
+- `config.json` now saves `policy_model_name`, `eval_model_name`, `dataset`, `output_dir` (`lits/config.py`)
 
 ### Added
 - `set_log_field()` method in `BaseTreeSearch` (`lits/agents/tree/search_base.py`)
