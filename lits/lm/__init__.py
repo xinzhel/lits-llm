@@ -68,10 +68,12 @@ def get_lm(model_name:str, **kwargs):
     
     # if start with openai,  azure_openai, moonshot 
     if model_name.startswith("openai") or model_name.startswith("azure_openai") or model_name.startswith("moonshot") or model_name.startswith("groq"):
-        base_model = OpenAIChatModel(model_name.split("/")[1], **kwargs)
+        # Extract model name after provider prefix (e.g., "openai/Qwen/Qwen3-32B-AWQ" -> "Qwen/Qwen3-32B-AWQ")
+        actual_model_name = model_name.split("/", 1)[1]
+        base_model = OpenAIChatModel(actual_model_name, **kwargs)
     elif model_name.startswith("bedrock"):
         from .bedrock_chat import BedrockChatModel
-        base_model = BedrockChatModel(model_name.split("/")[1], **kwargs) # e.g., bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0
+        base_model = BedrockChatModel(model_name.split("/", 1)[1], **kwargs) # e.g., bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0
     else:
         if not model_exists_on_hf(model_name):
             raise ValueError(f"Model {model_name} not supported. Please use an OpenAI-based model or a model hosted on Hugging Face.")
