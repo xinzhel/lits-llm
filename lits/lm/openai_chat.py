@@ -13,6 +13,7 @@ class OpenAIChatModel(LanguageModel):
         model_name: str,
         sys_prompt: str = None,
         api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
         inference_logger: InferenceLogger = None,
         max_length: int = None,
         max_new_tokens: int = None,
@@ -36,7 +37,9 @@ class OpenAIChatModel(LanguageModel):
         )
         if api_key is None:
             api_key = os.getenv("OPENAI_API_KEY")
-        self.client = OpenAI(api_key=api_key)
+        if base_url is None:
+            base_url = os.getenv("OPENAI_API_BASE")
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model_name = model_name
         self.sys_prompt = sys_prompt
 
