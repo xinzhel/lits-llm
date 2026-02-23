@@ -198,6 +198,12 @@ class LlmTransition(Transition, Generic[StateT, StepT]):
         """
         from .utils import create_role
         role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        # Auto-include generation params from transition config if not explicitly passed
+        for param in ('max_new_tokens', 'max_length', 'temperature', 'top_k', 'top_p'):
+            if param not in kwargs:
+                val = getattr(self, param, None)
+                if val is not None:
+                    kwargs[param] = val
         return self.base_model(prompt, role=role, **kwargs)
     
     def _batch_call_model(self, prompts: list, **kwargs):
@@ -225,6 +231,12 @@ class LlmTransition(Transition, Generic[StateT, StepT]):
         """
         from .utils import create_role
         role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        # Auto-include generation params from transition config if not explicitly passed
+        for param in ('max_new_tokens', 'max_length', 'temperature', 'top_k', 'top_p'):
+            if param not in kwargs:
+                val = getattr(self, param, None)
+                if val is not None:
+                    kwargs[param] = val
         return self.base_model.batch_generate(prompts, role=role, **kwargs)
     
     def _sample_binary_output(self, user_message: str, sample_size: int, target: str, contrast: str, role_prefix: Optional[str] = None, **kwargs):
@@ -598,6 +610,12 @@ class Policy(ABC, Generic[StateT, StepT]):
         """
         from .utils import create_role
         role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        # Auto-include generation params from policy config if not explicitly passed
+        for param in ('max_new_tokens', 'max_length', 'temperature', 'top_k', 'top_p'):
+            if param not in kwargs:
+                val = getattr(self, param, None)
+                if val is not None:
+                    kwargs[param] = val
         response = self.base_model(prompt, role=role, **kwargs)
         
         # Invoke callback if set
@@ -1320,6 +1338,12 @@ class RewardModel(ABC, Generic[StateT, StepT]):
         """
         from .utils import create_role
         role = create_role(self._get_llm_role(), self._query_idx, self._from_phase)
+        # Auto-include generation params from reward model config if not explicitly passed
+        for param in ('max_new_tokens', 'max_length', 'temperature', 'top_k', 'top_p'):
+            if param not in kwargs:
+                val = getattr(self, param, None)
+                if val is not None:
+                    kwargs[param] = val
         return self.base_model(prompt, role=role, **kwargs)
     
     def _call_model_logits(self, prompt: str, candidates: list[str], **kwargs):

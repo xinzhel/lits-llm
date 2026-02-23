@@ -127,14 +127,60 @@ python eval_search.py \
 | `tool_use` | mapeval, mapeval-sql, clue | Answer extraction from tool outputs |
 
 ## QA
-### Question 1: How is a component argument  (e.g., `max_new_tokens=1024`) paased to `Policy.from_config` (e.g., ConcatPolicy)？
 
-1. CLI: `--component-arg max_new_tokens=1024`
-2. `cli/search.py` line 280: `config.component_args.update(parse_component_args(cli_args))`
-3. `cli/search.py` line 340: `create_components(..., config=config)`
-4. `factory.py` line 296: `component_args = config.get_component_args()`
-5. `factory.py` line 85: `PolicyCls.from_config(..., component_args=component_args, ...)`
-6. `concat.py` line 68: `max_new_tokens=component_args.get('max_new_tokens')`
+### Question 1: How is a component argument passed to `Policy.from_config`?
+
+Example: `--component-arg max_new_tokens=1024`
+
+```
+CLI --component-arg max_new_tokens=1024
+  → config.component_args.update(parse_component_args(cli_args))  # search.py:280
+  → create_components(..., config=config)                          # search.py:340
+  → component_args = config.get_component_args()                   # factory.py:296
+  → PolicyCls.from_config(..., component_args=component_args)      # factory.py:85
+  → max_new_tokens=component_args.get('max_new_tokens')            # concat.py:68
+```
+
+### Question 2: How is a component argument saved to config.json?
+
+Example: `--component-arg max_new_tokens=1024`
+
+```
+CLI --component-arg max_new_tokens=1024
+  → config.component_args.update(parse_component_args(cli_args))  # search.py:280
+  → config.save_config(result_dir)                                 # search.py:305
+  → config.to_dict() returns {"component_args": config.get_component_args(), ...}
+  → json.dump(...)
+```
+
+`config.to_dict()` calls `get_component_args()` which merges defaults with CLI overrides, so config.json contains the complete component_args (including `max_new_tokens=1024`).
+
+### Question 3: How do LLM generation parameters flow to model calls?
+
+Generation parameters (`max_new_tokens`, `temperature`, `top_p`, `top_k`, `max_length`) are handled at two levels:
+
+**Model-level (context window):**
+```
+--search-arg max_length=32768
+  → load_models(..., max_length=max_length)           # search.py:445
+  → get_lm(..., max_length=max_length)                # loader.py:135
+  → OpenAIChatModel/HfChatModel stores self.max_length
+```
+
+**Component-level (per-call generation params):**
+```
+--component-arg max_new_tokens=1024 temperature=0.8
+  → Policy.__init__(..., max_new_tokens=1024, temperature=0.8)
+  → Policy._call_model(prompt)                        # base.py:600
+  → auto-injects: kwargs['max_new_tokens'] = self.max_new_tokens
+  → base_model(prompt, max_new_tokens=1024, ...)      # openai_chat.py:90
+```
+
+Key points:
+- `max_length`: Total context window (prompt + output), set at model instantiation
+- `max_new_tokens`: Max tokens to generate per call, set on component (Policy/RewardModel)
+- Component params override model defaults (e.g., Policy's `max_new_tokens=1024` overrides model's default `512`)
+- Different components can have different generation params while sharing the same model
 
 ## Limitations (TODO)
 

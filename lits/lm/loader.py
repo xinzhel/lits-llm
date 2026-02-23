@@ -143,6 +143,7 @@ def load_models(
     policy_model = get_lm(
         policy_model_name,
         device=device,
+        max_length=max_length,
         enable_thinking=enable_think_policy,
         sys_prompt=None,
         verbose=model_verbose
@@ -153,6 +154,7 @@ def load_models(
         eval_model = get_lm(
             eval_model_name,
             device=device,
+            max_length=max_length,
             enable_thinking=enable_think_eval,
             sys_prompt=None,
             verbose=model_verbose
@@ -165,6 +167,7 @@ def load_models(
         terminal_model = get_lm(
             transition_model_name,
             device=device,
+            max_length=max_length,
             enable_thinking=enable_think_terminal_gen,
             sys_prompt=None,
             verbose=model_verbose
