@@ -283,6 +283,7 @@ def create_components_env_grounded(
         validate_action=validate_action, n_actions=n_actions, temperature=0.7,
         force_terminating_on_depth_limit=force_terminating_on_depth_limit,
         max_steps=max_steps, max_length=max_length,
+        max_new_tokens=component_args.get('max_new_tokens'),
     )
     
     # Reward: override > dataset > default
