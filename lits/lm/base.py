@@ -536,7 +536,7 @@ class LanguageModel:
             unknown: Optional unknown token (default: None). If provided, will be tracked separately.
             role: Role for logging purposes
             temperature: Sampling temperature
-            max_new_tokens: Maximum new tokens to generate
+            max_new_tokens: Maximum new tokens to generate (default: 10 for binary output)
             max_length: Maximum total length
             max_retries: Maximum retries per sample if output is unclear
             
@@ -548,12 +548,18 @@ class LanguageModel:
             answer_samples[unknown] = 0
         orig_verbose = self.verbose
         
+        # For binary output, we only need a few tokens
+        if max_new_tokens is None:
+            max_new_tokens = 10
         max_length, max_new_tokens = self._get_gen_legnth(max_new_tokens, max_length)
 
         # Build valid tokens list
         valid_tokens = [target, contrast]
         if unknown is not None:
             valid_tokens.append(unknown)
+        
+        # Build stop sequences to stop generation early
+        stop_sequences = [f"{t}." for t in valid_tokens] + [f"{t}\n" for t in valid_tokens]
 
         def extract_last_word(text: str) -> str:
             """Extract and normalize the last word from text."""
@@ -572,7 +578,7 @@ class LanguageModel:
             
             while retry_count < max_retries:
                 self.verbose = (i == 0 and retry_count == 0) and orig_verbose
-                output_text = self(current_message, role=role, temperature=temperature, max_new_tokens=max_new_tokens, max_length=max_length, enable_thinking=False).text.strip()
+                output_text = self(current_message, role=role, temperature=temperature, max_new_tokens=max_new_tokens, max_length=max_length, stop=stop_sequences, enable_thinking=False).text.strip()
                 
                 # Check if entire output (normalized) matches
                 normalized_full = output_text.lower().strip()
