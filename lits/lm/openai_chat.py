@@ -81,6 +81,14 @@ class OpenAIChatModel(LanguageModel):
             warnings.warn(f"Unsupported kwargs for OpenAI chat models: {unsupported_kwargs}")
         messages = self._format_messages(prompt)
         start = time.time()
+        
+        # Build extra_body for vLLM/Qwen3 thinking mode control
+        # Only add for non-OpenAI endpoints (vLLM, etc.) to avoid API errors
+        extra_body = None
+        is_custom_endpoint = self.client.base_url and "api.openai.com" not in str(self.client.base_url)
+        if is_custom_endpoint and not self.enable_thinking:
+            extra_body = {"chat_template_kwargs": {"enable_thinking": False}}
+        
         resp = self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
@@ -91,6 +99,7 @@ class OpenAIChatModel(LanguageModel):
             presence_penalty=kwargs.get("presence_penalty"),
             n=kwargs.get("n", 1),
             stop=stop,
+            extra_body=extra_body,
         )
         end = time.time()
 
