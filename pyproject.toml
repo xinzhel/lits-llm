@@ -32,11 +32,11 @@ dependencies = [
     "tokenizers>=0.21.0",
 
     # --- Torch stack (core, not optional) ---
-    "accelerate==1.6.0",
-    "torch==2.5.1",
-    "torchaudio==2.5.1",
-    "torchvision==0.20.1",
-    "torchviz==0.0.3",
+    "accelerate>=1.6.0",
+    "torch>=2.5.1",
+    "torchaudio>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchviz>=0.0.3",
 
     # --- Transformers ecosystem ---
     "transformers==4.51.3",

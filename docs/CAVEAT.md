@@ -84,6 +84,9 @@ Qwen3 models have a built-in "thinking mode" that generates `<think>...</think>`
 lits-search ... \
     --search-arg enable_think_policy=false enable_think_eval=false
 ```
+* 看日志：`'<think>Okay, let's tackle this crossword puzzle'` - 这是 reward model 的输出，说明 
+    * thinking的prompt tokens是包含在max_new_tokens以内的。
+    * 而prompt里说的字数限制，模型不考虑<think>里的（把它当作内部思考的感觉）
 
 2. LITS will automatically pass `extra_body={"chat_template_kwargs": {"enable_thinking": False}}` to vLLM for non-OpenAI endpoints.
 

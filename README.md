@@ -13,45 +13,107 @@ A modular Python framework for LLM reasoning and planning with tree search (e.g.
 ## Installation
 
 ```bash
-pip install -e .          # editable install
-pip install -e .[dev]     # with dev extras
+pip install lits-llm          # from PyPI
+# or
+pip install -e .              # editable install from source
 ```
 
 Requires Python >= 3.11.
 
-## Quick Start — CLI
+## Quick Start — 5-Minute Demo
 
-LiTS provides four CLI commands installed via `pip install`:
+Three steps: install, configure an LLM, run a search and see the artifacts.
+
+### 1. Install and enter demos
 
 ```bash
-lits-search       # Run tree search experiments
+pip install -e .
+cd demos
+```
+
+### 2. Configure an LLM provider
+
+LiTS needs an LLM for policy (action generation) and reward (scoring). Pick one provider:
+
+**OpenAI** — set `OPENAI_API_KEY`:
+```bash
+export OPENAI_API_KEY="sk-..."
+MODEL="openai/gpt-4o-mini"
+```
+
+**AWS Bedrock** — configure AWS credentials ([SSO](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html) or env vars):
+```bash
+aws sso login --profile default   # or export AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+MODEL="bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0"
+```
+
+**Groq** (free tier available) — set `GROQ_API_KEY`:
+```bash
+export GROQ_API_KEY="gsk_..."
+MODEL="groq/llama-3.1-8b-instant"
+```
+
+**Local HuggingFace** — no API key needed, requires GPU:
+```bash
+MODEL="Qwen/Qwen3-32B-AWQ"  # auto-downloads from HuggingFace
+```
+
+### 3. Run MCTS on Crosswords (1 puzzle, ~2 min)
+
+```bash
+lits-search --include lits_benchmark.crosswords \
+    --dataset crosswords \
+    --transition crosswords \
+    --policy-model "$MODEL" \
+    --dataset-arg data_file=crosswords/data/mini0505.json \
+    --search-arg n_iters=30 roll_out_steps=10 n_confidence=3 \
+    --component-arg max_new_tokens=1024 \
+    --var offset=0 limit=1 \
+    -o demo_results --override
+```
+
+### 4. Evaluate
+
+```bash
+lits-eval --result_dir demo_results
+```
+
+### What you should see
+
+```
+demo_results/
+├── checkpoints/           # Intermediate tree states per iteration
+├── terminal_nodes/        # All terminal nodes found
+├── config.json            # Full config (reproducible)
+├── execution.log          # Execution log
+├── inferencelogger.log    # Per-call token usage with component/phase tags
+├── llm_calls.jsonl        # Raw LLM call records
+└── eval.log               # Accuracy + inference usage report
+```
+
+### Validate config without LLM calls (no API key needed)
+
+```bash
+lits-search --include lits_benchmark.math_qa \
+    --dataset math500 --dry-run
+```
+
+This prints the resolved components, dataset info, and first example — useful for checking your setup before a real run.
+
+## CLI Commands
+
+```bash
+lits-search       # Run tree search (MCTS, BFS)
 lits-eval         # Evaluate tree search results
 lits-chain        # Run chain agents (ReAct, EnvChain)
 lits-eval-chain   # Evaluate chain results
 ```
 
-All example CLI commands below assume you are in the `demos/` directory, which contains `lits_benchmark` (example benchmarks) and sample data files:
+## More CLI Examples
 
-<!-- ```
-demos/                   # Demo data and example benchmarks
-├── lits_benchmark/     # Benchmark implementations (importable via --include)
-├── blocksworld/        # BlocksWorld data files
-├── crosswords/         # Crosswords data files
-└── demo_results/       # Pre-run results for evaluation demos
+All commands below assume `cd demos` and a configured `$MODEL` (see Quick Start above).
 
-lits_benchmark/          # Example benchmarks (in demos/)
-├── formulations/       # Custom frameworks (RAP)
-├── math_qa.py          # GSM8K, MATH500
-├── blocksworld.py      # BlocksWorld
-├── crosswords.py       # Crosswords
-└── mapeval.py          # MapEval (SQL tool use)
-``` -->
-
-```bash
-cd demos
-```
-
-### Run MCTS on MATH500
+### MCTS on MATH500
 
 ```bash
 lits-search --include lits_benchmark.math_qa \
@@ -97,19 +159,6 @@ lits-search --include lits_benchmark.mapeval \
 ```
 
 No component flags needed — the framework auto-selects tool-use components.
-
-### Evaluate results
-
-```bash
-lits-eval --result_dir <result_dir>
-```
-
-### Dry run (validate config without inference)
-
-```bash
-lits-search --include lits_benchmark.math_qa \
-    --dataset math500 --dry-run
-```
 
 
 ## Quick Start — Python API
