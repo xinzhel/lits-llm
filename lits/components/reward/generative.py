@@ -166,11 +166,16 @@ class GenerativePRM(RewardModel):
                         msg += f"DONOT follow system message of letting you think, since you have already given some reasoning: {txt_no_prefix}. You MUST STOP reasoning and DIRECTLY output a final score."
                         enable_thinking = False
                     logits = self._call_model_logits_with_role(msg, ["1", "0"], "evaluator_logits")
-                    probs = np.exp(logits) / np.sum(np.exp(logits))
-                    score = float(probs[0])
-                    if score_type == "correctness":
-                        score = 1.0 if score > 0.6 else 0.0
-                    logger.debug(f"Logit {score_type} score: {score}")
+                    if logits is not None:
+                        probs = np.exp(logits) / np.sum(np.exp(logits))
+                        score = float(probs[0])
+                        if score_type == "correctness":
+                            score = 1.0 if score > 0.6 else 0.0
+                        logger.debug(f"Logit {score_type} score: {score}")
+                    else:
+                        # Logits unavailable (e.g., OpenAI/Groq API) — default to 0
+                        score = 0.0
+                        logger.warning(f"Logits unavailable for this model backend, defaulting {score_type} score to 0.0")
                     logger.debug(e)
                 
                 logger.debug(f"Parsed {score_type} score: {score}")

@@ -1,9 +1,11 @@
-import time, json, warnings
+import time, json, logging, warnings
 from openai import OpenAI
 from typing import List, Optional
 import numpy as np
 import os
 from .base import LanguageModel, Output, InferenceLogger
+
+logger = logging.getLogger(__name__)
 
 class OpenAIChatModel(LanguageModel):
     """Wrapper for OpenAI-compatible chat models (e.g., gpt-4o, gpt-4-turbo)."""
@@ -21,10 +23,11 @@ class OpenAIChatModel(LanguageModel):
         enable_thinking: bool = False,
         **kwargs
     ):
-        # warn if unsupported kwargs are passed
+        # Log unsupported kwargs at debug level (expected in multi-backend frameworks
+        # where HF-specific params like device, top_k leak through the unified interface)
         unsupported_kwargs = set(kwargs.keys())
         if unsupported_kwargs:
-            warnings.warn(f"Unsupported kwargs for OpenAI chat models: {unsupported_kwargs}")
+            logger.debug(f"Ignoring kwargs not applicable to OpenAI chat models: {unsupported_kwargs}")
         super().__init__(
             model_name=model_name,
             model=None,
@@ -75,10 +78,11 @@ class OpenAIChatModel(LanguageModel):
     ):
         if return_embedding:
             raise NotImplementedError("Embedding retrieval not implemented for OpenAI chat models.")
-        # warn if unsupported kwargs are passed
+        # Log unsupported kwargs at debug level (expected in multi-backend frameworks
+        # where HF-specific params like top_k, new_sent_stop, enable_thinking leak through)
         unsupported_kwargs = set(kwargs.keys()) - {"frequency_penalty", "presence_penalty", "n"}
         if unsupported_kwargs:
-            warnings.warn(f"Unsupported kwargs for OpenAI chat models: {unsupported_kwargs}")
+            logger.debug(f"Ignoring kwargs not applicable to OpenAI chat models: {unsupported_kwargs}")
         messages = self._format_messages(prompt)
         start = time.time()
         

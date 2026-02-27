@@ -24,11 +24,10 @@ Requires Python >= 3.11.
 
 Three steps: install, configure an LLM, run a search and see the artifacts.
 
-### 1. Install and enter demos
+### 1. Install
 
 ```bash
-pip install -e .
-cd demos
+pip install lits-llm
 ```
 
 ### 2. Configure an LLM provider
@@ -53,22 +52,41 @@ export GROQ_API_KEY="gsk_..."
 MODEL="groq/llama-3.1-8b-instant"
 ```
 
-**Local HuggingFace** — no API key needed, requires GPU:
+**Local HuggingFace** — no API key needed (for testing only; prefer GPU or Apple Silicon for larger LLMs):
 ```bash
-MODEL="Qwen/Qwen3-32B-AWQ"  # auto-downloads from HuggingFace
+MODEL="Qwen/Qwen2.5-0.5B-Instruct"  # auto-downloads from HuggingFace
+# pass device via --search-arg: device=cuda (default), device=mps (Apple Silicon), or device=cpu
 ```
 
-### 3. Run MCTS on Crosswords (1 puzzle, ~2 min)
+### 3. Run MCTS on a math problem
+
+Save this as `my_benchmark.py` (the `.py` extension matters) in your working directory:
+
+```python
+from lits.registry import register_dataset
+
+@register_dataset("my_math", task_type="language_grounded")
+def load_my_math(**kwargs):
+    return [
+        {
+            "question": (
+                "The proper divisors of 12 are 1, 2, 3, 4 and 6. "
+                "A proper divisor of an integer $N$ is a positive divisor of $N$ "
+                "that is less than $N$. What is the sum of the proper divisors "
+                "of the sum of the proper divisors of 284?"
+            ),
+            "answer": "284",
+        }
+    ]
+```
+
+Then run MCTS:
 
 ```bash
-lits-search --include lits_benchmark.crosswords \
-    --dataset crosswords \
-    --transition crosswords \
+lits-search --include my_benchmark \
+    --dataset my_math \
     --policy-model "$MODEL" \
-    --dataset-arg data_file=crosswords/data/mini0505.json \
-    --search-arg n_iters=30 roll_out_steps=10 n_confidence=3 \
-    --component-arg max_new_tokens=1024 \
-    --var offset=0 limit=1 \
+    --search-arg roll_out_steps=2 n_iters=50 force_terminating_on_depth_limit=false n_actions=3 max_steps=10 \
     -o demo_results --override
 ```
 
@@ -94,8 +112,8 @@ demo_results/
 ### Validate config without LLM calls (no API key needed)
 
 ```bash
-lits-search --include lits_benchmark.math_qa \
-    --dataset math500 --dry-run
+lits-search --include my_benchmark \
+    --dataset my_math --dry-run
 ```
 
 This prints the resolved components, dataset info, and first example — useful for checking your setup before a real run.
@@ -108,6 +126,14 @@ lits-eval         # Evaluate tree search results
 lits-chain        # Run chain agents (ReAct, EnvChain)
 lits-eval-chain   # Evaluate chain results
 ```
+
+## 🎬 2.5-Minute Demo Video
+
+See the full walkthrough — MCTS on math, Crosswords (environment-grounded), and evaluation:
+
+👉 https://youtu.be/nRGX43YrR3I
+
+The commands demonstrated in the video are listed below for direct copy-paste.
 
 ## More CLI Examples
 

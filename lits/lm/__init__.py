@@ -4,6 +4,7 @@ from .loader import configure_hf_model_logging, setup_inference_logging, load_mo
 from .openai_chat import OpenAIChatModel
 from .bedrock_chat import BedrockChatModel
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,10 @@ def get_lm(model_name:str, **kwargs):
     if model_name.startswith("openai") or model_name.startswith("azure_openai") or model_name.startswith("moonshot") or model_name.startswith("groq"):
         # Extract model name after provider prefix (e.g., "openai/Qwen/Qwen3-32B-AWQ" -> "Qwen/Qwen3-32B-AWQ")
         actual_model_name = model_name.split("/", 1)[1]
+        # Auto-configure Groq endpoint if not explicitly set
+        if model_name.startswith("groq"):
+            kwargs.setdefault("base_url", "https://api.groq.com/openai/v1")
+            kwargs.setdefault("api_key", os.environ.get("GROQ_API_KEY"))
         base_model = OpenAIChatModel(actual_model_name, **kwargs)
     elif model_name.startswith("bedrock"):
         from .bedrock_chat import BedrockChatModel
