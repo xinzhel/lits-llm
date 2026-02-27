@@ -149,7 +149,7 @@ class BedrockChatModel(LanguageModel):
         """
         Generates a response from the Bedrock chat model.
         """
-        logger.warning(f"Extra kwargs passed to BedrockChatModel.__call__: {kwargs}")
+        logger.debug(f"Extra kwargs passed to BedrockChatModel.__call__: {kwargs}")
             
         if return_embedding:
             raise NotImplementedError("Embedding retrieval not implemented for Bedrock chat models.")
@@ -385,7 +385,7 @@ class BedrockChatModel(LanguageModel):
         if system_prompt:
             converse_params["system"] = [{"text": system_prompt}]
         try:
-            print(f"Converse API call with params: {converse_params}")
+            logger.debug(f"Converse API call with params: {converse_params}")
             response = self.client.converse(**converse_params)
         except (ClientError, NoCredentialsError) as e:
             # Log concise error without full params (which can be very long)

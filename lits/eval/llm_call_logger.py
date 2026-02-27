@@ -253,22 +253,21 @@ def print_diversity_report(
     normalize_fn: Optional[Callable[[str], Optional[str]]] = None,
     correct_actions: Optional[Dict[str, str]] = None
 ) -> None:
-    """Print a formatted diversity analysis report.
-    
+    """Log a formatted diversity analysis report to file.
+
     Args:
         records: List of LLM call records
         normalize_fn: Optional function to normalize outputs
         correct_actions: Optional dict mapping position to correct word
     """
     stats = get_diversity_stats(records, normalize_fn, correct_actions)
-    
-    print(f"\n{'='*70}")
-    print("LLM Call Diversity Report")
-    print(f"{'='*70}")
-    print(f"Unique states visited: {stats['unique_prompts']}")
-    print(f"Avg. policy calls per state: {stats['total_calls'] / stats['unique_prompts']:.1f}")
-    print()
-    
+
+    module_logger.info(f"{'='*70}")
+    module_logger.info("LLM Call Diversity Report")
+    module_logger.info(f"{'='*70}")
+    module_logger.info(f"Unique states visited: {stats['unique_prompts']}")
+    module_logger.info(f"Avg. policy calls per state: {stats['total_calls'] / stats['unique_prompts']:.1f}")
+
     # Overall stats
     total_outputs = sum(s['total'] for s in stats['by_prompt'].values())
     total_unique = sum(s['unique'] for s in stats['by_prompt'].values())
@@ -276,32 +275,31 @@ def print_diversity_report(
     total_incorrect = total_outputs - total_correct
     total_unique_correct = sum(s['unique_correct'] for s in stats['by_prompt'].values())
     total_unique_incorrect = sum(s['unique_incorrect'] for s in stats['by_prompt'].values())
-    
+
     overall_dup_rate = (total_outputs - total_unique) / total_outputs if total_outputs > 0 else 0
     correct_dup_rate = (total_correct - total_unique_correct) / total_correct if total_correct > 0 else 0
     incorrect_dup_rate = (total_incorrect - total_unique_incorrect) / total_incorrect if total_incorrect > 0 else 0
-    
-    print(f"Dup. rate (all): {overall_dup_rate:.1%}")
+
+    module_logger.info(f"Dup. rate (all): {overall_dup_rate:.1%}")
     if correct_actions:
-        print(f"Dup. rate (correct): {correct_dup_rate:.1%}")
-        print(f"Dup. rate (incorrect): {incorrect_dup_rate:.1%}")
-    print()
-    
+        module_logger.info(f"Dup. rate (correct): {correct_dup_rate:.1%}")
+        module_logger.info(f"Dup. rate (incorrect): {incorrect_dup_rate:.1%}")
+
     # Per-prompt breakdown
-    print("Per-prompt breakdown:")
+    module_logger.info("Per-prompt breakdown:")
     header = f"{'Prompt':<12} {'Total':<6} {'Uniq':<6} {'Dup%':<8}"
     if correct_actions:
         header += f" {'Corr':<6} {'CorrDup%':<9} {'IncDup%':<8}"
-    print(header)
-    print("-" * len(header))
-    
-    for prompt_hash, s in sorted(stats['by_prompt'].items(), 
-                                  key=lambda x: x[1]['incorrect_duplicate_rate'], 
+    module_logger.info(header)
+    module_logger.info("-" * len(header))
+
+    for prompt_hash, s in sorted(stats['by_prompt'].items(),
+                                  key=lambda x: x[1]['incorrect_duplicate_rate'],
                                   reverse=True):
         row = f"{prompt_hash:<12} {s['total']:<6} {s['unique']:<6} {s['duplicate_rate']:.1%}"
         if correct_actions:
             corr_dup = f"{s['correct_duplicate_rate']:.1%}" if s['correct_count'] > 0 else "N/A"
             row += f"   {s['correct_count']:<6} {corr_dup:<9} {s['incorrect_duplicate_rate']:.1%}"
-        print(row)
-    
-    print(f"{'='*70}\n")
+        module_logger.info(row)
+
+    module_logger.info(f"{'='*70}")

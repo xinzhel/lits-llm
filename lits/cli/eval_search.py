@@ -388,6 +388,7 @@ def evaluate_from_checkpoints(
         print(f"  Soft Acc:   {soft_accuracy:.4f} ({soft_accuracy*100:.2f}%)")
     print("=" * 60)
     print()
+    print(report)
     
     # Save evaluation results
     eval_results = {

@@ -157,10 +157,11 @@ def setup_logging(
     logger.handlers.clear()
     logger.addHandler(file_handler)
 
-    # Console handler (always INFO+, human-readable)
+    # Console handler (INFO+ by default, DEBUG if LITS_LOG_LEVEL=DEBUG)
     if add_console_handler:
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_level = os.environ.get("LITS_LOG_LEVEL", "INFO").upper()
+        console_handler.setLevel(getattr(logging, console_level, logging.INFO))
         # Console always uses human-readable format
         console_handler.setFormatter(StructuredFormatter(include_ms=False))
         if namespace_filter.namespaces:

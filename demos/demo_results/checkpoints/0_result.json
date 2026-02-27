@@ -4,16 +4,16 @@
     "state": {
       "__type__": "EnvState",
       "steps": [],
-      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. An agendum; something to be done: _____\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: _____\nv2. An Indian antelope: _____\nv3. To intend; to plan; to devise; a nettle; to guess: _____\nv4. A nozzle: _____\nv5. Desiccator; more dry: _____\n\nFilled:\n\nChanged:\n"
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
     },
-    "action": "AGEND\nMOTOR\nARTSY\nSALLE\nSLEER\nAMASS\nGORAL\nETTLE\nNOSLE\nDRYER",
+    "action": "AMIGO\nMAMOU\nINPUT\nSIEGE\nHALER\nAMISH\nMANIA\nIMPEL\nGOUGE\nOUTER",
     "is_continuous": false,
     "is_terminal": false,
     "bn_score": -1,
     "state_conf": -1,
     "fast_reward": -1.0,
     "trajectory_key": {
-      "search_id": "0_1768994657",
+      "search_id": "0_1772101649",
       "indices": [],
       "root_token": "q"
     },
@@ -21,7 +21,7 @@
     "is_simulated": false,
     "from_expand": false,
     "cum_rewards": [
-      0.08333333333333333
+      0.1425
     ],
     "from_continuation": false
   },
@@ -32,23 +32,23 @@
       "steps": [
         {
           "__type__": "EnvStep",
-          "action": "h1. tasks",
-          "next_state": "Current Board:\nTASKS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: T____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\n\nChanged:\n"
+          "action": "h1. buddy",
+          "next_state": "Current Board:\nBUDDY\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: B____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nh1. A male friend: BUDDY\n\nChanged:\n"
         }
       ],
-      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. An agendum; something to be done: _____\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: _____\nv2. An Indian antelope: _____\nv3. To intend; to plan; to devise; a nettle; to guess: _____\nv4. A nozzle: _____\nv5. Desiccator; more dry: _____\n\nFilled:\n\nChanged:\n"
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
     },
     "action": {
-      "action_str": "h1. tasks",
+      "action_str": "h1. buddy",
       "__type__": "StringAction"
     },
     "is_continuous": false,
     "is_terminal": false,
     "bn_score": -1,
     "state_conf": -1,
-    "fast_reward": 0.5,
+    "fast_reward": 0.25,
     "trajectory_key": {
-      "search_id": "0_1768994657",
+      "search_id": "0_1772101649",
       "indices": [
         0
       ],
@@ -56,60 +56,60 @@
     },
     "step": {
       "__type__": "EnvStep",
-      "action": "h1. tasks"
+      "action": "h1. buddy"
     },
     "from_simulate": false,
     "is_simulated": true,
     "from_expand": true,
     "cum_rewards": [
-      0.21875
+      0.26944444444444443
     ],
     "from_continuation": false
   },
   {
-    "id": 5,
+    "id": 4,
     "state": {
       "__type__": "EnvState",
       "steps": [
         {
           "__type__": "EnvStep",
-          "action": "h1. tasks",
-          "next_state": "Current Board:\nTASKS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: T____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\n\nChanged:\n"
+          "action": "h1. buddy",
+          "next_state": "Current Board:\nBUDDY\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: B____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nh1. A male friend: BUDDY\n\nChanged:\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v1. TALLY",
-          "next_state": "Current Board:\nTASKS\nA____\nL____\nL____\nY____\n\nUnfilled:\nh2. An engine: A____\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "v1. AMISH",
+          "next_state": "Current Board:\nAUDDY\nM____\nI____\nS____\nH____\n\nUnfilled:\nh2. Something big and important: M____\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         }
       ],
-      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. An agendum; something to be done: _____\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: _____\nv2. An Indian antelope: _____\nv3. To intend; to plan; to devise; a nettle; to guess: _____\nv4. A nozzle: _____\nv5. Desiccator; more dry: _____\n\nFilled:\n\nChanged:\n"
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
     },
     "action": {
-      "action_str": "v1. TALLY",
+      "action_str": "v1. AMISH",
       "__type__": "StringAction"
     },
     "is_continuous": false,
     "is_terminal": false,
     "bn_score": -1,
     "state_conf": -1,
-    "fast_reward": 0.5,
+    "fast_reward": 0.25,
     "trajectory_key": {
-      "search_id": "0_1768994657",
+      "search_id": "0_1772101649",
       "indices": [
         0,
-        1
+        0
       ],
       "root_token": "q"
     },
     "step": {
       "__type__": "EnvStep",
-      "action": "v1. TALLY"
+      "action": "v1. AMISH"
     },
     "from_simulate": true,
     "is_simulated": true,
     "from_expand": false,
     "cum_rewards": [
-      0.21428571428571427
+      0.28750000000000003
     ],
     "from_continuation": false
   },
@@ -120,49 +120,49 @@
       "steps": [
         {
           "__type__": "EnvStep",
-          "action": "h1. tasks",
-          "next_state": "Current Board:\nTASKS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: T____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\n\nChanged:\n"
+          "action": "h1. buddy",
+          "next_state": "Current Board:\nBUDDY\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: B____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nh1. A male friend: BUDDY\n\nChanged:\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v1. TALLY",
-          "next_state": "Current Board:\nTASKS\nA____\nL____\nL____\nY____\n\nUnfilled:\nh2. An engine: A____\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "v1. AMISH",
+          "next_state": "Current Board:\nAUDDY\nM____\nI____\nS____\nH____\n\nUnfilled:\nh2. Something big and important: M____\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nL____\nL____\nY____\n\nUnfilled:\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: AX___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "h2. MAJOR",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nI____\nS____\nH____\n\nUnfilled:\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UA___\nv3. To force; to drive: DJ___\nv4. To dig out roughly: DO___\nv5. On the outside: YR___\n\nFilled:\nh2. Something big and important: MAJOR\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         }
       ],
-      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. An agendum; something to be done: _____\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: _____\nv2. An Indian antelope: _____\nv3. To intend; to plan; to devise; a nettle; to guess: _____\nv4. A nozzle: _____\nv5. Desiccator; more dry: _____\n\nFilled:\n\nChanged:\n"
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
     },
     "action": {
-      "action_str": "h2. AXLES",
+      "action_str": "h2. MAJOR",
       "__type__": "StringAction"
     },
     "is_continuous": false,
     "is_terminal": false,
     "bn_score": -1,
     "state_conf": -1,
-    "fast_reward": 0.5,
+    "fast_reward": 0.25,
     "trajectory_key": {
-      "search_id": "0_1768994657",
+      "search_id": "0_1772101649",
       "indices": [
         0,
-        1,
+        0,
         0
       ],
       "root_token": "q"
     },
     "step": {
       "__type__": "EnvStep",
-      "action": "h2. AXLES"
+      "action": "h2. MAJOR"
     },
     "from_simulate": true,
     "is_simulated": true,
     "from_expand": false,
     "cum_rewards": [
-      0.20833333333333334
+      0.30357142857142855
     ],
     "from_continuation": false
   },
@@ -173,41 +173,41 @@
       "steps": [
         {
           "__type__": "EnvStep",
-          "action": "h1. tasks",
-          "next_state": "Current Board:\nTASKS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: T____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\n\nChanged:\n"
+          "action": "h1. buddy",
+          "next_state": "Current Board:\nBUDDY\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: B____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nh1. A male friend: BUDDY\n\nChanged:\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v1. TALLY",
-          "next_state": "Current Board:\nTASKS\nA____\nL____\nL____\nY____\n\nUnfilled:\nh2. An engine: A____\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "v1. AMISH",
+          "next_state": "Current Board:\nAUDDY\nM____\nI____\nS____\nH____\n\nUnfilled:\nh2. Something big and important: M____\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nL____\nL____\nY____\n\nUnfilled:\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: AX___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "h2. MAJOR",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nI____\nS____\nH____\n\nUnfilled:\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UA___\nv3. To force; to drive: DJ___\nv4. To dig out roughly: DO___\nv5. On the outside: YR___\n\nFilled:\nh2. Something big and important: MAJOR\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLL___\nLE___\nYS___\n\nUnfilled:\nh3. Pretentious; flowery: LL___\nh4. A salon; a hall: LE___\nh5. To mock; to sneer: YS___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\nv2. An Indian antelope: AXLES\n\nChanged:\n"
+          "action": "h3. INPUT",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nINPUT\nS____\nH____\n\nUnfilled:\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UAN__\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         }
       ],
-      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. An agendum; something to be done: _____\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: _____\nv2. An Indian antelope: _____\nv3. To intend; to plan; to devise; a nettle; to guess: _____\nv4. A nozzle: _____\nv5. Desiccator; more dry: _____\n\nFilled:\n\nChanged:\n"
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
     },
     "action": {
-      "action_str": "v2. AXLES",
+      "action_str": "h3. INPUT",
       "__type__": "StringAction"
     },
     "is_continuous": false,
     "is_terminal": false,
     "bn_score": -1,
     "state_conf": -1,
-    "fast_reward": 0.0,
+    "fast_reward": 0.25,
     "trajectory_key": {
-      "search_id": "0_1768994657",
+      "search_id": "0_1772101649",
       "indices": [
         0,
-        1,
+        0,
         0,
         0
       ],
@@ -215,13 +215,13 @@
     },
     "step": {
       "__type__": "EnvStep",
-      "action": "v2. AXLES"
+      "action": "h3. INPUT"
     },
     "from_simulate": true,
     "is_simulated": true,
     "from_expand": false,
     "cum_rewards": [
-      0.2
+      0.325
     ],
     "from_continuation": false
   },
@@ -232,46 +232,46 @@
       "steps": [
         {
           "__type__": "EnvStep",
-          "action": "h1. tasks",
-          "next_state": "Current Board:\nTASKS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: T____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\n\nChanged:\n"
+          "action": "h1. buddy",
+          "next_state": "Current Board:\nBUDDY\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: B____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nh1. A male friend: BUDDY\n\nChanged:\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v1. TALLY",
-          "next_state": "Current Board:\nTASKS\nA____\nL____\nL____\nY____\n\nUnfilled:\nh2. An engine: A____\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "v1. AMISH",
+          "next_state": "Current Board:\nAUDDY\nM____\nI____\nS____\nH____\n\nUnfilled:\nh2. Something big and important: M____\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nL____\nL____\nY____\n\nUnfilled:\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: AX___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "h2. MAJOR",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nI____\nS____\nH____\n\nUnfilled:\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UA___\nv3. To force; to drive: DJ___\nv4. To dig out roughly: DO___\nv5. On the outside: YR___\n\nFilled:\nh2. Something big and important: MAJOR\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLL___\nLE___\nYS___\n\nUnfilled:\nh3. Pretentious; flowery: LL___\nh4. A salon; a hall: LE___\nh5. To mock; to sneer: YS___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\nv2. An Indian antelope: AXLES\n\nChanged:\n"
+          "action": "h3. INPUT",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nINPUT\nS____\nH____\n\nUnfilled:\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UAN__\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h3. LURID",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLURID\nLE___\nYS___\n\nUnfilled:\nh4. A salon; a hall: LE___\nh5. To mock; to sneer: YS___\nv3. To intend; to plan; to devise; a nettle; to guess: SLR__\nv4. A nozzle: KEI__\nv5. Desiccator; more dry: SSD__\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nh3. Pretentious; flowery: LURID\nv1. To heap: TALLY\n\nChanged:\nv2. An Indian antelope: AXUES\n"
+          "action": "v2. MANIA",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSI___\nHA___\n\nUnfilled:\nh4. To besiege: SI___\nh5. More healthy; a coin: HA___\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\n\nChanged:\nh1. A male friend: AMDDY\n"
         }
       ],
-      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. An agendum; something to be done: _____\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: _____\nv2. An Indian antelope: _____\nv3. To intend; to plan; to devise; a nettle; to guess: _____\nv4. A nozzle: _____\nv5. Desiccator; more dry: _____\n\nFilled:\n\nChanged:\n"
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
     },
     "action": {
-      "action_str": "h3. LURID",
+      "action_str": "v2. MANIA",
       "__type__": "StringAction"
     },
     "is_continuous": false,
     "is_terminal": false,
     "bn_score": -1,
     "state_conf": -1,
-    "fast_reward": 0.5,
+    "fast_reward": 0.25,
     "trajectory_key": {
-      "search_id": "0_1768994657",
+      "search_id": "0_1772101649",
       "indices": [
         0,
-        1,
+        0,
         0,
         0,
         0
@@ -280,84 +280,84 @@
     },
     "step": {
       "__type__": "EnvStep",
-      "action": "h3. LURID"
+      "action": "v2. MANIA"
     },
     "from_simulate": true,
     "is_simulated": true,
     "from_expand": false,
     "cum_rewards": [
-      0.25
+      0.34500000000000003
     ],
     "from_continuation": false
   },
   {
-    "id": 18,
+    "id": 16,
     "state": {
       "__type__": "EnvState",
       "steps": [
         {
           "__type__": "EnvStep",
-          "action": "h1. tasks",
-          "next_state": "Current Board:\nTASKS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: T____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\n\nChanged:\n"
+          "action": "h1. buddy",
+          "next_state": "Current Board:\nBUDDY\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: B____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nh1. A male friend: BUDDY\n\nChanged:\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v1. TALLY",
-          "next_state": "Current Board:\nTASKS\nA____\nL____\nL____\nY____\n\nUnfilled:\nh2. An engine: A____\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "v1. AMISH",
+          "next_state": "Current Board:\nAUDDY\nM____\nI____\nS____\nH____\n\nUnfilled:\nh2. Something big and important: M____\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nL____\nL____\nY____\n\nUnfilled:\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: AX___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "h2. MAJOR",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nI____\nS____\nH____\n\nUnfilled:\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UA___\nv3. To force; to drive: DJ___\nv4. To dig out roughly: DO___\nv5. On the outside: YR___\n\nFilled:\nh2. Something big and important: MAJOR\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLL___\nLE___\nYS___\n\nUnfilled:\nh3. Pretentious; flowery: LL___\nh4. A salon; a hall: LE___\nh5. To mock; to sneer: YS___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\nv2. An Indian antelope: AXLES\n\nChanged:\n"
+          "action": "h3. INPUT",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nINPUT\nS____\nH____\n\nUnfilled:\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UAN__\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h3. LURID",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLURID\nLE___\nYS___\n\nUnfilled:\nh4. A salon; a hall: LE___\nh5. To mock; to sneer: YS___\nv3. To intend; to plan; to devise; a nettle; to guess: SLR__\nv4. A nozzle: KEI__\nv5. Desiccator; more dry: SSD__\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nh3. Pretentious; flowery: LURID\nv1. To heap: TALLY\n\nChanged:\nv2. An Indian antelope: AXUES\n"
+          "action": "v2. MANIA",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSI___\nHA___\n\nUnfilled:\nh4. To besiege: SI___\nh5. More healthy; a coin: HA___\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\n\nChanged:\nh1. A male friend: AMDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v3. SLATE",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLUAID\nLET__\nYSE__\n\nUnfilled:\nh4. A salon; a hall: LET__\nh5. To mock; to sneer: YSE__\nv4. A nozzle: KEI__\nv5. Desiccator; more dry: SSD__\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\nv3. To intend; to plan; to devise; a nettle; to guess: SLATE\n\nChanged:\nh3. Pretentious; flowery: LUAID\nv2. An Indian antelope: AXUES\n"
+          "action": "h4. SIEGE",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSIEGE\nHA___\n\nUnfilled:\nh5. More healthy; a coin: HA___\nv3. To force; to drive: DJPE_\nv4. To dig out roughly: DOUG_\nv5. On the outside: YRTE_\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\n\nChanged:\nh1. A male friend: AMDDY\n"
         }
       ],
-      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. An agendum; something to be done: _____\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: _____\nv2. An Indian antelope: _____\nv3. To intend; to plan; to devise; a nettle; to guess: _____\nv4. A nozzle: _____\nv5. Desiccator; more dry: _____\n\nFilled:\n\nChanged:\n"
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
     },
     "action": {
-      "action_str": "v3. SLATE",
+      "action_str": "h4. SIEGE",
       "__type__": "StringAction"
     },
     "is_continuous": false,
     "is_terminal": false,
     "bn_score": -1,
     "state_conf": -1,
-    "fast_reward": 0.5,
+    "fast_reward": 0.25,
     "trajectory_key": {
-      "search_id": "0_1768994657",
+      "search_id": "0_1772101649",
       "indices": [
         0,
-        1,
         0,
         0,
         0,
-        2
+        0,
+        0
       ],
       "root_token": "q"
     },
     "step": {
       "__type__": "EnvStep",
-      "action": "v3. SLATE"
+      "action": "h4. SIEGE"
     },
     "from_simulate": true,
     "is_simulated": true,
     "from_expand": false,
     "cum_rewards": [
-      0.25
+      0.3625
     ],
     "from_continuation": false
   },
@@ -368,73 +368,73 @@
       "steps": [
         {
           "__type__": "EnvStep",
-          "action": "h1. tasks",
-          "next_state": "Current Board:\nTASKS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: T____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\n\nChanged:\n"
+          "action": "h1. buddy",
+          "next_state": "Current Board:\nBUDDY\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: B____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nh1. A male friend: BUDDY\n\nChanged:\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v1. TALLY",
-          "next_state": "Current Board:\nTASKS\nA____\nL____\nL____\nY____\n\nUnfilled:\nh2. An engine: A____\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "v1. AMISH",
+          "next_state": "Current Board:\nAUDDY\nM____\nI____\nS____\nH____\n\nUnfilled:\nh2. Something big and important: M____\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nL____\nL____\nY____\n\nUnfilled:\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: AX___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "h2. MAJOR",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nI____\nS____\nH____\n\nUnfilled:\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UA___\nv3. To force; to drive: DJ___\nv4. To dig out roughly: DO___\nv5. On the outside: YR___\n\nFilled:\nh2. Something big and important: MAJOR\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLL___\nLE___\nYS___\n\nUnfilled:\nh3. Pretentious; flowery: LL___\nh4. A salon; a hall: LE___\nh5. To mock; to sneer: YS___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\nv2. An Indian antelope: AXLES\n\nChanged:\n"
+          "action": "h3. INPUT",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nINPUT\nS____\nH____\n\nUnfilled:\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UAN__\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h3. LURID",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLURID\nLE___\nYS___\n\nUnfilled:\nh4. A salon; a hall: LE___\nh5. To mock; to sneer: YS___\nv3. To intend; to plan; to devise; a nettle; to guess: SLR__\nv4. A nozzle: KEI__\nv5. Desiccator; more dry: SSD__\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nh3. Pretentious; flowery: LURID\nv1. To heap: TALLY\n\nChanged:\nv2. An Indian antelope: AXUES\n"
+          "action": "v2. MANIA",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSI___\nHA___\n\nUnfilled:\nh4. To besiege: SI___\nh5. More healthy; a coin: HA___\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\n\nChanged:\nh1. A male friend: AMDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v3. SLATE",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLUAID\nLET__\nYSE__\n\nUnfilled:\nh4. A salon; a hall: LET__\nh5. To mock; to sneer: YSE__\nv4. A nozzle: KEI__\nv5. Desiccator; more dry: SSD__\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\nv3. To intend; to plan; to devise; a nettle; to guess: SLATE\n\nChanged:\nh3. Pretentious; flowery: LUAID\nv2. An Indian antelope: AXUES\n"
+          "action": "h4. SIEGE",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSIEGE\nHA___\n\nUnfilled:\nh5. More healthy; a coin: HA___\nv3. To force; to drive: DJPE_\nv4. To dig out roughly: DOUG_\nv5. On the outside: YRTE_\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\n\nChanged:\nh1. A male friend: AMDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h4. LEVEE",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLUAID\nLEVEE\nYSE__\n\nUnfilled:\nh5. To mock; to sneer: YSE__\nv4. A nozzle: KEIE_\nv5. Desiccator; more dry: SSDE_\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nh4. A salon; a hall: LEVEE\nv1. To heap: TALLY\n\nChanged:\nh3. Pretentious; flowery: LUAID\nv2. An Indian antelope: AXUES\nv3. To intend; to plan; to devise; a nettle; to guess: SLAVE\n"
+          "action": "v4. DOUGH",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSIEGE\nHA_H_\n\nUnfilled:\nh5. More healthy; a coin: HA_H_\nv3. To force; to drive: DJPE_\nv5. On the outside: YRTE_\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\nv4. To dig out roughly: DOUGH\n\nChanged:\nh1. A male friend: AMDDY\n"
         }
       ],
-      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. An agendum; something to be done: _____\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: _____\nv2. An Indian antelope: _____\nv3. To intend; to plan; to devise; a nettle; to guess: _____\nv4. A nozzle: _____\nv5. Desiccator; more dry: _____\n\nFilled:\n\nChanged:\n"
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
     },
     "action": {
-      "action_str": "h4. LEVEE",
+      "action_str": "v4. DOUGH",
       "__type__": "StringAction"
     },
     "is_continuous": false,
     "is_terminal": false,
     "bn_score": -1,
     "state_conf": -1,
-    "fast_reward": 0.5,
+    "fast_reward": 0.25,
     "trajectory_key": {
-      "search_id": "0_1768994657",
+      "search_id": "0_1772101649",
       "indices": [
         0,
-        1,
         0,
         0,
         0,
-        2,
+        0,
+        0,
         0
       ],
       "root_token": "q"
     },
     "step": {
       "__type__": "EnvStep",
-      "action": "h4. LEVEE"
+      "action": "v4. DOUGH"
     },
     "from_simulate": true,
     "is_simulated": true,
     "from_expand": false,
     "cum_rewards": [
-      0.25
+      0.375
     ],
     "from_continuation": false
   },
@@ -445,65 +445,65 @@
       "steps": [
         {
           "__type__": "EnvStep",
-          "action": "h1. tasks",
-          "next_state": "Current Board:\nTASKS\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: T____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\n\nChanged:\n"
+          "action": "h1. buddy",
+          "next_state": "Current Board:\nBUDDY\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: B____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nh1. A male friend: BUDDY\n\nChanged:\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v1. TALLY",
-          "next_state": "Current Board:\nTASKS\nA____\nL____\nL____\nY____\n\nUnfilled:\nh2. An engine: A____\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: A____\nv3. To intend; to plan; to devise; a nettle; to guess: S____\nv4. A nozzle: K____\nv5. Desiccator; more dry: S____\n\nFilled:\nh1. An agendum; something to be done: TASKS\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "v1. AMISH",
+          "next_state": "Current Board:\nAUDDY\nM____\nI____\nS____\nH____\n\nUnfilled:\nh2. Something big and important: M____\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nL____\nL____\nY____\n\nUnfilled:\nh3. Pretentious; flowery: L____\nh4. A salon; a hall: L____\nh5. To mock; to sneer: Y____\nv2. An Indian antelope: AX___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\n\nChanged:\n"
+          "action": "h2. MAJOR",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nI____\nS____\nH____\n\nUnfilled:\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UA___\nv3. To force; to drive: DJ___\nv4. To dig out roughly: DO___\nv5. On the outside: YR___\n\nFilled:\nh2. Something big and important: MAJOR\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v2. AXLES",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLL___\nLE___\nYS___\n\nUnfilled:\nh3. Pretentious; flowery: LL___\nh4. A salon; a hall: LE___\nh5. To mock; to sneer: YS___\nv3. To intend; to plan; to devise; a nettle; to guess: SL___\nv4. A nozzle: KE___\nv5. Desiccator; more dry: SS___\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\nv2. An Indian antelope: AXLES\n\nChanged:\n"
+          "action": "h3. INPUT",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nINPUT\nS____\nH____\n\nUnfilled:\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UAN__\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h3. LURID",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLURID\nLE___\nYS___\n\nUnfilled:\nh4. A salon; a hall: LE___\nh5. To mock; to sneer: YS___\nv3. To intend; to plan; to devise; a nettle; to guess: SLR__\nv4. A nozzle: KEI__\nv5. Desiccator; more dry: SSD__\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nh3. Pretentious; flowery: LURID\nv1. To heap: TALLY\n\nChanged:\nv2. An Indian antelope: AXUES\n"
+          "action": "v2. MANIA",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSI___\nHA___\n\nUnfilled:\nh4. To besiege: SI___\nh5. More healthy; a coin: HA___\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\n\nChanged:\nh1. A male friend: AMDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "v3. SLATE",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLUAID\nLET__\nYSE__\n\nUnfilled:\nh4. A salon; a hall: LET__\nh5. To mock; to sneer: YSE__\nv4. A nozzle: KEI__\nv5. Desiccator; more dry: SSD__\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nv1. To heap: TALLY\nv3. To intend; to plan; to devise; a nettle; to guess: SLATE\n\nChanged:\nh3. Pretentious; flowery: LUAID\nv2. An Indian antelope: AXUES\n"
+          "action": "h4. SIEGE",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSIEGE\nHA___\n\nUnfilled:\nh5. More healthy; a coin: HA___\nv3. To force; to drive: DJPE_\nv4. To dig out roughly: DOUG_\nv5. On the outside: YRTE_\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\n\nChanged:\nh1. A male friend: AMDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h4. LEVEE",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLUAID\nLEVEE\nYSE__\n\nUnfilled:\nh5. To mock; to sneer: YSE__\nv4. A nozzle: KEIE_\nv5. Desiccator; more dry: SSDE_\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nh4. A salon; a hall: LEVEE\nv1. To heap: TALLY\n\nChanged:\nh3. Pretentious; flowery: LUAID\nv2. An Indian antelope: AXUES\nv3. To intend; to plan; to devise; a nettle; to guess: SLAVE\n"
+          "action": "v4. DOUGH",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSIEGE\nHA_H_\n\nUnfilled:\nh5. More healthy; a coin: HA_H_\nv3. To force; to drive: DJPE_\nv5. On the outside: YRTE_\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\nv4. To dig out roughly: DOUGH\n\nChanged:\nh1. A male friend: AMDDY\n"
         },
         {
           "__type__": "EnvStep",
-          "action": "h5. SNEER",
-          "next_state": "Current Board:\nTASKS\nAXLES\nLUAID\nLEVEE\nSNEER\n\nUnfilled:\nv4. A nozzle: KEIEE\nv5. Desiccator; more dry: SSDER\n\nFilled:\nh1. An agendum; something to be done: TASKS\nh2. An engine: AXLES\nh4. A salon; a hall: LEVEE\nh5. To mock; to sneer: SNEER\n\nChanged:\nh3. Pretentious; flowery: LUAID\nv1. To heap: TALLS\nv2. An Indian antelope: AXUEN\nv3. To intend; to plan; to devise; a nettle; to guess: SLAVE\n"
+          "action": "v5. OUTER",
+          "next_state": "Current Board:\nAMDDO\nMAJOU\nINPUT\nSIEGE\nHA_HR\n\nUnfilled:\nh5. More healthy; a coin: HA_HR\nv3. To force; to drive: DJPE_\n\nFilled:\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\nv4. To dig out roughly: DOUGH\nv5. On the outside: OUTER\n\nChanged:\nh1. A male friend: AMDDO\nh2. Something big and important: MAJOU\n"
         }
       ],
-      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. An agendum; something to be done: _____\nh2. An engine: _____\nh3. Pretentious; flowery: _____\nh4. A salon; a hall: _____\nh5. To mock; to sneer: _____\nv1. To heap: _____\nv2. An Indian antelope: _____\nv3. To intend; to plan; to devise; a nettle; to guess: _____\nv4. A nozzle: _____\nv5. Desiccator; more dry: _____\n\nFilled:\n\nChanged:\n"
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
     },
     "action": {
-      "action_str": "h5. SNEER",
+      "action_str": "v5. OUTER",
       "__type__": "StringAction"
     },
     "is_continuous": false,
-    "is_terminal": true,
+    "is_terminal": false,
     "bn_score": -1,
     "state_conf": -1,
-    "fast_reward": 0.5,
+    "fast_reward": 0.25,
     "trajectory_key": {
-      "search_id": "0_1768994657",
+      "search_id": "0_1772101649",
       "indices": [
         0,
-        1,
         0,
         0,
         0,
-        2,
+        0,
+        0,
         0,
         0
       ],
@@ -511,13 +511,102 @@
     },
     "step": {
       "__type__": "EnvStep",
-      "action": "h5. SNEER"
+      "action": "v5. OUTER"
     },
     "from_simulate": true,
     "is_simulated": true,
     "from_expand": false,
     "cum_rewards": [
-      0.25
+      0.4
+    ],
+    "from_continuation": false
+  },
+  {
+    "id": 25,
+    "state": {
+      "__type__": "EnvState",
+      "steps": [
+        {
+          "__type__": "EnvStep",
+          "action": "h1. buddy",
+          "next_state": "Current Board:\nBUDDY\n_____\n_____\n_____\n_____\n\nUnfilled:\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: B____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nh1. A male friend: BUDDY\n\nChanged:\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v1. AMISH",
+          "next_state": "Current Board:\nAUDDY\nM____\nI____\nS____\nH____\n\nUnfilled:\nh2. Something big and important: M____\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: U____\nv3. To force; to drive: D____\nv4. To dig out roughly: D____\nv5. On the outside: Y____\n\nFilled:\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h2. MAJOR",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nI____\nS____\nH____\n\nUnfilled:\nh3. Things that enter; data given to a computer program: I____\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UA___\nv3. To force; to drive: DJ___\nv4. To dig out roughly: DO___\nv5. On the outside: YR___\n\nFilled:\nh2. Something big and important: MAJOR\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h3. INPUT",
+          "next_state": "Current Board:\nAUDDY\nMAJOR\nINPUT\nS____\nH____\n\nUnfilled:\nh4. To besiege: S____\nh5. More healthy; a coin: H____\nv2. A craze: UAN__\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\n\nChanged:\nh1. A male friend: AUDDY\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v2. MANIA",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSI___\nHA___\n\nUnfilled:\nh4. To besiege: SI___\nh5. More healthy; a coin: HA___\nv3. To force; to drive: DJP__\nv4. To dig out roughly: DOU__\nv5. On the outside: YRT__\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\n\nChanged:\nh1. A male friend: AMDDY\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h4. SIEGE",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSIEGE\nHA___\n\nUnfilled:\nh5. More healthy; a coin: HA___\nv3. To force; to drive: DJPE_\nv4. To dig out roughly: DOUG_\nv5. On the outside: YRTE_\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\n\nChanged:\nh1. A male friend: AMDDY\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v4. DOUGH",
+          "next_state": "Current Board:\nAMDDY\nMAJOR\nINPUT\nSIEGE\nHA_H_\n\nUnfilled:\nh5. More healthy; a coin: HA_H_\nv3. To force; to drive: DJPE_\nv5. On the outside: YRTE_\n\nFilled:\nh2. Something big and important: MAJOR\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\nv4. To dig out roughly: DOUGH\n\nChanged:\nh1. A male friend: AMDDY\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "v5. OUTER",
+          "next_state": "Current Board:\nAMDDO\nMAJOU\nINPUT\nSIEGE\nHA_HR\n\nUnfilled:\nh5. More healthy; a coin: HA_HR\nv3. To force; to drive: DJPE_\n\nFilled:\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\nv4. To dig out roughly: DOUGH\nv5. On the outside: OUTER\n\nChanged:\nh1. A male friend: AMDDO\nh2. Something big and important: MAJOU\n"
+        },
+        {
+          "__type__": "EnvStep",
+          "action": "h5. HALER",
+          "next_state": "Current Board:\nAMDDO\nMAJOU\nINPUT\nSIEGE\nHALER\n\nUnfilled:\nv3. To force; to drive: DJPEL\n\nFilled:\nh3. Things that enter; data given to a computer program: INPUT\nh4. To besiege: SIEGE\nh5. More healthy; a coin: HALER\nv1. A Mennonite sect, named for Jacob Ammann: AMISH\nv2. A craze: MANIA\nv5. On the outside: OUTER\n\nChanged:\nh1. A male friend: AMDDO\nh2. Something big and important: MAJOU\nv4. To dig out roughly: DOUGE\n"
+        }
+      ],
+      "init_state": "Current Board:\n_____\n_____\n_____\n_____\n_____\n\nUnfilled:\nh1. A male friend: _____\nh2. Something big and important: _____\nh3. Things that enter; data given to a computer program: _____\nh4. To besiege: _____\nh5. More healthy; a coin: _____\nv1. A Mennonite sect, named for Jacob Ammann: _____\nv2. A craze: _____\nv3. To force; to drive: _____\nv4. To dig out roughly: _____\nv5. On the outside: _____\n\nFilled:\n\nChanged:\n"
+    },
+    "action": {
+      "action_str": "h5. HALER",
+      "__type__": "StringAction"
+    },
+    "is_continuous": false,
+    "is_terminal": true,
+    "bn_score": -1,
+    "state_conf": -1,
+    "fast_reward": 0.25,
+    "trajectory_key": {
+      "search_id": "0_1772101649",
+      "indices": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "root_token": "q"
+    },
+    "step": {
+      "__type__": "EnvStep",
+      "action": "h5. HALER"
+    },
+    "from_simulate": true,
+    "is_simulated": true,
+    "from_expand": false,
+    "cum_rewards": [
+      0.425
     ],
     "from_continuation": false
   }

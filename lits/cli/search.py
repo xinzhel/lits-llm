@@ -549,7 +549,7 @@ def main() -> int:
     # Log final metrics
     log_final_metrics(run_logger, base_model.inference_logger)
 
-    # Print diversity report (env_grounded tasks only)
+    # Log diversity report to file (env_grounded tasks only)
     if llm_calls_path:
         try:
             records = load_llm_calls(llm_calls_path)
