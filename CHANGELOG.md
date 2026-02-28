@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-02-28 Unreleased
+
+### Added
+- Groq auto-configuration in `get_lm()` — `groq/` prefix auto-sets `base_url` and reads `GROQ_API_KEY` (`lits/lm/__init__.py`)
+- `LITS_LOG_LEVEL` env var for console log level (`lits/log.py`)
+
+### Changed
+- README Quick Start rewritten: zero-clone math demo with `@register_dataset` + `--include` (`README.md`)
+- README: added LLM provider config section (OpenAI, Bedrock, Groq, HuggingFace, vLLM/OpenAI-compatible)
+- README: added demo video link and restructured CLI examples as video companion
+- OpenAI unsupported kwargs warnings downgraded to `logger.debug` (`lits/lm/openai_chat.py`)
+- Bedrock API call params and extra kwargs warnings downgraded to `logger.debug` (`lits/lm/bedrock_chat.py`)
+- LLM call diversity report moved from `print` to `logger.info` (`lits/eval/llm_call_logger.py`)
+
+### Fixed
+- `GenerativePRM` logits fallback crash when backend doesn't support logits (`lits/components/reward/generative.py`)
+
+### Docs
+- vLLM/Qwen3 caveats for AWQ, thinking mode, and version conflicts (`docs/CAVEAT.md`)
+
 ## 2026-02-22 Unreleased (ThinkPRM TGI Support)
 
 ### Changed

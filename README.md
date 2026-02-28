@@ -58,6 +58,13 @@ MODEL="Qwen/Qwen2.5-0.5B-Instruct"  # auto-downloads from HuggingFace
 # pass device via --search-arg: device=cuda (default), device=mps (Apple Silicon), or device=cpu
 ```
 
+**Any OpenAI-compatible API** (vLLM, Together AI, Fireworks, etc.):
+```bash
+export OPENAI_API_KEY="your-key"           # use "EMPTY" for local vLLM
+export OPENAI_API_BASE="http://localhost:8000/v1"  # vLLM / provider's base URL
+MODEL="openai/meta-llama/Llama-3-8B-Instruct"
+```
+
 ### 3. Run MCTS on a math problem
 
 Save this as `my_benchmark.py` (the `.py` extension matters) in your working directory:
