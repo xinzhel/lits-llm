@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field, asdict
+import json
 import logging
 
 from .node import SearchNode
@@ -322,6 +323,12 @@ class BFSSearch(BaseTreeSearch):
                 log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (end of depth)", level="debug")
                 break
             log_phase(logger, "BFS", f"Depth {depth} End")
+
+            # Save level-wise checkpoint
+            if self._checkpoint_path:
+                from ...structures.trace import _serialize_obj
+                depth_nodes = [_serialize_obj(n) for n in buckets_with_terminal.get(depth, [])]
+                self.save_checkpoint(query_idx, depth, depth_nodes)
 
         # Collect all terminal nodes from various sources
         terminal_nodes_collected = terminal_nodes.copy()

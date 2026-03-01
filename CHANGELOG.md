@@ -6,7 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
-## 2026-02-28 Unreleased
+## 2026-03-1 Unreleased
+### Added
+- Save layer-wise checkpoint in bfs
+- Added docs/TRAJ_CHECKPOINT.md
+
+## 2026-02-28 0.3.2
 
 ### Added
 - Groq auto-configuration in `get_lm()` — `groq/` prefix auto-sets `base_url` and reads `GROQ_API_KEY` (`lits/lm/__init__.py`)
@@ -26,7 +31,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Docs
 - vLLM/Qwen3 caveats for AWQ, thinking mode, and version conflicts (`docs/CAVEAT.md`)
 
-## 2026-02-22 Unreleased (ThinkPRM TGI Support)
+## 2026-02-22 0.3.2 (ThinkPRM TGI Support)
 
 ### Changed
 - `ThinkPRM` now uses `base_model` from `--eval-model` instead of creating its own TGI/SageMaker wrapper (`lits/components/reward/thinkprm.py`)
@@ -38,7 +43,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Fixed
 - `ThinkPRM` now properly passes `base_model` to parent `RewardModel` class
 
-## 2026-02-22 Unreleased (Eval CLI Improvements)
+## 2026-02-22 0.3.2 (Eval CLI Improvements)
 
 ### Fixed
 - `ThoughtStep.to_dict()` now includes `action` field for proper serialization (`lits/structures/qa.py`)
@@ -52,7 +57,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Docs
 - Added `lits-eval` usage section to `docs/CAVEAT.md`
 
-## 2026-02-22 Unreleased (ExperimentConfig Serialization)
+## 2026-02-22 0.3.2 (ExperimentConfig Serialization)
 
 ### Added
 - `ExperimentConfig.to_dict()` and `save_config()` methods (`lits/config.py`)
@@ -63,7 +68,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `cli/search.py` uses `config.save_config()` instead of `search_config.save_config()`
 - `cli/eval_search.py` reads `import_modules`/`dataset_kwargs` from top-level config
 
-## 2026-02-21 Unreleased (Tree Search Log Metadata)
+## 2026-02-21 0.3.2 (Tree Search Log Metadata)
 
 ### Fixed
 - `config.json` now saves `policy_model_name`, `eval_model_name`, `dataset`, `output_dir` (`lits/config.py`)
