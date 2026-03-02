@@ -47,6 +47,7 @@ class BenchmarkRegistry:
     _datasets: Dict[str, Callable[..., List[Dict]]] = {}
     _dataset_task_types: Dict[str, str] = {}
     _resources: Dict[str, Callable[..., Dict[str, Any]]] = {}
+    _evaluators: Dict[str, Callable] = {}
     
     @classmethod
     def register_dataset(cls, name: str, task_type: Optional[str] = None) -> Callable:
@@ -198,6 +199,7 @@ class BenchmarkRegistry:
         cls._datasets.clear()
         cls._dataset_task_types.clear()
         cls._resources.clear()
+        cls._evaluators.clear()
         logger.debug("BenchmarkRegistry cleared")
     
     # --- Resource registry (tool-use benchmarks) ---
@@ -271,6 +273,63 @@ class BenchmarkRegistry:
             True if a resource loader is registered
         """
         return name in cls._resources
+
+    # --- Evaluator registry (dataset-specific evaluation functions) ---
+
+    @classmethod
+    def register_evaluator(cls, name: str) -> Callable:
+        """Decorator to register a dataset-specific evaluation function.
+
+        The registered function should accept ``(predicted, ground_truth)``
+        and return a bool (correct/incorrect).
+
+        Args:
+            name: Dataset name (should match the ``@register_dataset`` name).
+
+        Returns:
+            Decorator function.
+
+        Example::
+
+            @BenchmarkRegistry.register_evaluator("dbbench")
+            def evaluate_dbbench(predicted, ground_truth) -> bool:
+                ...
+        """
+        def decorator(eval_func: Callable) -> Callable:
+            if name in cls._evaluators:
+                raise ValueError(
+                    f"Evaluator '{name}' is already registered as {cls._evaluators[name].__name__}. "
+                    f"Cannot register {eval_func.__name__}."
+                )
+            cls._evaluators[name] = eval_func
+            logger.debug(f"Registered evaluator '{name}': {eval_func.__name__}")
+            return eval_func
+        return decorator
+
+    @classmethod
+    def get_evaluator(cls, name: str) -> Optional[Callable]:
+        """Look up a registered evaluator function.
+
+        Args:
+            name: Dataset name.
+
+        Returns:
+            The registered evaluator function, or *None* if not found.
+        """
+        return cls._evaluators.get(name)
+
+    @classmethod
+    def has_evaluator(cls, name: str) -> bool:
+        """Check if an evaluator is registered for the given dataset.
+
+        Args:
+            name: Dataset name.
+
+        Returns:
+            True if an evaluator is registered.
+        """
+        return name in cls._evaluators
+
 
 
 # Module-level function aliases for convenience
@@ -393,3 +452,54 @@ def has_resource(name: str) -> bool:
         True if a resource loader is registered
     """
     return BenchmarkRegistry.has_resource(name)
+
+
+def register_evaluator(name: str) -> Callable:
+    """Decorator to register a dataset-specific evaluation function.
+
+    This is a module-level alias for ``BenchmarkRegistry.register_evaluator()``.
+
+    Args:
+        name: Dataset name (should match the ``@register_dataset`` name).
+
+    Returns:
+        Decorator function.
+
+    Example::
+
+        from lits.benchmarks.registry import register_evaluator
+
+        @register_evaluator("dbbench")
+        def evaluate_dbbench(predicted, ground_truth) -> bool:
+            ...
+    """
+    return BenchmarkRegistry.register_evaluator(name)
+
+
+def get_evaluator(name: str):
+    """Look up a registered evaluator function.
+
+    This is a module-level alias for ``BenchmarkRegistry.get_evaluator()``.
+
+    Args:
+        name: Dataset name.
+
+    Returns:
+        The registered evaluator function, or *None* if not found.
+    """
+    return BenchmarkRegistry.get_evaluator(name)
+
+
+def has_evaluator(name: str) -> bool:
+    """Check if an evaluator is registered for the given dataset.
+
+    This is a module-level alias for ``BenchmarkRegistry.has_evaluator()``.
+
+    Args:
+        name: Dataset name.
+
+    Returns:
+        True if an evaluator is registered.
+    """
+    return BenchmarkRegistry.has_evaluator(name)
+

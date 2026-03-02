@@ -8,6 +8,9 @@ from lits.benchmarks.registry import (
     register_dataset,
     load_dataset,
     infer_task_type,
+    register_evaluator,
+    get_evaluator,
+    has_evaluator,
 )
 
 __all__ = [
@@ -15,4 +18,7 @@ __all__ = [
     'register_dataset',
     'load_dataset',
     'infer_task_type',
+    'register_evaluator',
+    'get_evaluator',
+    'has_evaluator',
 ]

@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 from lits.agents.tree.node import SearchNode, MCTSNode
 from lits.agents.tree.common import extract_answers_from_terminal_nodes
-from lits.benchmarks.registry import load_dataset, has_resource
+from lits.benchmarks.registry import load_dataset, has_resource, has_evaluator, get_evaluator
 from lits.components.registry import ComponentRegistry
 from lits.registry import import_custom_modules, load_config_from_result_dir
 from lits.components.utils import get_fn_retrieve_answer
@@ -322,9 +322,15 @@ def evaluate_from_checkpoints(
             continue
     
     # Calculate accuracy
-    # For QA tasks (math), use eval_output for proper number comparison
-    # For env_grounded tasks, use exact string match ("correct"/"incorrect")
+    # Accuracy comparison priority:
+    # 1. env_grounded: exact string match (goal_check already applied during answer extraction above)
+    # 2. registered evaluator: dataset-specific comparison (e.g., dbbench float tolerance + set match)
+    # 3. eval_output: generic number comparison (math QA tasks)
     from lits.components.utils import eval_output
+    
+    custom_evaluator = get_evaluator(dataset_name) if has_evaluator(dataset_name) else None
+    if custom_evaluator:
+        eval_logger.info(f"Using registered evaluator for '{dataset_name}'")
     
     correct_count = 0
     eval_logger.info("=" * 40)
@@ -333,6 +339,13 @@ def evaluate_from_checkpoints(
         if is_env_grounded:
             # Exact string match for env_grounded tasks
             correct = (pred == truth)
+        elif custom_evaluator:
+            # Use dataset-specific evaluator (e.g., dbbench float tolerance + set comparison)
+            try:
+                correct = custom_evaluator(pred, truth)
+            except Exception as e:
+                correct = False
+                eval_logger.debug(f"  [{i}] custom evaluator failed: {e}")
         else:
             # Use eval_output for number comparison in QA tasks
             try:

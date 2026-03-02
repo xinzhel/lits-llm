@@ -19,7 +19,7 @@ import logging
 import os
 from typing import Dict, List, Optional
 
-from lits.benchmarks.registry import register_dataset, register_resource
+from lits.benchmarks.registry import register_dataset, register_resource, register_evaluator
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +74,8 @@ def load_dbbench(data_file: Optional[str] = None, database: Optional[str] = None
 
     Returns:
         List of example dicts, each containing:
+        ``question`` (alias of ``description`` for CLI compatibility),
+        ``answer`` (alias of ``label`` for eval pipeline compatibility),
         ``description``, ``label``, ``table``, ``add_description``,
         ``evidence``, ``heads``, ``type``, ``sql``.
     """
@@ -106,6 +108,8 @@ def load_dbbench(data_file: Optional[str] = None, database: Optional[str] = None
     examples = []
     for entry in select_entries:
         examples.append({
+            "question": entry["description"],  # CLI expects "question" key
+            "answer": entry["label"],           # eval pipeline expects "answer" key
             "description": entry["description"],
             "label": entry["label"],
             "table": entry["table"],
@@ -209,6 +213,7 @@ def build_user_prompt(entry: Dict) -> str:
 # Evaluation — ported from AgentBench result_processor.py (SELECT only)
 # ---------------------------------------------------------------------------
 
+@register_evaluator("dbbench")
 def evaluate_dbbench(predicted_answer, ground_truth) -> bool:
     """Evaluate a DBBench SELECT query answer against ground truth.
 
