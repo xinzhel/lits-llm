@@ -19,7 +19,7 @@ import logging
 import os
 from typing import Dict, List, Optional
 
-from lits.benchmarks.registry import register_dataset
+from lits.benchmarks.registry import register_dataset, register_resource
 
 logger = logging.getLogger(__name__)
 
@@ -341,3 +341,95 @@ def _float_equal(a: str, b: str, tol: float = 1e-2) -> bool:
         return abs(float(a) - float(b)) <= tol
     except (ValueError, TypeError):
         return False
+
+
+# ---------------------------------------------------------------------------
+# Output truncation — match AgentBench 800-char limit
+# ---------------------------------------------------------------------------
+
+DBBENCH_MAX_OUTPUT_LEN = 800
+
+
+class DBBenchQueryTool:
+    """Thin wrapper that adds AgentBench-style 800-char truncation to
+    ``QuerySQLDatabaseTool``.  LangChain truncates per-cell at 300 chars,
+    but AgentBench caps the entire result string at 800 chars.
+    """
+
+    def __new__(cls, client):
+        from lits.tools.sql_tools import QuerySQLDatabaseTool as _Base
+
+        tool = _Base(client=client)
+        original_run = tool._run
+
+        def _truncated_run(**kwargs):
+            result = original_run(**kwargs)
+            if isinstance(result, str) and len(result) > DBBENCH_MAX_OUTPUT_LEN:
+                return result[:DBBENCH_MAX_OUTPUT_LEN] + "[TRUNCATED]"
+            return result
+
+        tool._run = _truncated_run
+        return tool
+
+
+# ---------------------------------------------------------------------------
+# Resource loader — CLI integration via @register_resource
+# ---------------------------------------------------------------------------
+
+@register_resource("dbbench")
+def load_dbbench_resource(**kwargs) -> dict:
+    """Load DBBench tool-use resource: MySQL container + SQL tools.
+
+    Handles the full lifecycle: starts a MySQL Docker container (if needed),
+    initializes the database with DBBench table data, and returns tools
+    ready for the MCTS pipeline.
+
+    Kwargs:
+        mysql_uri: If provided, skip container start and use this URI directly.
+            Must include the database name (e.g.
+            ``mysql+pymysql://root:pw@localhost:3307/dbbench_wikisql``).
+        db_port: Host port for MySQL container (default: 3307).
+        db_password: MySQL root password (default: "password").
+        database: Database group filter — ``"wikisql"``, ``"wikitq"``, or
+            ``None`` for all (default: None).  Determines which entries are
+            loaded and which MySQL database name is used.
+
+    Returns:
+        Dict with ``"tools"`` (list of BaseTool) and ``"tool_context"`` (str).
+    """
+    from lits.clients.sql_client import SQLDBClient
+    from lits.tools.sql_tools import InfoSQLDatabaseTool, ListSQLDatabaseTool
+    from lits.structures.tool_use import ToolUseStep
+    from lits.utils import make_tag_extractor
+    from .dbbench_db_setup import start_mysql_container, init_database
+
+    mysql_uri = kwargs.get("mysql_uri")
+    db_group = kwargs.get("database")  # wikisql / wikitq / None
+
+    if mysql_uri is None:
+        # Start container and init database
+        port = int(kwargs.get("db_port", 3307))
+        password = kwargs.get("db_password", "password")
+        base_uri = start_mysql_container(port=port, password=password)
+
+        db_name = f"dbbench_{db_group}" if db_group else "dbbench"
+        entries = load_dbbench(database=db_group)
+        mysql_uri = init_database(base_uri, entries, database=db_name)
+
+    # Disable LangChain per-cell truncation (default 300 chars) so our
+    # 800-char whole-result truncation matches AgentBench exactly.
+    db_client = SQLDBClient(uri=mysql_uri, max_string_length=10000)
+
+    # Configure answer extractor for DBBench (uses <answer> tags)
+    ToolUseStep.configure_extractors(
+        answer_extractor=make_tag_extractor("answer"),
+    )
+
+    return {
+        "tools": [
+            DBBenchQueryTool(client=db_client),
+            InfoSQLDatabaseTool(client=db_client),
+            ListSQLDatabaseTool(client=db_client),
+        ],
+        "tool_context": "",
+    }

@@ -6,14 +6,21 @@ from sqlalchemy import create_engine
 class SQLDBClient(BaseClient):
     """Unified wrapper for SQL or GeoSQL databases."""
 
-    def __init__(self, uri: str, schema: str = None, ALLOWED_TABLES: list = None):
+    def __init__(self, uri: str, schema: str = None, ALLOWED_TABLES: list = None,
+                 max_string_length: int = 300):
         super().__init__(uri=uri)
-        
-        engine = create_engine(
-            uri,
-            connect_args={"options": f"-c search_path={schema}"} if schema else {}
+
+        # search_path connect_args are PostgreSQL-specific; skip for other dialects
+        connect_args = {}
+        if schema and uri.startswith("postgresql"):
+            connect_args = {"options": f"-c search_path={schema}"}
+
+        engine = create_engine(uri, connect_args=connect_args)
+        self.db = SQLDatabase(
+            engine,
+            include_tables=ALLOWED_TABLES,
+            max_string_length=max_string_length,
         )
-        self.db = SQLDatabase(engine, include_tables=ALLOWED_TABLES)
 
     def request(self, query: str, **kwargs) -> Dict[str, Any]:
         """Run SQL query and return results in dict form."""
