@@ -183,7 +183,7 @@ def create_components_tool_use(
     max_steps = search_args.get("max_steps", 10)
     force_terminating_on_depth_limit = search_args.get("force_terminating_on_depth_limit", False)
     max_length = search_args.get("max_length", 32768)
-    max_eval_rollout_steps = component_args.get("max_eval_rollout_steps", 5)
+    max_eval_rollout_steps = component_args.get("max_eval_rollout_steps", 0)
     
     tools = tool_use_spec["tools"]
     tool_context = tool_use_spec.get("tool_context", "")

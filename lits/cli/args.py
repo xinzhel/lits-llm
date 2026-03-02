@@ -42,6 +42,63 @@ class CLIArgs:
     output_dir: Optional[str] = None  # --output-dir / -o
 
 
+class _AppendList(argparse.Action):
+    """Custom argparse action: nargs="+" with accumulation across repeated flags.
+    
+    Problem:
+        argparse's default behavior with nargs="+" is: each time a flag appears,
+        it REPLACES namespace.dest with the new list of values. So:
+        
+            --search-arg n_actions=5 n_iters=30  →  ["n_actions=5", "n_iters=30"]  ✓
+            --search-arg n_actions=5 --search-arg n_iters=30  →  ["n_iters=30"]    ✗ (first lost)
+        
+        The second style fails because argparse processes flags left-to-right:
+        1. Sees --search-arg n_actions=5  → sets dest = ["n_actions=5"]
+        2. Sees --search-arg n_iters=30   → sets dest = ["n_iters=30"]  (overwrites!)
+        
+        nargs="+" correctly captures all values within ONE invocation, but the
+        default store action does setattr(namespace, dest, values) which is a
+        full replacement, not an append.
+    
+    Solution:
+        This action overrides __call__ to EXTEND the existing list instead of
+        replacing it. nargs="+" still handles the per-invocation parsing (greedy
+        consumption of consecutive values), but we accumulate across invocations.
+    
+    Supports both styles:
+        --search-arg n_actions=5 n_iters=30                    (one flag, multiple values)
+        --search-arg n_actions=5 --search-arg n_iters=30       (repeated flags)
+        --search-arg n_actions=5 n_iters=30 --search-arg w=1.0 (mixed)
+    """
+    def __call__(self, parser, namespace, values, option_string=None):
+        """Called by argparse each time this flag is encountered during parsing.
+        
+        argparse parses argv left-to-right. Each time it encounters a flag
+        (e.g., --search-arg), it calls this action's __call__ with the values
+        captured by nargs="+" for that single occurrence.
+        
+        Args:
+            parser: The ArgumentParser instance (unused, but required by protocol).
+            namespace: The argparse.Namespace object being built during parsing.
+                This is essentially a mutable container (like a dict) that holds
+                all parsed results. Each add_argument(dest="foo") creates an
+                attribute namespace.foo. We read/write self.dest on it.
+            values: List[str] of values captured by nargs="+" for THIS single
+                flag occurrence. e.g., for `--search-arg a=1 b=2`, values is
+                ["a=1", "b=2"]. For `--search-arg a=1`, values is ["a=1"].
+            option_string: The actual flag string that triggered this action
+                (e.g., "--search-arg"). None for positional arguments.
+        
+        Note:
+            self.dest is the attribute name on namespace where results are stored,
+            set by add_argument(dest="search_args"). So self.dest == "search_args"
+            and we read/write namespace.search_args.
+        """
+        current = getattr(namespace, self.dest, None) or []
+        current.extend(values)
+        setattr(namespace, self.dest, current)
+
+
 def create_experiment_parser(description: str = "Run LiTS experiment") -> argparse.ArgumentParser:
     """Create argument parser for LiTS experiment scripts.
     
@@ -254,11 +311,15 @@ Common Options:
     )
     
     # New arg flags (Task 5.1.5)
+    # Use _AppendList so both styles work:
+    #   --search-arg n_actions=5 n_iters=30   (multiple values in one flag)
+    #   --search-arg n_actions=5 --search-arg n_iters=30  (repeated flags)
     parser.add_argument(
         "--search-arg",
         dest="search_args",
         type=str,
         nargs="+",
+        action=_AppendList,
         metavar="KEY=VALUE",
         help="Search algorithm kwargs (e.g., --search-arg n_iters=50 n_actions=3 roll_out_steps=2)"
     )
@@ -268,6 +329,7 @@ Common Options:
         dest="component_args",
         type=str,
         nargs="+",
+        action=_AppendList,
         metavar="KEY=VALUE",
         help="Component kwargs (e.g., --component-arg think_for_correctness=true thinkprm_endpoint=my-endpoint)"
     )

@@ -1,10 +1,16 @@
-"""LATS-style reward model for evaluating ToolUseState trajectories.
+"""Reward model for evaluating ToolUseState trajectories.
 
-This module implements a value function that completes a tool-use trajectory
-using ReAct-style reasoning with actual tool execution, then scores it.
+Supports two evaluation modes:
 
-Following LATS paper (https://arxiv.org/pdf/2310.04406): the LLM finishes 
-the reasoning trace step-by-step with real tool calls, then provides a score.
+1. **Direct scoring** (max_rollout_steps=0, default): LATS-style value function.
+   The LLM directly scores the current partial trajectory without any rollout.
+   Following LATS paper: "To obtain a scalar value, we instruct pθ to end its
+   reasoning trace with a score indicating the correctness of the trajectory."
+   One LLM call per evaluation — fast and cheap.
+
+2. **Rollout scoring** (max_rollout_steps>0): Complete the trajectory with real
+   tool execution, then score the completed trajectory. More accurate but
+   significantly more expensive (multiple LLM + tool calls per evaluation).
 """
 
 import logging
@@ -24,46 +30,23 @@ logger = logging.getLogger(__name__)
 
 
 class ToolUsePRM(RewardModel):
-    """Process Reward Model for ToolUseState evaluation following LATS approach.
+    """Process Reward Model for ToolUseState evaluation.
 
-    This reward model evaluates a tool-use trajectory by:
-    1. Continuing the trajectory to completion using ReAct-style reasoning
-    2. Actually executing tools at each step (not just imagining)
-    3. Having the LLM provide a final score after completion
+    Supports two modes controlled by ``max_rollout_steps``:
 
-    Following LATS paper: "it is difficult for LMs to improve their responses 
-    without external feedback", so we complete the trajectory with real tool
-    execution and then self-evaluate with a score.
+    - **Direct scoring** (``max_rollout_steps=0``, default): LATS-style value
+      function. Prompts the LLM to score the current partial trajectory in a
+      single call. Fast and cheap — no tool execution during evaluation.
+    - **Rollout scoring** (``max_rollout_steps>0``): Completes the trajectory
+      with real tool execution, then scores the completed trajectory. More
+      accurate but significantly more expensive.
 
     Args:
         base_model: LLM to use for evaluation
-        tools: List of tools available for execution
+        tools: List of tools available for execution (only needed for rollout mode)
         task_prompt_spec: System prompt for evaluation (loaded from registry if None)
-        max_rollout_steps: Maximum steps to continue trajectory (default: 5)
+        max_rollout_steps: Max steps to continue trajectory. 0 = direct scoring (default).
         **kwargs: Additional arguments passed to RewardModel
-
-    Example:
-        ```python
-        from lits.lm import get_lm
-        from lits.components.reward.tool_use import ToolUsePRM
-        from lits.tools import get_tools
-
-        model = get_lm("bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0")
-        tools = get_tools(['search', 'calculator'])
-        
-        reward_model = ToolUsePRM(
-            base_model=model,
-            tools=tools,
-        )
-
-        # Evaluate a state
-        reward, aux = reward_model.fast_reward(
-            state=current_state,
-            action=proposed_action,
-            query="What is the population of Paris?",
-            query_idx=0
-        )
-        ```
     """
     
     # Interface category for tool-use tasks
@@ -74,7 +57,7 @@ class ToolUsePRM(RewardModel):
         base_model,
         tools: List,
         task_prompt_spec: Optional[str] = None,
-        max_rollout_steps: int = 5,
+        max_rollout_steps: int = 0,
         save_rollouts_dir: Optional[str] = None,
         **kwargs
     ):
@@ -101,6 +84,9 @@ class ToolUsePRM(RewardModel):
         # Lazy import to avoid circular dependency
         self._policy = None
         self._transition = None
+        
+        mode = "direct scoring" if self.max_rollout_steps == 0 else f"rollout (max {self.max_rollout_steps} steps)"
+        logger.info(f"ToolUsePRM initialized in {mode} mode")
     
     def _get_llm_role(self) -> str:
         """Return the LLM role prefix for tool-use PRM."""
@@ -149,40 +135,67 @@ class ToolUsePRM(RewardModel):
         return (query, action_sequence)
     
     def _get_default_prompt(self) -> str:
-        """Get default evaluation prompt following LATS approach."""
-        return """Provide a score evaluating how good or promising the given trajectory was at solving the query.
-
-At the end of your response, after providing the final answer, add:
-<score>
-[A number between 0 and 1 indicating trajectory quality]
-</score>
-
-Score guidelines:
-- 0.0-0.3: Poor trajectory, wrong approach or major errors
-- 0.4-0.6: Mediocre, some progress but significant issues  
-- 0.7-0.9: Good trajectory, effective with minor issues
-- 1.0: Excellent trajectory, optimal approach
-
-The score must be a valid float parsable by Python's float() function."""
+        """Get default evaluation prompt.
+        
+        For direct scoring (max_rollout_steps=0), follows LATS value function:
+        score the partial trajectory's promise toward solving the query.
+        For rollout scoring, score the completed trajectory.
+        """
+        if self.max_rollout_steps == 0:
+            return (
+                "Analyze the given trajectory of thoughts, actions, and observations "
+                "for solving the query. Evaluate whether the approach so far is on the "
+                "right track, even if the final answer has not been reached yet.\n\n"
+                "Incomplete trajectories can be correct if the thoughts and actions so "
+                "far are reasonable steps toward the solution.\n\n"
+                "Provide your reasoning, then end with:\n"
+                "<score>\n"
+                "[A number between 0 and 1]\n"
+                "</score>\n\n"
+                "Score guidelines:\n"
+                "- 0.0-0.2: Wrong approach, errors in reasoning or tool use\n"
+                "- 0.3-0.5: Some progress but significant issues or inefficiency\n"
+                "- 0.6-0.8: Good trajectory, reasonable approach with minor issues\n"
+                "- 0.9-1.0: Excellent, optimal approach or correct final answer reached"
+            )
+        return (
+            "Provide a score evaluating how good or promising the given trajectory "
+            "was at solving the query.\n\n"
+            "At the end of your response, add:\n"
+            "<score>\n"
+            "[A number between 0 and 1 indicating trajectory quality]\n"
+            "</score>\n\n"
+            "Score guidelines:\n"
+            "- 0.0-0.3: Poor trajectory, wrong approach or major errors\n"
+            "- 0.4-0.6: Mediocre, some progress but significant issues\n"
+            "- 0.7-0.9: Good trajectory, effective with minor issues\n"
+            "- 1.0: Excellent trajectory, optimal approach\n\n"
+            "The score must be a valid float parsable by Python's float() function."
+        )
 
     def _build_scoring_prompt(
         self,
         query: str,
-        completed_state: ToolUseState
+        trajectory_state: ToolUseState
     ) -> str:
-        """Build prompt asking LLM to score the completed trajectory.
+        """Build prompt asking LLM to score a trajectory.
+
+        Works for both partial trajectories (direct scoring) and completed
+        trajectories (rollout scoring).
 
         Args:
             query: Original query/question
-            completed_state: Completed trajectory to score
+            trajectory_state: Trajectory to score (partial or completed)
 
         Returns:
             Formatted prompt string
         """
         parts = [f"Query: {query}\n"]
-        parts.append("Completed trajectory:")
         
-        for idx, step in enumerate(completed_state, 1):
+        has_answer = any(step.answer for step in trajectory_state)
+        parts.append("Trajectory:" if has_answer else "Partial trajectory (in progress):")
+        
+        for idx, step in enumerate(trajectory_state, 1):
             parts.append(f"\nStep {idx}:")
             if step.think:
                 parts.append(f"  Thought: {step.think}")
@@ -333,10 +346,14 @@ The score must be a valid float parsable by Python's float() function."""
         query_idx: Optional[int] = None,
         from_phase: str = ""
     ) -> float:
-        """Evaluate the quality of a proposed step by completing the trajectory.
+        """Evaluate the quality of a proposed step.
 
-        Following LATS: complete the trajectory with real tool execution,
-        then prompt the LLM to score the completed trajectory.
+        When ``max_rollout_steps == 0`` (default), directly scores the partial
+        trajectory (state + proposed step) with a single LLM call — LATS-style
+        value function.
+
+        When ``max_rollout_steps > 0``, completes the trajectory with real tool
+        execution first, then scores the completed trajectory.
 
         Args:
             state: Current ToolUseState trajectory
@@ -360,14 +377,20 @@ The score must be a valid float parsable by Python's float() function."""
             log_event(logger, "REWARD", f"Cache hit for query_idx={query_idx}, score={cached_score:.3f}", level="debug")
             return cached_score
         
-        # Step 1: Complete the trajectory with real tool execution
-        completed_state = self._complete_trajectory(state, step_or_action, query, query_idx, from_phase)
+        if self.max_rollout_steps > 0:
+            # Rollout mode: complete trajectory with real tool execution, then score
+            scoring_state = self._complete_trajectory(state, step_or_action, query, query_idx, from_phase)
+            label = "rollout"
+        else:
+            # Direct scoring mode: build partial trajectory (state + proposed step)
+            scoring_state = ToolUseState()
+            scoring_state.extend(copy.deepcopy(state))
+            scoring_state.append(copy.deepcopy(step_or_action))
+            label = "direct"
         
+        # Build prompt and score via LLM
+        user_message = self._build_scoring_prompt(query, scoring_state)
         
-        # Step 2: Build prompt asking LLM to score the completed trajectory
-        user_message = self._build_scoring_prompt(query, completed_state)
-        
-        # Step 3: Get score from LLM
         if isinstance(self.base_model, (HfChatModel, OpenAIChatModel, BedrockChatModel)):
             self.base_model.sys_prompt = self.task_prompt_spec
         
@@ -375,18 +398,15 @@ The score must be a valid float parsable by Python's float() function."""
             response = self._call_model(
                 user_message,
                 temperature=self.temperature,
-                # max_new_tokens=512,
                 max_length=self.max_length
             )
             
             response = response.text
-            log_event(logger, "REWARD", f"Scoring response: {response[:100]}...", level="debug")
+            log_event(logger, "REWARD", f"[{label}] Scoring response: {response[:100]}...", level="debug")
             
-            # Extract score
             score = self._extract_score(response)
-            log_event(logger, "REWARD", f"Extracted score: {score:.3f}", level="debug")
+            log_event(logger, "REWARD", f"[{label}] Extracted score: {score:.3f}", level="debug")
             
-            # Cache the score
             self._reward_cache[cache_key] = score
             
         except Exception as e:
@@ -394,16 +414,13 @@ The score must be a valid float parsable by Python's float() function."""
                 f"Error in reward scoring for query {query_idx}: {e}",
                 exc_info=True
             )
-            # Cache the error score too
             score = 0.5
             self._reward_cache[cache_key] = score
-            
         
-        # Save rollout trajectory if save directory is provided
-        if self.save_rollouts_dir and query_idx is not None:
+        # Save trajectory if save directory is provided (rollout mode only)
+        if self.save_rollouts_dir and query_idx is not None and self.max_rollout_steps > 0:
             from pathlib import Path
             
-            # Reset rollout counter if query changed
             if self.prev_query_idx != query_idx:
                 self.idx_rollout = 0
                 self.prev_query_idx = query_idx
@@ -413,7 +430,7 @@ The score must be a valid float parsable by Python's float() function."""
             save_path = save_dir / f"rollout_{query_idx}_{self.idx_rollout}.jsonl"
             
             try:
-                completed_state.save(str(save_path), query, score=score, num_completed_steps=len(completed_state)-len(state))
+                scoring_state.save(str(save_path), query, score=score, num_completed_steps=len(scoring_state)-len(state))
                 log_event(logger, "ROLLOUT", f"Saved trajectory to {save_path}", level="debug")
                 self.idx_rollout += 1
             except Exception as e:
