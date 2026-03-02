@@ -65,12 +65,15 @@ def create_llm_call_logger(path: str) -> Callable[..., None]:
     filepath = Path(path)
     filepath.parent.mkdir(parents=True, exist_ok=True)
     
-    def log_llm_call(prompt: str, response: Any, **kwargs) -> None:
+    def log_llm_call(prompt, response: Any, **kwargs) -> None:
         """Append LLM call record to JSONL file."""
         output = response.text if hasattr(response, 'text') else str(response)
         
+        # prompt can be str (concat/CoT) or list (tool_use messages format)
+        prompt_str = json.dumps(prompt) if isinstance(prompt, list) else prompt
+        
         record = {
-            "prompt_hash": hashlib.md5(prompt.encode()).hexdigest()[:12],
+            "prompt_hash": hashlib.md5(prompt_str.encode()).hexdigest()[:12],
             "output": output,
             "output_hash": hashlib.md5(output.encode()).hexdigest()[:8],
             "temperature": kwargs.get('temperature'),
