@@ -97,13 +97,7 @@ lits-search --include my_benchmark \
     -o demo_results --override
 ```
 
-### 4. Evaluate
-
-```bash
-lits-eval --result_dir demo_results
-```
-
-### What you should see
+What you should see
 
 ```
 demo_results/
@@ -111,10 +105,15 @@ demo_results/
 ├── terminal_nodes/        # All terminal nodes found
 ├── config.json            # Full config (reproducible)
 ├── execution.log          # Execution log
-├── inferencelogger.log    # Per-call token usage with component/phase tags
-├── llm_calls.jsonl        # Raw LLM call records
-└── eval.log               # Accuracy + inference usage report
+└── inferencelogger.log    # Per-call token usage with component/phase tags
 ```
+
+### (Optional) 4. Evaluate
+
+```bash
+lits-eval --result_dir demo_results
+```
+The evaluation report will be saved to `demo_results/eval.log`
 
 ### Validate config without LLM calls (no API key needed)
 
