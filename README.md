@@ -2,6 +2,28 @@
 
 A modular Python framework for LLM reasoning and planning with tree search (e.g., MCTS, BFS and other custom search algorithms) and chain reasoning (e.g.,ReAct).
 
+## Table of Contents
+
+- [Why LiTS?](#why-lits)
+- [Installation](#installation)
+- [Quick Start — 5-Minute Demo](#quick-start--5-minute-demo)
+- [CLI Commands](#cli-commands)
+- [🎬 2.5-Minute Demo Video](#-25-minute-demo-video)
+- [More CLI Examples](#more-cli-examples)
+- [Quick Start — Python API](#quick-start--python-api)
+  - [Logging](#logging)
+  - [Checkpoints](#checkpoints)
+  - [Inference Cost Tracking](#inference-cost-tracking)
+  - [ReAct Agent (tool use)](#react-agent-tool-use)
+  - [Supported LLM Providers](#supported-llm-providers)
+- [Architecture](#architecture)
+  - [Extending with Custom Components](#extending-with-custom-components)
+- [Task Types](#task-types)
+- [Project Structure](#project-structure)
+- [Documentation](#documentation)
+- [Citation](#citation)
+- [License](#license)
+
 ## Why LiTS?
 
 | Concern | Challenge | LiTS Solution |
@@ -200,16 +222,28 @@ Tree search algorithms are class-based, inheriting from `BaseTreeSearch`:
 ```python
 from lits.agents.tree.mcts import MCTSSearch, MCTSConfig
 from lits.lm import get_lm
+from lits.components.policy.concat import ConcatPolicy
+from lits.components.transition.concat import ConcatTransition
+from lits.components.reward.generative import GenerativePRM
+from lits.agents.tree.common import extract_answers_from_terminal_nodes
+from lits.components.utils import get_fn_retrieve_answer
+
+MODEL_NAME = "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0"
 
 # Load model
-model = get_lm("bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
+model = get_lm(MODEL_NAME)
 
 # Configure search
 config = MCTSConfig(
-    max_steps=10,
-    n_actions=3,
-    n_iters=50,
+    max_steps=3,
+    n_actions=2,
+    n_iters=3,
 )
+
+# Create components
+policy = ConcatPolicy(base_model=model, n_actions=config.n_actions)
+transition = ConcatTransition(base_model=model)
+reward = GenerativePRM(base_model=model)
 
 # Create search instance with components
 search = MCTSSearch(
@@ -223,12 +257,56 @@ search = MCTSSearch(
 result = search.run(query="What is 25 * 17?", query_idx=0)
 
 # Extract answers from terminal nodes
-from lits.agents.tree.common import extract_answers_from_terminal_nodes
+retrieve_answer_fn = get_fn_retrieve_answer(model)
 vote_answers, answer_rewards, best_node, trace = extract_answers_from_terminal_nodes(
     terminal_nodes_collected=result.terminal_nodes_collected,
     retrieve_answer=retrieve_answer_fn,
-    question="What is 25 * 17?"
+    query="What is 25 * 17?"
 )
+
+print(f"Vote answers: {vote_answers}")
+print(f"Answer rewards: {answer_rewards}")
+```
+
+### Logging
+
+To see search progress logs, add this before running:
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO, format='%(name)s - %(message)s')
+```
+
+### Checkpoints
+
+To save incremental checkpoints per iteration, pass `checkpoint_dir`:
+
+```python
+search = MCTSSearch(
+    config=config,
+    policy=policy,
+    world_model=transition,
+    reward_model=reward,
+    checkpoint_dir="./my_checkpoints",  # saves tree state per iteration as JSON
+)
+```
+
+### Inference Cost Tracking
+
+To track token usage per component and search phase, attach an `InferenceLogger` to the model before running:
+
+```python
+from lits.lm import InferenceLogger
+
+inference_logger = InferenceLogger(root_dir="./my_results", override=True)
+model.inference_logger = inference_logger
+
+# ... run search ...
+
+# After search, inspect usage breakdowns
+print(inference_logger.get_metrics_by_component())  # policy, prm, dynamics
+print(inference_logger.get_metrics_by_phase())       # expand, simulate, continuation
+print(inference_logger.get_metrics_by_instance())    # per example
 ```
 
 ### ReAct Agent (tool use)
