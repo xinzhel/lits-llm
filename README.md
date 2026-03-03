@@ -333,6 +333,20 @@ docs/                    # Documentation
 - [Component API](docs/components/)
 - [Tree Visualization](docs/TREE_VISUALIZATION.md)
 
+## Citation
+
+```bibtex
+@misc{li2026litsmodularframeworkllm,
+      title={LiTS: A Modular Framework for LLM Tree Search}, 
+      author={Xinzhe Li and Yaguang Tao},
+      year={2026},
+      eprint={2603.00631},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2603.00631}, 
+}
+```
+
 ## License
 
 Apache License 2.0
