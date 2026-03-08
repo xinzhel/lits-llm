@@ -26,14 +26,119 @@ def _continuation(
     use_critic: bool=False,
     on_step: callable=None,
 ) -> SearchNode:
-    """
-    "Continue" expanding exactly one child at a time,
-    stepping the model, and chaining forward while
-    reward ≥ reward_threshold.
+    """Greedy chain-forward expansion after tree search selects a leaf.
+
+    Starting from ``node``, repeatedly expand a single child, optionally
+    evaluate it, and advance the frontier — stopping when a quality gate
+    fails or the depth limit is reached.  The result is a linear trace
+    (list of nodes) appended to the search tree.
+
+    Continuation is activated by ``config.add_continuation = True`` and is
+    called from both MCTS (``MCTSSearch.search``) and BFS
+    (``BFSSearch.search``) after their respective selection / expansion
+    steps.
+
+    Quality Gates
+    -------------
+    Three independent quality gates control when continuation stops.
+    They are evaluated in the order listed below; at most one should be
+    active per run (except ``threshold_gamma1`` which is a sub-gate of
+    the BN Eval gate).
+
+    1. **Fast Reward gate** (``threshold_alpha``)
+       Expand one child with ``assign_rewards=True``, then check
+       ``child.fast_reward >= threshold_alpha``.  If below, stop.
+       Config: ``--search-arg reward_alpha=<float>``
+
+    2. **BN Eval gate** (``bn_evaluator`` + ``threshold_gamma``)
+       Uses a Bottleneck-Necessity evaluator to decide whether the
+       current action is worth pursuing.  Two sub-modes:
+
+       a. *entropy / sc* (``bn_evaluator.eval_method in ["entropy","sc"]``):
+          Expand ``n_actions_for_bne`` children with
+          ``assign_rewards=False`` (no reward scoring inside _expand).
+          Optionally pre-filter children whose ``fast_reward >=
+          threshold_gamma1`` before passing to the BN evaluator.
+          ``threshold_gamma1`` is a *reward pre-filter*: it calls
+          ``reward_model.fast_reward()`` directly on each child's action
+          to discard low-quality candidates before the (more expensive)
+          BN evaluation.  Only children passing this filter are sent to
+          ``bn_evaluator.evaluate()``.
+          Config: ``--search-arg reward_gamma1=<float>``
+
+       b. *direct* (``bn_evaluator.eval_method == "direct"``):
+          Expand one child with ``assign_rewards=False``, then call
+          ``bn_evaluator.evaluate()`` on it.  No reward model involved.
+
+       In both sub-modes, stop if ``bn_score < threshold_gamma``.
+       Config: ``--search-arg reward_gamma=<float>``
+
+    3. **State Confidence gate** (``threshold_conf``)
+       After expansion, call ``world_modeling_func`` on the child to
+       run transition and obtain ``child.state_conf``.  If
+       ``state_conf < threshold_conf``, stop.
+       Config: ``--search-arg reward_beta=<float>``
 
     Args:
-        on_step: Optional callback called with each new child node before LLM calls.
-                 Used to update trajectory_key in inference logs at each hop.
+        query_or_goals: The query string or list of goal descriptions.
+        query_idx: Integer index of the current query (for logging and
+            reward model calls).
+        node: Starting node.  Must have ``node.state is not None``
+            (materialized via prior ``_world_modeling`` call), or the
+            function will call ``world_modeling_func`` to materialize it.
+        world_model: Transition model used by ``world_modeling_func`` to
+            execute actions and produce next states.
+        policy: Policy model used by ``expand_func`` to generate
+            candidate actions.
+        reward_model: RewardModel used for fast-reward scoring.  Passed
+            to ``expand_func`` (Fast Reward gate) and called directly
+            for ``threshold_gamma1`` pre-filtering (BN Eval gate).
+        expand_func: Expansion function — ``_expand`` for MCTS,
+            ``_expand_with_existing`` for BFS.
+        world_modeling_func: Typically ``_world_modeling`` from
+            ``common.py``.  Runs ``transition.step()`` on a node, sets
+            ``node.state``, and assigns ``fast_reward`` / ``reward`` if
+            not yet set.
+        bn_evaluator: Optional ``BNEvaluator`` or ``BNEvaluatorEnv``
+            instance.  When provided, the BN Eval gate is active.
+        depth_limit: Maximum depth for the continuation trace.  Mapped
+            from ``config.max_steps``.
+        threshold_alpha: Fast-reward threshold (gate 1).  Mapped from
+            ``config.reward_alpha``.  ``None`` disables this gate.
+        threshold_conf: State-confidence threshold (gate 3).  Mapped
+            from ``config.reward_beta``.  ``None`` disables this gate.
+        threshold_gamma: BN evaluator score threshold (gate 2).  Mapped
+            from ``config.reward_gamma``.  ``None`` disables this gate.
+        threshold_gamma1: Reward pre-filter for BN Eval entropy/sc mode.
+            Before sending children to ``bn_evaluator.evaluate()``,
+            discard any child whose ``reward_model.fast_reward() <
+            threshold_gamma1``.  Mapped from ``config.reward_gamma1``.
+            ``None`` disables pre-filtering (all children pass through).
+        n_actions_for_bne: Number of candidate actions to expand for BN
+            Eval entropy/sc mode.  Mapped from
+            ``config.n_actions_for_bne``.
+        use_critic: Whether to use critic during expansion (passed
+            through to ``expand_func``).
+        on_step: Optional callback invoked with each new child node
+            after it becomes the current frontier.  Used to update
+            ``trajectory_key`` in inference logs at each hop.
+
+    Returns:
+        list[SearchNode]: The continuation trace — a list of nodes from
+        the starting ``node`` to the last accepted child (inclusive).
+
+    Config-to-Parameter Mapping:
+        ========================  ====================
+        Config field              Parameter
+        ========================  ====================
+        reward_alpha              threshold_alpha
+        reward_beta               threshold_conf
+        reward_gamma              threshold_gamma
+        reward_gamma1             threshold_gamma1
+        n_actions_for_bne         n_actions_for_bne
+        max_steps                 depth_limit
+        add_continuation          (caller checks this)
+        ========================  ====================
     """
     # query_idx is a number
     assert isinstance(query_idx, int)
