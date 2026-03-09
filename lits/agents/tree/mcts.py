@@ -122,6 +122,9 @@ class MCTSConfig(BaseSearchConfig):
         output_strategy: Strategy for selecting final output: 'max_reward', 'follow_max', 'max_visit', 'max_iter', 'last_iter', 'last_terminal_iter' (default: 'max_reward')
         output_trace_in_each_iter: Whether to output trace at each iteration (default: True)
         use_critic: Whether to use critic for action evaluation (default: False)
+        transition_before_evaluate: Whether to run transition before reward scoring in _expand().
+            False (default) = Q(s,a) estimate: score action without observation.
+            True = V(s') estimate: run transition first, then score with observation (LATS §4.2).
     """
     # selection
     w_exp: float = 1.
@@ -147,6 +150,11 @@ class MCTSConfig(BaseSearchConfig):
     output_trace_in_each_iter: bool = True
 
     use_critic: bool = False
+
+    # LATS-aligned evaluation: run transition before fast_reward scoring.
+    # False (default) = Q(s,a): score proposed action without observation.
+    # True = V(s'): run transition first, then score with observation.
+    transition_before_evaluate: bool = False
 
     
     def __post_init__(self):
@@ -247,7 +255,8 @@ def _expand(
     assign_rewards=True, 
     use_critic=False, 
     from_phase="expand",
-    memory_context: Optional[AugmentedContext] = None
+    memory_context: Optional[AugmentedContext] = None,
+    transition_before_evaluate: bool = False,
 ):
     """
     Expand a node by generating candidate actions using the policy.
@@ -266,6 +275,9 @@ def _expand(
         memory_context: Optional AugmentedContext from LiTS-Mem for cross-trajectory
                        memory augmentation. If provided, the memory context is formatted
                        and passed to the policy for prompt injection.
+        transition_before_evaluate: If True, run _world_modeling() per child before
+            reward scoring (V(s') estimate). If False (default), score without
+            transition (Q(s,a) estimate). Requires world_model when True.
     """
     log_phase(logger, "Expand", f"Begin (example={query_idx})")
 
@@ -304,8 +316,18 @@ def _expand(
 
         # assign rewards
         if assign_rewards:
-            from .common import _assign_fast_reward
-            _assign_fast_reward(child, reward_model, query_or_goals, query_idx, from_phase)
+            if transition_before_evaluate:
+                assert world_model is not None, (
+                    "transition_before_evaluate=True requires world_model. "
+                    "Caller must pass world_model to _expand()."
+                )
+                from .common import _world_modeling
+                _world_modeling(query_or_goals, query_idx, child,
+                                transition_model=world_model, reward_model=reward_model,
+                                from_phase=from_phase)
+            else:
+                from .common import _assign_fast_reward
+                _assign_fast_reward(child, reward_model, query_or_goals, query_idx, from_phase)
         else:
             logger.debug(f"assign_rewards is False, skipping fast reward assignment for child: Node {child.id}")
 
@@ -325,8 +347,18 @@ def _expand(
     for child in node.children:
         if child.fast_reward == -1:
             if assign_rewards:
-                from .common import _assign_fast_reward
-                _assign_fast_reward(child, reward_model, query_or_goals, query_idx, from_phase)
+                if transition_before_evaluate:
+                    assert world_model is not None, (
+                        "transition_before_evaluate=True requires world_model. "
+                        "Caller must pass world_model to _expand()."
+                    )
+                    from .common import _world_modeling
+                    _world_modeling(query_or_goals, query_idx, child,
+                                    transition_model=world_model, reward_model=reward_model,
+                                    from_phase=from_phase)
+                else:
+                    from .common import _assign_fast_reward
+                    _assign_fast_reward(child, reward_model, query_or_goals, query_idx, from_phase)
             else:
                 logger.debug(f"Child's (Node {child.id}) fast_reward not been assigned and not required to be assigned")
         else:
@@ -345,7 +377,8 @@ def _simulate(
     reward_model, 
     use_critic=False, 
     roll_out_steps=10000,
-    on_step: callable=None
+    on_step: callable=None,
+    transition_before_evaluate: bool = False,
 ):
     """Simulate phase of MCTS.
     
@@ -371,7 +404,8 @@ def _simulate(
             world_model=world_model,
             assign_rewards=True,
             use_critic=use_critic,
-            from_phase="simulate"
+            from_phase="simulate",
+            transition_before_evaluate=transition_before_evaluate,
         )
 
         if node.is_terminal_for_repeat:
@@ -553,7 +587,8 @@ class MCTSSearch(BaseTreeSearch):
                     threshold_gamma1=config.reward_gamma1,
                     n_actions_for_bne=config.n_actions_for_bne,
                     use_critic=config.use_critic,
-                    on_step=update_traj_key)
+                    on_step=update_traj_key,
+                    transition_before_evaluate=config.transition_before_evaluate)
                 path.extend(continuous_trace[1:])
                 
                 # Update trajectory_key after continuation (path[-1] changed)
@@ -607,7 +642,8 @@ class MCTSSearch(BaseTreeSearch):
                 n_actions=self.policy.n_actions,
                 reward_model=self.reward_model, world_model=self.world_model,
                 assign_rewards=True, use_critic=config.use_critic,
-                from_phase="expand", memory_context=memory_context
+                from_phase="expand", memory_context=memory_context,
+                transition_before_evaluate=config.transition_before_evaluate,
             )
 
             # ====== Memory Recording ======
@@ -655,7 +691,8 @@ class MCTSSearch(BaseTreeSearch):
                 query, query_idx, path, config,
                 self.world_model, self.policy, self.reward_model,
                 use_critic=config.use_critic, roll_out_steps=config.roll_out_steps,
-                on_step=update_traj_key
+                on_step=update_traj_key,
+                transition_before_evaluate=config.transition_before_evaluate,
             )
 
             # ====== Terminate on First Solution ======

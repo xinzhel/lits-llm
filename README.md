@@ -828,7 +828,11 @@ lits-search --include my_package \
     --search-algorithm beam --search-arg beam_width=10
 ```
 
-See [Custom Search Algorithms Guide](docs/agents/CUSTOM_SEARCH.md) for the full API and shared subprocedures.
+See [Custom Search Algorithms Guide](docs/agents/CUSTOM_SEARCH.md) for the full API. Common utilities available to custom algorithms are documented in [`docs/agents/tree/common/`](docs/agents/tree/common/):
+
+- [`_expand()`](docs/agents/tree/common/EXPAND.md) — node expansion with lazy reward/state assignment
+- [`_world_modeling()`](docs/agents/tree/common/WORLD_MODELING.md) — state materialization via transition + reward + terminal check
+- [`_continuation()`](docs/agents/tree/common/CONTINUATION.md) — greedy chain-forward expansion with quality gates
 
 ## Task Types
 
@@ -860,8 +864,11 @@ docs/                    # Documentation
 └── LITS_DESIGN.md      # Architecture overview
 ``` -->
 - [Architecture Overview](docs/LITS_DESIGN.md)
-- [Tree Search Guide](docs/agents/TREE_SEARCH_GUIDE.md)
-- [Custom Search Algorithms](docs/agents/CUSTOM_SEARCH.md)
+- [Tree Search Guide](docs/agents/tree/TREE_SEARCH_GUIDE.md)
+- [Custom Search Algorithms](docs/agents/tree/CUSTOM_SEARCH.md)
+- [Node Expansion (`_expand`)](docs/agents/tree/common/EXPAND.md)
+- [World Modeling (`_world_modeling`)](docs/agents/tree/common/WORLD_MODELING.md)
+- [Continuation (`_continuation`)](docs/agents/tree/common/CONTINUATION.md)
 - [CLI Reference](docs/cli/search.md)
 - [ReAct Agent](docs/agents/ReAct.md)
 - [Component API](docs/components/)
