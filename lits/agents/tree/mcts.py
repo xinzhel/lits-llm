@@ -130,8 +130,8 @@ class MCTSConfig(BaseSearchConfig):
     
     # simulation
     roll_out_steps: int = 10000
-    cum_reward: Callable = sum
-    calc_q: Callable = np.mean
+    cum_reward: Callable = np.mean
+    calc_q: Callable = max
     default_simulate_strategies: dict = field(default_factory=lambda: {
         'max': lambda x: np.argmax(x),
         'sample': lambda x: np.random.choice(len(x), p=x),

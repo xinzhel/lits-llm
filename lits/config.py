@@ -12,11 +12,9 @@ Design:
 
 import os
 import torch
-import numpy as np
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Set
-from lits.agents.tree.mcts import MCTSConfig
-from lits.agents.tree.bfs import BFSConfig
+from lits.agents import AgentRegistry
 from lits.agents.base import get_model_dir_prefix
 from lits.framework_config import PACKAGE_VERSION
 
@@ -77,7 +75,7 @@ _DEFAULT_COMPONENT_ARGS: Dict[str, Any] = {
     "max_new_tokens": None,  # None = no limit; set via --component-arg max_new_tokens=1024
 }
 
-# Fields excluded from saved search config (not passed to MCTSConfig/BFSConfig)
+# Fields excluded from saved search config (not passed to search config dataclass)
 _EXCLUDE_FROM_SEARCH_CONFIG: Set[str] = {
     # Execution params
     "dataset", "search_framework", "search_algorithm",
@@ -398,19 +396,27 @@ class ExperimentConfig:
     def create_search_config(self):
         """Create appropriate search config based on search_algorithm.
         
-        Creates either MCTSConfig or BFSConfig with all search parameters
-        from get_search_args(). The config is ready to pass to mcts() or bfs_topk().
+        Uses ``AgentRegistry.get_config_class()`` to resolve the config
+        dataclass for the requested algorithm, so custom algorithms
+        registered via ``@register_search("name", config_class=MyConfig)``
+        work automatically without any changes here.
         
         Note: SearchConfig only contains search algorithm parameters. Component args
         and experiment metadata are saved separately via ExperimentConfig.save_config().
         
         Returns:
-            MCTSConfig if search_algorithm == "mcts"
-            BFSConfig if search_algorithm == "bfs"
+            A ``BaseSearchConfig`` subclass instance for the algorithm.
         
         Raises:
-            ValueError: If search_algorithm is not "mcts" or "bfs"
+            ValueError: If no config class is registered for the algorithm.
         """
+        config_cls = AgentRegistry.get_config_class(self.search_algorithm)
+        if config_cls is None:
+            raise ValueError(
+                f"No config registered for '{self.search_algorithm}'. "
+                f"Available: {AgentRegistry.list_algorithms()}"
+            )
+        
         search_args = self.get_search_args()
         
         # Build config dict, excluding execution-only fields
@@ -423,17 +429,7 @@ class ExperimentConfig:
         config_dict["dataset"] = self.dataset
         config_dict["output_dir"] = self.output_dir
         
-        if self.search_algorithm == "mcts":
-            return MCTSConfig(
-                cum_reward=np.mean,
-                calc_q=max,
-                output_trace_in_each_iter=True,
-                **config_dict
-            )
-        elif self.search_algorithm == "bfs":
-            return BFSConfig(**config_dict)
-        else:
-            raise ValueError(f"Unknown search algorithm: {self.search_algorithm}")
+        return config_cls(**config_dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert ExperimentConfig to a dictionary for serialization.

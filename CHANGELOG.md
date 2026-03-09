@@ -6,7 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
-## 2026-03-1 Unreleased
+## 2026-03-09 Unreleased
+
+### Changed
+- Registry-based search config creation; moved MCTS defaults into `MCTSConfig` (`x-minor-register-search-decorator`)
+
+## 2026-03-01 Unreleased
 ### Added
 - Save layer-wise checkpoint in bfs
 - Added docs/TRAJ_CHECKPOINT.md
