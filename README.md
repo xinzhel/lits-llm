@@ -408,6 +408,7 @@ docs/                    # Documentation
 - [CLI Reference](docs/cli/search.md)
 - [ReAct Agent](docs/agents/ReAct.md)
 - [Component API](docs/components/)
+- [Custom Evaluators](docs/eval/CUSTOM_EVALUATORS.md)
 - [Tree Visualization](docs/TREE_VISUALIZATION.md)
 
 ## Citation
@@ -872,6 +873,7 @@ docs/                    # Documentation
 - [CLI Reference](docs/cli/search.md)
 - [ReAct Agent](docs/agents/ReAct.md)
 - [Component API](docs/components/)
+- [Custom Evaluators](docs/eval/CUSTOM_EVALUATORS.md)
 - [Tree Visualization](docs/TREE_VISUALIZATION.md)
 
 ## Citation

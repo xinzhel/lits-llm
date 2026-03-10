@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-03-10 Unreleased (`x-0310-minor-register-evaluator`)
+
+### Added
+- `register_evaluator` / `get_evaluator` / `has_evaluator` in `BenchmarkRegistry` (`lits/benchmarks/registry.py`)
+- `@register_evaluator("dbbench")` for DBBench evaluation (`demos/lits_benchmark/dbbench.py`)
+- `docs/eval/CUSTOM_EVALUATORS.md`
+
+### Changed
+- `lits-eval` accuracy loop uses registered evaluator when available (`lits/cli/eval_search.py`)
+
 ## 2026-03-09 Unreleased
 
 ### Changed
