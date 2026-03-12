@@ -416,13 +416,26 @@ For detailed guidance on adding prompts to the framework, see [Adding Prompts Gu
 
 ### Section 3.1: Task Type Comparison
 
+The three task types differ in agent cycle, state semantics, and terminal reward source:
+
+- `env_grounded`: Policy selects an action given the current env snapshot; transition executes it and produces a new env snapshot. All three task types store full trajectory history in their State objects (`EnvState` stores action-state pairs, `ToolUseState` stores think-action-observation turns). The difference is what the LM sees: `EnvGroundedPolicy._build_prompt` passes only the latest env snapshot to the LM, while `ToolUsePolicy` passes the full conversation history. Env returns `done` + reward as part of transition.
+- `tool_use`: Policy generates think + action in ReAct format; transition executes the tool and appends observation to state. LM sees the full think-action-observation history via `state.to_messages()` (multi-turn dialogue). Terminal detection relies on policy outputting `answer`; reward comes from LM scoring or an external evaluator.
+- `language_grounded`: Policy generates reasoning steps; no external execution. LM sees the accumulated reasoning chain. Terminal and reward are both LM-determined.
+
+LATS validated `terminal_reward` backprop on all three categories: WebShop (env_grounded, env reward), HotPotQA (tool_use with Wikipedia search API, EM score as evaluator), Programming (language_grounded with code execution, test pass rate as evaluator). In every case, an objective terminal signal was available. Pure LM-scored `terminal_reward` backprop was not evaluated in the LATS paper.
+
 | Aspect | env_grounded | tool_use | language_grounded |
 |--------|--------------|----------|-------------------|
-| **Transition** | Custom (domain logic) | Generic (`ToolUseTransition`) | Generic (`ConcatTransition`) or custom |
-| **Policy** | Generic + `generate_actions` | Generic (`ToolUsePolicy`) | Generic (`ConcatPolicy`) or custom |
+| **Agent cycle** | select-action → env-step → check-goal (LM sees only current env snapshot per step) | think-action-observe (ReAct; LM sees full conversation history) | think-generate (reasoning chain; no external execution) |
+| **Transition** | Custom (domain logic, updates env state) | Generic (`ToolUseTransition`, executes tool, appends observation) | Generic (`ConcatTransition`) or custom |
+| **Policy** | Generic (`EnvGroundedPolicy`) + `generate_actions` | Generic (`ToolUsePolicy`, generates think + action) | Generic (`ConcatPolicy`) or custom |
+| **State semantics** | `EnvState`: trajectory of action-state pairs (policy sees only latest env snapshot via `_build_prompt`) | `ToolUseState`: trajectory of think-action-observation turns (policy sees full history via `to_messages`) | Reasoning chain: trajectory of thought steps (policy sees full history) |
 | **Primary injection** | Transition class | Tools | Prompts + Dataset |
-| **State representation** | String (domain-parsed) | Tool call history | Reasoning steps |
 | **Plug-and-play level** | Medium (implement Transition) | High (define tools only) | Highest (prompts + data) |
+| **Terminal detection** | Env returns `done` flag via `goal_check` (built into transition) | Policy outputs `answer` (no env signal) | LM decides to stop (binary sampling / is_terminal) |
+| **Terminal reward source** | Env objective score (built into transition, e.g., WebShop match score). Not ground-truth leakage — env reward is a natural product of agent-environment interaction. | LM scoring (`ToolUsePRM`) only. Tool execution errors (SQL syntax error, HTTP 4xx) are already visible in `step.observation`, so LM scoring naturally penalizes failed executions. `@register_evaluator` requires ground truth and is only used post-hoc (after search completes). Note: LATS HotPotQA used EM score at search time via `env.step()` — this is ground-truth leakage. | LM scoring (`GenerativePRM`) only. `@register_evaluator` is post-hoc only. Note: LATS Programming used test pass rate at search time — legitimate if tests are part of the task spec, not the answer. |
+| **Backprop mode** | `terminal_reward` natural fit (env reward is objective, no ground truth needed) | `path_aggregate` only. No objective terminal signal available at search time without ground-truth leakage. Per-node LM scoring accumulated along the path. | `path_aggregate` only (same reasoning as tool_use). Exception: if a verifier is part of the task spec (e.g., code test cases), `terminal_reward` is legitimate. |
+| **Depth-limit behavior** | Env may return penalty (e.g., LATS assigns -0.5) | Forced terminal, LM reward may still be high (no penalty signal) | Forced terminal, LM reward on last step |
 
 ### Section 3.2: Component Compatibility by TASK_TYPE and Method
 

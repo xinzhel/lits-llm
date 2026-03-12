@@ -1213,6 +1213,17 @@ class RewardModel(ABC, Generic[StateT, StepT]):
         # Context attributes for _call_model() helper (set by fast_reward()/reward())
         self._query_idx: Optional[int] = None
         self._from_phase: str = ""
+
+    @property
+    def requires_transition_before_evaluate(self) -> bool:
+        """Whether this reward model requires transition before scoring.
+
+        When True, the search algorithm should run transition (world_modeling)
+        before calling fast_reward, so the step has observation populated.
+        Subclasses override to return True when their scoring prompt expects
+        observation-enriched trajectories (e.g., ToolUsePRM in stateless mode).
+        """
+        return False
         
     def fast_reward(self, state, action_or_step, query_or_goals, query_idx, from_phase="") -> tuple[float, dict]:
         """

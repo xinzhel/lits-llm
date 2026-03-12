@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-03-12 Unreleased (`0304-major-lats-reward-refactor`)
+
+### Added
+- `transition_before_evaluate` flag in `MCTSConfig` (`lits/agents/tree/mcts.py`)
+- `_world_modeling` per-child path in `_expand()` when `transition_before_evaluate=True`
+- `RewardModel.requires_transition_before_evaluate` property (`lits/components/base.py`)
+- Auto-inference of `transition_before_evaluate` in `MCTSSearch._setup()` (`lits/agents/tree/mcts.py`)
+
+### Changed
+- `ToolUsePRM._fast_reward()` refactored to direct scoring mode (`max_rollout_steps=0` default) (`lits/components/reward/tool_use.py`)
+- `max_eval_rollout_steps` default from 5 to 0 in `create_components_tool_use()` (`lits/components/factory.py`)
+- Renamed "Stateless LM Scoring" → "Direct LM Scoring" in `ToolUsePRM` (`lits/components/reward/tool_use.py`)
+- Updated `docs/components/reward/TOOL_USE_PRM.md`
+- Updated `docs/LITS_DESIGN.md` Section 3.1 task type comparison
+
 ## 2026-03-10 Unreleased (`x-0310-minor-register-evaluator`)
 
 ### Added

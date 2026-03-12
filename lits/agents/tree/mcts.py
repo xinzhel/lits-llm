@@ -523,6 +523,17 @@ class MCTSSearch(BaseTreeSearch):
         super()._setup(query, query_idx)
         MCTSNode.set_default_calc_q(self.config.calc_q)
 
+        # Auto-infer transition_before_evaluate from reward model
+        if (self.reward_model is not None
+            and hasattr(self.reward_model, 'requires_transition_before_evaluate')
+            and self.reward_model.requires_transition_before_evaluate
+            and not self.config.transition_before_evaluate):
+            logger.warning(
+                "RewardModel.requires_transition_before_evaluate=True but "
+                "config.transition_before_evaluate=False. Auto-setting to True."
+            )
+            self.config.transition_before_evaluate = True
+
     def search(self, query, query_idx) -> MCTSResult:
         """Run MCTS iterations.  ``self.root`` is ready."""
         logger.debug(f"Question: {query}")

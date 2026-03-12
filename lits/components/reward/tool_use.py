@@ -2,15 +2,15 @@
 
 Supports two evaluation modes:
 
-1. **Direct scoring** (max_rollout_steps=0, default): LATS-style value function.
-   The LLM directly scores the current partial trajectory without any rollout.
-   Following LATS paper: "To obtain a scalar value, we instruct pθ to end its
-   reasoning trace with a score indicating the correctness of the trajectory."
-   One LLM call per evaluation — fast and cheap.
+1. **Direct LM scoring** (max_rollout_steps=0, default): The LLM directly
+   scores the given trajectory in a single call. No internal rollout. In MCTS,
+   the simulation loop (_simulate) drives rollout by calling expand + evaluate
+   at each step — this scoring function serves as the per-step heuristic.
 
-2. **Rollout scoring** (max_rollout_steps>0): Complete the trajectory with real
-   tool execution, then score the completed trajectory. More accurate but
-   significantly more expensive (multiple LLM + tool calls per evaluation).
+2. **Self-contained rollout** (max_rollout_steps>0): The reward model itself
+   completes the trajectory with real tool execution before scoring. This
+   duplicates MCTS simulation and is significantly more expensive — use only
+   when MCTS simulation is disabled or for standalone evaluation.
 """
 
 import logging
@@ -34,18 +34,19 @@ class ToolUsePRM(RewardModel):
 
     Supports two modes controlled by ``max_rollout_steps``:
 
-    - **Direct scoring** (``max_rollout_steps=0``, default): LATS-style value
-      function. Prompts the LLM to score the current partial trajectory in a
-      single call. Fast and cheap — no tool execution during evaluation.
-    - **Rollout scoring** (``max_rollout_steps>0``): Completes the trajectory
-      with real tool execution, then scores the completed trajectory. More
-      accurate but significantly more expensive.
+    - **Direct LM scoring** (``max_rollout_steps=0``, default): Scores the
+      given trajectory with a single LLM call. No internal rollout. In MCTS,
+      the simulation loop calls expand + evaluate at each step — this scoring
+      function serves as the per-step heuristic (LATS §4.2 Evaluation).
+    - **Self-contained rollout** (``max_rollout_steps>0``): The reward model
+      itself completes the trajectory with real tool execution before scoring.
+      Use only when MCTS simulation is disabled or for standalone evaluation.
 
     Args:
         base_model: LLM to use for evaluation
         tools: List of tools available for execution (only needed for rollout mode)
         task_prompt_spec: System prompt for evaluation (loaded from registry if None)
-        max_rollout_steps: Max steps to continue trajectory. 0 = direct scoring (default).
+        max_rollout_steps: Max steps to continue trajectory. 0 = LM value function (default).
         **kwargs: Additional arguments passed to RewardModel
     """
     
@@ -85,8 +86,13 @@ class ToolUsePRM(RewardModel):
         self._policy = None
         self._transition = None
         
-        mode = "direct scoring" if self.max_rollout_steps == 0 else f"rollout (max {self.max_rollout_steps} steps)"
+        mode = "direct LM scoring" if self.max_rollout_steps == 0 else f"self-contained rollout (max {self.max_rollout_steps} steps)"
         logger.info(f"ToolUsePRM initialized in {mode} mode")
+
+    @property
+    def requires_transition_before_evaluate(self) -> bool:
+        """Direct scoring mode needs observation from transition before scoring."""
+        return self.max_rollout_steps == 0
     
     def _get_llm_role(self) -> str:
         """Return the LLM role prefix for tool-use PRM."""
@@ -137,9 +143,9 @@ class ToolUsePRM(RewardModel):
     def _get_default_prompt(self) -> str:
         """Get default evaluation prompt.
         
-        For direct scoring (max_rollout_steps=0), follows LATS value function:
-        score the partial trajectory's promise toward solving the query.
-        For rollout scoring, score the completed trajectory.
+        For direct scoring mode (max_rollout_steps=0), the prompt asks the LM
+        to evaluate the trajectory as given (which may be partial or complete).
+        For self-contained rollout mode, the prompt scores the completed trajectory.
         """
         if self.max_rollout_steps == 0:
             return (
@@ -348,12 +354,13 @@ class ToolUsePRM(RewardModel):
     ) -> float:
         """Evaluate the quality of a proposed step.
 
-        When ``max_rollout_steps == 0`` (default), directly scores the partial
-        trajectory (state + proposed step) with a single LLM call — LATS-style
-        value function.
+        When ``max_rollout_steps == 0`` (default), scores the trajectory
+        (state + proposed step) with a single LLM call. No internal rollout.
+        In MCTS, the simulation loop drives rollout and calls this function
+        at each step as a heuristic.
 
-        When ``max_rollout_steps > 0``, completes the trajectory with real tool
-        execution first, then scores the completed trajectory.
+        When ``max_rollout_steps > 0``, the reward model itself completes the
+        trajectory with real tool execution before scoring (self-contained rollout).
 
         Args:
             state: Current ToolUseState trajectory
