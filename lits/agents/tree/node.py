@@ -131,6 +131,7 @@ class MCTSNode(SearchNode[StateT, ActionT]):
         self.reward = fast_reward
         self.fast_reward_details = fast_reward_details if fast_reward_details is not None else {}
         self.cum_rewards = []
+        self.visit_count = 0  # explicit visit count; used by decay backprop where len(cum_rewards) is always 1
         self.calc_q = calc_q if calc_q is not None else MCTSNode.DEFAULT_CALC_Q
         self.from_simulate= False  # whether this node is created in `_expand` called by `_simulate` 
         self.is_simulated = False  # whether this node has chosen for simulation 
@@ -153,6 +154,7 @@ class MCTSNode(SearchNode[StateT, ActionT]):
             "is_simulated": self.is_simulated,
             "from_expand": self.from_expand,
             "cum_rewards": [float(r) for r in self.cum_rewards],
+            "visit_count": self.visit_count,
             "from_continuation": self.from_continuation,
 
             
@@ -168,6 +170,7 @@ class MCTSNode(SearchNode[StateT, ActionT]):
         node.is_simulated = dct.get("is_simulated", False)
         node.from_expand =  dct.get("from_expand", False) if "from_expand" in dct else dct.get("is_expanded", False) # new version: from_expand; for old version: is_expanded 
         node.cum_rewards = dct.get("cum_rewards", [])
+        node.visit_count = dct.get("visit_count", len(node.cum_rewards))  # fallback for old checkpoints
         node.from_continuation = dct.get("from_continuation", False)
        
         return node

@@ -156,6 +156,16 @@ class MCTSConfig(BaseSearchConfig):
     # True = V(s'): run transition first, then score with observation.
     transition_before_evaluate: bool = False
 
+    # Backpropagation mode:
+    # "cumulative" (default): standard cum_reward aggregation along path, then
+    #     calc_q across rollouts.
+    # "decay": exponential recency-weighted update from LLaMA-Berry / Empirical-MCTS.
+    #     Q(parent) ← (1 - decay_gamma) * Q(parent) + decay_gamma * Q(child).
+    #     Later rollouts overwrite earlier ones, useful when reward quality improves
+    #     over iterations (e.g., with memory augmentation).
+    backprop_mode: str = "cumulative"
+    decay_gamma: float = 0.5
+
     
     def __post_init__(self):
         self.simulate_choice = self.default_simulate_strategies.get(self.simulate_strategy, self.simulate_strategy)
@@ -164,6 +174,11 @@ class MCTSConfig(BaseSearchConfig):
         assert self.output_strategy in [
             'max_reward', 'follow_max', 'max_visit', 'max_iter', 'last_iter', 'last_terminal_iter'
         ]
+        assert self.backprop_mode in ('cumulative', 'decay'), \
+            f"backprop_mode must be 'cumulative' or 'decay', got '{self.backprop_mode}'"
+        if self.backprop_mode == 'decay':
+            assert 0.0 < self.decay_gamma <= 1.0, \
+                f"decay_gamma must be in (0, 1], got {self.decay_gamma}"
         
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -194,10 +209,10 @@ def _select(w_exp: float, node: MCTSNode, max_steps: int, force_terminating_on_d
     def _uct_select(w_exp: float, node: MCTSNode, return_detail=False) -> MCTSNode:
         best_child = None
         best_score = -np.inf
-        num_trials_parent= len(node.cum_rewards)
+        num_trials_parent = node.visit_count if node.visit_count > 0 else len(node.cum_rewards)
         best_detail = ""
         for i, child in enumerate(node.children):
-            num_trials_cur = len(child.cum_rewards)
+            num_trials_cur = child.visit_count if child.visit_count > 0 else len(child.cum_rewards)
             exploration_score = np.sqrt(np.log(num_trials_parent) / max(1, num_trials_cur))
             score = child.Q + w_exp * exploration_score
             
@@ -486,12 +501,55 @@ def _back_propagate(path: list[MCTSNode], cum_reward_func):
     for node in reversed(path):
         rewards.append(node.reward)
         node.cum_rewards.append(cum_reward_func(rewards[::-1]))
+        node.visit_count += 1
         cum_rewards_appened.append(cum_reward_func(rewards[::-1]))
     log_event(logger, "Backpropagate", f"Rewards (leaf->root): {rewards}", level="debug")
     log_event(logger, "Backpropagate", f"Cum rewards: {cum_rewards_appened}", level="debug")
     log_phase(logger, "Backpropagate", "End")
     return node.cum_rewards[-1]
 ##### BACK-PROPAGATE (END)
+
+def _back_propagate_decay(path: list[MCTSNode], gamma: float):
+    """Decay-based backpropagation (LLaMA-Berry / Empirical-MCTS).
+
+    Updates Q-values from leaf to root using exponential recency weighting:
+        Q(parent) ← (1 - γ) * Q(parent) + γ * Q(child)
+
+    Unlike cumulative backprop which appends to cum_rewards and lets calc_q
+    aggregate across rollouts, decay mode directly maintains a single Q-value
+    per node (stored as the sole element of cum_rewards). Later rollouts
+    naturally receive higher weight because they overwrite earlier values.
+
+    Args:
+        path: List of MCTSNode from root to leaf.
+        gamma: Decay factor in (0, 1]. Higher → more weight on new rollout.
+
+    Returns:
+        The Q-value at the root after update.
+    """
+    log_phase(logger, "Backpropagate(decay)", "Begin")
+    # Start from the leaf; its Q is its own reward
+    leaf = path[-1]
+    child_q = leaf.reward
+    leaf.visit_count += 1
+    if not leaf.cum_rewards:
+        leaf.cum_rewards.append(child_q)
+    else:
+        leaf.cum_rewards[0] = (1 - gamma) * leaf.cum_rewards[0] + gamma * child_q
+
+    # Walk from leaf-1 to root
+    for node in reversed(path[:-1]):
+        node.visit_count += 1
+        if not node.cum_rewards:
+            node.cum_rewards.append(child_q)
+        else:
+            node.cum_rewards[0] = (1 - gamma) * node.cum_rewards[0] + gamma * child_q
+        child_q = node.cum_rewards[0]
+
+    log_event(logger, "Backpropagate(decay)",
+              f"Q-values (root->leaf): {[n.cum_rewards[0] for n in path]}", level="debug")
+    log_phase(logger, "Backpropagate(decay)", "End")
+    return path[0].cum_rewards[0]
 
 ##### BACK-PROPAGATE (BEGIN) #####
 # https://github.com/THUDM/ReST-MCTS/blob/main/MCTS/mcts.py#L213
@@ -709,11 +767,17 @@ class MCTSSearch(BaseTreeSearch):
             # ====== Terminate on First Solution ======
             if config.terminate_on_first_solution and path[-1].is_terminal:
                 log_event(logger, "MCTS", "Terminates due to first solution found", level="debug")
-                _back_propagate(path, config.cum_reward)
+                if config.backprop_mode == 'decay':
+                    _back_propagate_decay(path, config.decay_gamma)
+                else:
+                    _back_propagate(path, config.cum_reward)
                 trace_in_each_iter.append(deepcopy(path))
                 break
 
-            _back_propagate(path, config.cum_reward)
+            if config.backprop_mode == 'decay':
+                _back_propagate_decay(path, config.decay_gamma)
+            else:
+                _back_propagate(path, config.cum_reward)
 
             trace_in_each_iter.append(deepcopy(path))
             unselected_terminal_paths_during_simulate.extend(unselected_terminal_paths)

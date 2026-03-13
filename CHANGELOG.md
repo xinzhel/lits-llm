@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-03-13 Unreleased (`x-0313-minor-backprop-decay`)
+
+### Added
+- `_back_propagate_decay()` in `lits/agents/tree/mcts.py`
+- `backprop_mode` and `decay_gamma` fields in `MCTSConfig`
+- `visit_count` on `MCTSNode` (`lits/agents/tree/node.py`)
+- `docs/agents/tree/common/BACKPROPAGATION.md`
+
+### Changed
+- `_uct_select` uses `visit_count` with fallback to `len(cum_rewards)`
+
 ## 2026-03-12 Unreleased (`0304-major-lats-reward-refactor`)
 
 ### Added
