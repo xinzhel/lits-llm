@@ -133,8 +133,8 @@ class MCTSConfig(BaseSearchConfig):
     
     # simulation
     roll_out_steps: int = 10000
-    cum_reward: Callable = np.mean
-    calc_q: Callable = max
+    backprop_reward_func: Callable = np.mean
+    cross_rollout_q_func: Callable = max
     default_simulate_strategies: dict = field(default_factory=lambda: {
         'max': lambda x: np.argmax(x),
         'sample': lambda x: np.random.choice(len(x), p=x),
@@ -157,14 +157,22 @@ class MCTSConfig(BaseSearchConfig):
     transition_before_evaluate: bool = False
 
     # Backpropagation mode:
-    # "cumulative" (default): standard cum_reward aggregation along path, then
-    #     calc_q across rollouts.
+    # "cumulative" (default): standard backprop_reward_func aggregation along path, then
+    #     cross_rollout_q_func across rollouts.
     # "decay": exponential recency-weighted update from LLaMA-Berry / Empirical-MCTS.
     #     Q(parent) ← (1 - decay_gamma) * Q(parent) + decay_gamma * Q(child).
     #     Later rollouts overwrite earlier ones, useful when reward quality improves
     #     over iterations (e.g., with memory augmentation).
     backprop_mode: str = "cumulative"
     decay_gamma: float = 0.5
+
+    # Backpropagation broadcast mode (orthogonal to backprop_mode):
+    # "per_node" (default): each node uses its own reward aggregated from its
+    #     position to the leaf. Suitable for tool-use and language-grounded tasks
+    #     where rewards are subjective LM scores.
+    # "terminal": broadcast the leaf node's reward to all ancestors (LATS style).
+    #     Suitable for env-grounded tasks with objective terminal signal.
+    backprop_broadcast_mode: str = "per_node"
 
     
     def __post_init__(self):
@@ -179,6 +187,8 @@ class MCTSConfig(BaseSearchConfig):
         if self.backprop_mode == 'decay':
             assert 0.0 < self.decay_gamma <= 1.0, \
                 f"decay_gamma must be in (0, 1], got {self.decay_gamma}"
+        assert self.backprop_broadcast_mode in ('per_node', 'terminal'), \
+            f"backprop_broadcast_mode must be 'per_node' or 'terminal', got '{self.backprop_broadcast_mode}'"
         
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -186,8 +196,8 @@ class MCTSConfig(BaseSearchConfig):
         d.pop('default_simulate_strategies', None)
         d.pop('simulate_choice', None)
         # store callables by name
-        d['cum_reward'] = _func_to_name(self.cum_reward)
-        d['calc_q'] = _func_to_name(self.calc_q)
+        d['backprop_reward_func'] = _func_to_name(self.backprop_reward_func)
+        d['cross_rollout_q_func'] = _func_to_name(self.cross_rollout_q_func)
         return d
 # ~~~~~~~ Search Config (BEGIN ~~~~~~~~~
 
@@ -455,67 +465,75 @@ def _simulate(
 ##### SIMULATE (END) #####
 
 ##### BACK-PROPAGATE (BEGIN) #####
-def _back_propagate(path: list[MCTSNode], cum_reward_func):
-    """
-    Backpropagate cumulative rewards from leaf to root along the selected path.
-    
-    This function traverses the path in reverse order (leaf to root), accumulating rewards
-    and computing cumulative reward values using the provided aggregation function. Each node
-    along the path stores the cumulative reward for this rollout in its cum_rewards list.
-    
+def _back_propagate(path: list[MCTSNode], backprop_reward_func, broadcast_mode: str = "per_node"):
+    """Backpropagate cumulative rewards from leaf to root along the selected path.
+
+    Traverses the path in reverse (leaf → root). Each node's ``cum_rewards``
+    list receives one new value per rollout; the across-rollout aggregation is
+    deferred to ``cross_rollout_q_func`` during UCT selection.
+
+    Two broadcast modes control *what* value each node receives:
+
+    ``per_node`` (default):
+        Each node computes ``backprop_reward_func(rewards_from_here_to_leaf)``.
+        Different-depth nodes get different values. Appropriate when rewards
+        are subjective LM scores (tool-use, language-grounded tasks).
+
+    ``terminal``:
+        The leaf node's reward is appended identically to every ancestor.
+        Appropriate for env-grounded tasks where an objective terminal signal
+        is available (e.g., environment reward, test-case pass rate).
+
+        To reproduce LATS backpropagation (Zhou et al., ICML 2024), set
+        ``broadcast_mode="terminal"`` and ``cross_rollout_q_func=np.mean``.  The LATS
+        formula ``V(s) = (V(s)*(N-1) + r) / N`` is a running mean, which
+        is mathematically equivalent to ``mean(cum_rewards)`` when each
+        rollout appends the raw terminal reward.
+
     Args:
-        path: List of MCTSNode objects representing the path from root to leaf
-        cum_reward_func: Function to aggregate rewards (e.g., sum, np.mean)
-    
+        path: MCTSNode list from root to leaf.
+        backprop_reward_func: Within-rollout aggregation (e.g., np.mean).
+            Only used in ``per_node`` mode.
+        broadcast_mode: ``"per_node"`` or ``"terminal"``.
+
     Returns:
-        The cumulative reward value at the root node for this rollout
-    
-    Example:
-        Given a path with 11 nodes (root to leaf) and individual rewards:
-        
-        Rewards (leaf -> root): [0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, -1]
-        
-        If cum_reward_func = np.mean, the cumulative rewards appended to each node are:
-        - Leaf (depth 10):     mean([0.25]) = 0.25
-        - Node (depth 9):      mean([0.25, 0.25]) = 0.25
-        - Node (depth 8):      mean([0.25, 0.25, 0.0]) = 0.167
-        - Node (depth 7):      mean([0.25, 0.25, 0.0, 0.25]) = 0.188
-        - Node (depth 6):      mean([0.25, 0.25, 0.0, 0.25, 0.0]) = 0.15
-        - Node (depth 5):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25]) = 0.167
-        - Node (depth 4):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0]) = 0.143
-        - Node (depth 3):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25]) = 0.156
-        - Node (depth 2):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0]) = 0.139
-        - Node (depth 1):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25]) = 0.15
-        - Root (depth 0):      mean([0.25, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, 0.0, 0.25, -1]) = 0.045
-        
-        Each node's cum_rewards list grows with each backpropagation (one value per rollout).
-        UCT then computes Q-values as calc_q(cum_rewards), which defaults to np.mean.
-        
-        Note: When cum_reward_func = np.mean and calc_q = np.mean, Q becomes the mean of means:
-        - First mean: aggregates rewards within a single rollout (backpropagation)
-        - Second mean: aggregates across multiple rollouts (UCT selection)
+        The value appended to the root node for this rollout.
     """
     log_phase(logger, "Backpropagate", "Begin")
+
+    if broadcast_mode == "terminal":
+        # Append the raw terminal reward to every node on the path.
+        # Across-rollout aggregation (e.g., mean for LATS) is handled by
+        # cross_rollout_q_func at UCT selection time.
+        terminal_reward = path[-1].reward
+        for node in reversed(path):
+            node.cum_rewards.append(terminal_reward)
+            node.visit_count += 1
+        log_event(logger, "Backpropagate", f"Terminal reward broadcast: {terminal_reward}", level="debug")
+        log_phase(logger, "Backpropagate", "End")
+        return terminal_reward
+
+    # per_node mode (default): aggregate per-step rewards from each node to leaf
     rewards = []
-    cum_rewards_appened = []
+    cum_rewards_appended = []
     for node in reversed(path):
         rewards.append(node.reward)
-        node.cum_rewards.append(cum_reward_func(rewards[::-1]))
+        node.cum_rewards.append(backprop_reward_func(rewards[::-1]))
         node.visit_count += 1
-        cum_rewards_appened.append(cum_reward_func(rewards[::-1]))
+        cum_rewards_appended.append(backprop_reward_func(rewards[::-1]))
     log_event(logger, "Backpropagate", f"Rewards (leaf->root): {rewards}", level="debug")
-    log_event(logger, "Backpropagate", f"Cum rewards: {cum_rewards_appened}", level="debug")
+    log_event(logger, "Backpropagate", f"Cum rewards: {cum_rewards_appended}", level="debug")
     log_phase(logger, "Backpropagate", "End")
     return node.cum_rewards[-1]
 ##### BACK-PROPAGATE (END)
 
-def _back_propagate_decay(path: list[MCTSNode], gamma: float):
+def _back_propagate_decay(path: list[MCTSNode], gamma: float, broadcast_mode: str = "per_node"):
     """Decay-based backpropagation (LLaMA-Berry / Empirical-MCTS).
 
     Updates Q-values from leaf to root using exponential recency weighting:
         Q(parent) ← (1 - γ) * Q(parent) + γ * Q(child)
 
-    Unlike cumulative backprop which appends to cum_rewards and lets calc_q
+    Unlike cumulative backprop which appends to cum_rewards and lets cross_rollout_q_func
     aggregate across rollouts, decay mode directly maintains a single Q-value
     per node (stored as the sole element of cum_rewards). Later rollouts
     naturally receive higher weight because they overwrite earlier values.
@@ -523,28 +541,47 @@ def _back_propagate_decay(path: list[MCTSNode], gamma: float):
     Args:
         path: List of MCTSNode from root to leaf.
         gamma: Decay factor in (0, 1]. Higher → more weight on new rollout.
+        broadcast_mode: "per_node" (default) — each node's own reward seeds
+            the decay chain. "terminal" — use the leaf's reward as the seed
+            for all ancestors (LATS style, for env-grounded tasks).
 
     Returns:
         The Q-value at the root after update.
     """
     log_phase(logger, "Backpropagate(decay)", "Begin")
-    # Start from the leaf; its Q is its own reward
     leaf = path[-1]
-    child_q = leaf.reward
-    leaf.visit_count += 1
-    if not leaf.cum_rewards:
-        leaf.cum_rewards.append(child_q)
-    else:
-        leaf.cum_rewards[0] = (1 - gamma) * leaf.cum_rewards[0] + gamma * child_q
 
-    # Walk from leaf-1 to root
-    for node in reversed(path[:-1]):
-        node.visit_count += 1
-        if not node.cum_rewards:
-            node.cum_rewards.append(child_q)
+    if broadcast_mode == "terminal":
+        # Terminal broadcast: use leaf reward as the single value for all nodes
+        terminal_reward = leaf.reward
+        leaf.visit_count += 1
+        if not leaf.cum_rewards:
+            leaf.cum_rewards.append(terminal_reward)
         else:
-            node.cum_rewards[0] = (1 - gamma) * node.cum_rewards[0] + gamma * child_q
-        child_q = node.cum_rewards[0]
+            leaf.cum_rewards[0] = (1 - gamma) * leaf.cum_rewards[0] + gamma * terminal_reward
+
+        for node in reversed(path[:-1]):
+            node.visit_count += 1
+            if not node.cum_rewards:
+                node.cum_rewards.append(terminal_reward)
+            else:
+                node.cum_rewards[0] = (1 - gamma) * node.cum_rewards[0] + gamma * terminal_reward
+    else:
+        # per_node mode: each node's own reward seeds the decay chain
+        child_q = leaf.reward
+        leaf.visit_count += 1
+        if not leaf.cum_rewards:
+            leaf.cum_rewards.append(child_q)
+        else:
+            leaf.cum_rewards[0] = (1 - gamma) * leaf.cum_rewards[0] + gamma * child_q
+
+        for node in reversed(path[:-1]):
+            node.visit_count += 1
+            if not node.cum_rewards:
+                node.cum_rewards.append(child_q)
+            else:
+                node.cum_rewards[0] = (1 - gamma) * node.cum_rewards[0] + gamma * child_q
+            child_q = node.cum_rewards[0]
 
     log_event(logger, "Backpropagate(decay)",
               f"Q-values (root->leaf): {[n.cum_rewards[0] for n in path]}", level="debug")
@@ -579,7 +616,7 @@ class MCTSSearch(BaseTreeSearch):
 
     def _setup(self, query, query_idx):
         super()._setup(query, query_idx)
-        MCTSNode.set_default_calc_q(self.config.calc_q)
+        MCTSNode.set_default_q_func(self.config.cross_rollout_q_func)
 
         # Auto-infer transition_before_evaluate from reward model
         if (self.reward_model is not None
@@ -602,7 +639,7 @@ class MCTSSearch(BaseTreeSearch):
         def _dfs_max_reward(path: list[MCTSNode]) -> tuple[float, list[MCTSNode]]:
             cur = path[-1]
             if cur.is_terminal:
-                return config.cum_reward([node.reward for node in path[1:]]), path
+                return config.backprop_reward_func([node.reward for node in path[1:]]), path
             if cur.children is None:
                 return -math.inf, path
             visited_children = [x for x in cur.children if x.state is not None]
@@ -768,16 +805,16 @@ class MCTSSearch(BaseTreeSearch):
             if config.terminate_on_first_solution and path[-1].is_terminal:
                 log_event(logger, "MCTS", "Terminates due to first solution found", level="debug")
                 if config.backprop_mode == 'decay':
-                    _back_propagate_decay(path, config.decay_gamma)
+                    _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)
                 else:
-                    _back_propagate(path, config.cum_reward)
+                    _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
                 trace_in_each_iter.append(deepcopy(path))
                 break
 
             if config.backprop_mode == 'decay':
-                _back_propagate_decay(path, config.decay_gamma)
+                _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)
             else:
-                _back_propagate(path, config.cum_reward)
+                _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
 
             trace_in_each_iter.append(deepcopy(path))
             unselected_terminal_paths_during_simulate.extend(unselected_terminal_paths)

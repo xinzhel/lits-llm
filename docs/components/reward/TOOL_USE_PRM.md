@@ -149,7 +149,7 @@ results, API responses, error messages), not reward scores. The `@register_evalu
 mechanism requires ground truth and is post-hoc only (evaluation time, not search time) —
 using it during search would be oracle cheating.
 
-Therefore tool-use MCTS uses **path-aggregate backpropagation**: each node's `cum_reward`
+Therefore tool-use MCTS uses **path-aggregate backpropagation**: each node's `backprop_reward_func`
 is computed from the per-step LM scores along its path. This differs from LATS on
 env-grounded tasks (e.g., WebShop) where `env.step()` returns an objective reward that
 can be broadcast to all ancestors.

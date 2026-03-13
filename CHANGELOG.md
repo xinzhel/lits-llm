@@ -6,16 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
-## 2026-03-13 Unreleased (`x-0313-minor-backprop-decay`)
+## 2026-03-13 Unreleased (`x-0313-major-backprop-modes`)
 
 ### Added
 - `_back_propagate_decay()` in `lits/agents/tree/mcts.py`
 - `backprop_mode` and `decay_gamma` fields in `MCTSConfig`
+- `backprop_broadcast_mode` (`per_node`/`terminal`) in `MCTSConfig`
 - `visit_count` on `MCTSNode` (`lits/agents/tree/node.py`)
 - `docs/agents/tree/common/BACKPROPAGATION.md`
 
 ### Changed
 - `_uct_select` uses `visit_count` with fallback to `len(cum_rewards)`
+- `_back_propagate` and `_back_propagate_decay` support `broadcast_mode` parameter
+- Renamed `cum_reward` → `backprop_reward_func` in `MCTSConfig`
+- Renamed `calc_q` → `cross_rollout_q_func` in `MCTSConfig` and `MCTSNode`
+- Renamed `set_default_calc_q` → `set_default_q_func` in `MCTSNode`
+- `_back_propagate` terminal mode: append raw terminal reward instead of running average
 
 ## 2026-03-12 Unreleased (`0304-major-lats-reward-refactor`)
 

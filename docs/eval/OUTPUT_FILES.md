@@ -42,8 +42,8 @@ results/{model_name}/{dataset}_{method}_{config}/run_{version}/
     "max_steps": 6,
     "n_actions": 3,
     "w_exp": 1.0,
-    "cum_reward": "np.mean",
-    "calc_q": "max"
+    "backprop_reward_func": "np.mean",
+    "cross_rollout_q_func": "max"
 }
 ```
 

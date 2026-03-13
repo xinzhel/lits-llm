@@ -117,12 +117,12 @@ class SearchNode(Generic[StateT, ActionT]):
 class MCTSNode(SearchNode[StateT, ActionT]):
     def __init__(self, state: Optional[StateT], action: Optional[ActionT], parent: Optional['MCTSNode'] = None,
                  fast_reward: float = -1, fast_reward_details=None,
-                 is_terminal: bool = False, calc_q: Callable[[List[float]], float] = None,
+                 is_terminal: bool = False, cross_rollout_q_func: Callable[[List[float]], float] = None,
                  trajectory_key: Optional[TrajectoryKey] = None):
         """
         :param fast_reward: an estimation of the reward of the last step
         :param is_terminal: whether the current state is a terminal state
-        :param calc_q: the way to calculate the Q value from histories. Defaults: np.mean
+        :param cross_rollout_q_func: aggregates Q-values across multiple rollouts. Defaults: np.mean
         :param trajectory_key: identifier for the trajectory within a search instance
         """
         super().__init__(state, action, parent, children=None, is_terminal=is_terminal, trajectory_key=trajectory_key)
@@ -132,18 +132,18 @@ class MCTSNode(SearchNode[StateT, ActionT]):
         self.fast_reward_details = fast_reward_details if fast_reward_details is not None else {}
         self.cum_rewards = []
         self.visit_count = 0  # explicit visit count; used by decay backprop where len(cum_rewards) is always 1
-        self.calc_q = calc_q if calc_q is not None else MCTSNode.DEFAULT_CALC_Q
+        self.cross_rollout_q_func = cross_rollout_q_func if cross_rollout_q_func is not None else MCTSNode.DEFAULT_Q_FUNC
         self.from_simulate= False  # whether this node is created in `_expand` called by `_simulate` 
         self.is_simulated = False  # whether this node has chosen for simulation 
         self.from_expand = False  # whether this node is created during the expansion phase
         self.from_continuation = False  # whether this node is created during the continuation phase but can be reused for expansion
     
     @classmethod
-    def set_default_calc_q(cls, calc_q: Callable[[List[float]], float]):
+    def set_default_q_func(cls, cross_rollout_q_func: Callable[[List[float]], float]):
         """
         Set the default Q-value calculation method for all new nodes.
         """
-        cls.DEFAULT_CALC_Q = calc_q
+        cls.DEFAULT_Q_FUNC = cross_rollout_q_func
 
         
     def to_dict(self) -> Dict[str, Any]:
@@ -189,8 +189,8 @@ class MCTSNode(SearchNode[StateT, ActionT]):
             return self.fast_reward
         else:
             # Ideally, Q should only be used when node.is_all_children_visited is True
-            return self.calc_q(self.cum_rewards)
-MCTSNode.set_default_calc_q(np.mean)
+            return self.cross_rollout_q_func(self.cum_rewards)
+MCTSNode.set_default_q_func(np.mean)
   
 
 class BeamSearchNode(SearchNode[StateT, ActionT]):
