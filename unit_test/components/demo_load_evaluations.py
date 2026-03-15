@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 import pandas as pd
 from pathlib import Path
-from lits.components.verbal_evaluator import SQLValidator, SQLErrorProfiler
+from lits.components.context_augmentor import SQLValidator, SQLErrorProfiler
 from lits.lm import get_lm
 
 # Model name used in tests

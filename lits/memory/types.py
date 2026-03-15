@@ -1,10 +1,36 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
+logger = logging.getLogger(__name__)
+
 ROOT_TOKEN = "q"
+
+
+def normalize_trajectory_key(raw, root_token: str = ROOT_TOKEN) -> str:
+    """Normalize a trajectory key to a canonical ``q/...`` path string.
+
+    Accepts:
+        - ``TrajectoryKey`` object → uses ``.path_str``
+        - ``str`` already in ``q/...`` format → pass-through
+        - ``None`` or empty → returns ``""``
+
+    Logs a warning if the string doesn't start with the expected root token.
+    """
+    if raw is None:
+        return ""
+    if hasattr(raw, "path_str"):
+        return raw.path_str
+    s = str(raw)
+    if s and not s.startswith(root_token):
+        logger.warning(
+            f"trajectory_key '{s}' does not start with root token '{root_token}'. "
+            f"Expected format: '{root_token}/0/1/...'."
+        )
+    return s
 
 
 def encode_path(indices: Sequence[int], root_token: str = ROOT_TOKEN) -> str:

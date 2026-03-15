@@ -408,6 +408,8 @@ docs/                    # Documentation
 - [CLI Reference](docs/cli/search.md)
 - [ReAct Agent](docs/agents/ReAct.md)
 - [Component API](docs/components/)
+- [Context Augmentor](docs/components/context_augmentor/CONTEXT_AUGMENTOR.md)
+- [Learning Loop](docs/components/context_augmentor/LEARNING_LOOP.md)
 - [Custom Evaluators](docs/eval/CUSTOM_EVALUATORS.md)
 - [Tree Visualization](docs/TREE_VISUALIZATION.md)
 
@@ -873,6 +875,8 @@ docs/                    # Documentation
 - [CLI Reference](docs/cli/search.md)
 - [ReAct Agent](docs/agents/ReAct.md)
 - [Component API](docs/components/)
+- [Context Augmentor](docs/components/context_augmentor/CONTEXT_AUGMENTOR.md)
+- [Learning Loop](docs/components/context_augmentor/LEARNING_LOOP.md)
 - [Custom Evaluators](docs/eval/CUSTOM_EVALUATORS.md)
 - [Tree Visualization](docs/TREE_VISUALIZATION.md)
 

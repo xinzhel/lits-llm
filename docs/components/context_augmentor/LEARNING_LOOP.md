@@ -10,7 +10,7 @@ The Learning Loop is an automatic feedback mechanism that enables agents to lear
 
 ```python
 from lits.agents.main import create_tool_use_agent
-from lits.components.verbal_evaluator import SQLValidator
+from lits.components.context_augmentor import SQLValidator
 from lits.lm import get_lm
 
 # 1. Create evaluator
@@ -80,7 +80,7 @@ state = agent.run(query="Find priority sites near Melbourne")
 ### Single Evaluator
 
 ```python
-from lits.components.verbal_evaluator import SQLValidator
+from lits.components.context_augmentor import SQLValidator
 
 validator = SQLValidator(
     base_model=get_lm("gpt-4"),
@@ -108,7 +108,7 @@ The learning loop supports two types of evaluators with different granularities:
 - Use for holistic analysis and pattern detection
 
 ```python
-from lits.components.verbal_evaluator import SQLValidator, SQLErrorProfiler
+from lits.components.context_augmentor import SQLValidator, SQLErrorProfiler
 
 # Step-level: validates each SQL query as it's generated
 validator = SQLValidator(
@@ -194,9 +194,9 @@ WHERE ST_DWithin(geom, ST_SetSRID(ST_MakePoint(144.38078, -38.08395), 4283), 0.0
 ### Custom Evaluator
 
 ```python
-from lits.components.verbal_evaluator.base import VerbalEvaluator
+from lits.components.context_augmentor import ContextAugmentor
 
-class MyCustomEvaluator(VerbalEvaluator):
+class MyCustomEvaluator(ContextAugmentor):
     def evaluate(self, step, **kwargs):
         # Your validation logic
         if self._has_issue(step):
@@ -458,9 +458,9 @@ def get_actions(self, state, query, ...):
     return outputs
 ```
 
-#### `VerbalEvaluator.evaluate()` - Validation & Saving
+#### `ContextAugmentor.evaluate()` - Validation & Saving
 
-Located in `lits/components/verbal_evaluator/base.py`:
+Located in `lits/components/context_augmentor/__init__.py`:
 
 ```python
 def evaluate(self, step, query_idx, policy_model_name, task_type):
@@ -477,7 +477,7 @@ def evaluate(self, step, query_idx, policy_model_name, task_type):
 ### Data Flow
 
 ```
-File: ~/.lits_llm/verbal_evaluator/resultdicttojsonl_{model}_{task}.jsonl
+File: ~/.lits_llm/context_augmentor/resultdicttojsonl_{model}_{task}.jsonl
 
 Record Format (SQLValidator):
 {
@@ -506,14 +506,14 @@ Record Format (SQLErrorProfiler):
 }
 
 Loading:
-    VerbalEvaluator.load_results()
+    ContextAugmentor.load_results()
         ↓
     Reads file, filters by evaluator_type (optional)
         ↓
     Returns: List[dict]
 
 Formatting:
-    VerbalEvaluator.load_eval_as_prompt()
+    ContextAugmentor.load_eval_as_prompt()
         ↓
     Calls load_results() to get all records
         ↓
@@ -540,10 +540,10 @@ Key Improvements:
 
 #### Custom Evaluator
 
-Inherit from `VerbalEvaluator` and implement:
+Inherit from `ContextAugmentor` and implement:
 
 ```python
-class MyEvaluator(VerbalEvaluator):
+class MyEvaluator(ContextAugmentor):
     def evaluate(self, input, **kwargs):
         # Required: Validation logic
         pass
@@ -640,7 +640,7 @@ agent = create_tool_use_agent(tools=tools, evaluators=[validator])
 Check:
 1. `policy_model_name` and `task_type` are provided
 2. Evaluator's `evaluate()` method returns issues
-3. File permissions for `~/.lits_llm/verbal_evaluator/`
+3. File permissions for `~/.lits_llm/context_augmentor/`
 
 ### Notes Not Appearing in Prompt
 
@@ -658,7 +658,7 @@ Each evaluator makes LLM calls. To reduce:
 
 ## See Also
 
-- [Verbal Evaluator Framework](../components/verbal_evaluator/VERBAL_EVALUATOR.md)
-- [Dynamic Notes Injection](../components/callback.md)
-- [ReActChat Agent](./REACT_CHAT.md)
-- [Policy Base Class](../components/policy/POLICY.md)
+- [Context Augmentor Framework](./CONTEXT_AUGMENTOR.md)
+- [Dynamic Notes Injection](../callback.md)
+- [ReActChat Agent](../../agents/REACT_CHAT.md)
+- [Policy Base Class](../policy/POLICY.md)

@@ -1,37 +1,33 @@
-# Verbal Evaluator Framework
+# Context Augmentor Framework (formerly Verbal Evaluator)
 
 ## Overview
 
-The Verbal Evaluator framework provides LLM-based validation and analysis of generated content (SQL queries, code, etc.) with automatic issue tracking and policy feedback generation.
+The Context Augmentor framework provides LLM-based validation and analysis of generated content (SQL queries, code, etc.) with automatic issue tracking and policy feedback generation.
 
 **Key Features:**
 - Step-level and trajectory-level evaluation
-- Automatic issue tracking to `~/.lits_llm/verbal_evaluator/`
+- Automatic issue tracking to `~/.lits_llm/context_augmentor/`
 - Policy feedback generation from historical issues
-- Unified `evaluate()` interface across all evaluators
+- Unified `evaluate()` interface across all augmentors
 - Simple file-based persistence using `ResultDictToJsonl`
 
 ## Architecture
 
-### Base Class: VerbalEvaluator
+### Base Class: ContextAugmentor
 
-All verbal evaluators inherit from the abstract `VerbalEvaluator` base class, which provides:
+All augmentors inherit from the `ContextAugmentor` ABC, which provides:
 
-- **Unified file management**: All evaluators for the same policy/task save to the same file
+- **Unified file management**: All augmentors for the same policy/task save to the same file
 - **Automatic metadata**: Adds `evaluator_type` and `timestamp` to all saved results
 - **Result filtering**: Load results by evaluator type
-- **Common interface**: Abstract `evaluate()` and `load_eval_as_prompt()` methods
+- **Common interface**: `analyze()`, `evaluate()`, `retrieve()`, `store()` methods
 
 ```python
-from lits.components.verbal_evaluator.base import VerbalEvaluator
+from lits.components.context_augmentor import ContextAugmentor
 
-class MyEvaluator(VerbalEvaluator):
-    def evaluate(self, input, **kwargs) -> Optional[str]:
-        """Evaluate input and return issue string."""
-        # Implementation
-        
-    def load_eval_as_prompt(self, policy_model_name, task_type, **kwargs) -> str:
-        """Load saved evaluations as prompt."""
+class MyAugmentor(ContextAugmentor):
+    def _analyze(self, input, **kwargs) -> Optional[dict]:
+        """Analyze input and return result dict with 'issues' key."""
         # Implementation
 ```
 
@@ -63,7 +59,7 @@ if issue:
 
 File location:
 ```
-~/.lits_llm/verbal_evaluator/resultdicttojsonl_{model}_{task}.jsonl
+~/.lits_llm/context_augmentor/resultdicttojsonl_{model}_{task}.jsonl
 ```
 
 Each record contains:
@@ -97,7 +93,7 @@ Each record contains:
 
 **Example:**
 ```python
-from lits.components.verbal_evaluator import SQLValidator
+from lits.components.context_augmentor import SQLValidator
 from lits.lm import get_lm
 
 # Initialize
@@ -156,7 +152,7 @@ if issue:
 
 **Example:**
 ```python
-from lits.components.verbal_evaluator import SQLErrorProfiler
+from lits.components.context_augmentor import SQLErrorProfiler
 from lits.structures import ToolUseState
 
 # Initialize
@@ -325,7 +321,7 @@ if trajectory_issue:
 **Unified Storage:** All evaluators for the same policy/task save to one file.
 
 ```
-~/.lits_llm/verbal_evaluator/
+~/.lits_llm/context_augmentor/
 ├── resultdicttojsonl_gpt-4_spatial_qa.jsonl          # Both SQLValidator AND SQLErrorProfiler
 ├── resultdicttojsonl_claude_tool_use.jsonl           # Both evaluators
 └── resultdicttojsonl_llama-3_math_qa.jsonl           # Both evaluators
@@ -405,7 +401,7 @@ if iteration % 10 == 0:
 ```python
 from pathlib import Path
 
-issue_file = Path.home() / ".lits_llm" / "verbal_evaluator" / f"resultdicttojsonl_{model}_{task}.jsonl"
+issue_file = Path.home() / ".lits_llm" / "context_augmentor" / f"resultdicttojsonl_{model}_{task}.jsonl"
 
 if issue_file.exists():
     with open(issue_file) as f:
@@ -415,27 +411,27 @@ if issue_file.exists():
 
 ## Extending the Framework
 
-To create a new verbal evaluator, inherit from `VerbalEvaluator`:
+To create a new augmentor, inherit from `ContextAugmentor`:
 
 ### 1. Inherit from Base Class
 
 ```python
-from lits.components.verbal_evaluator.base import VerbalEvaluator
+from lits.components.context_augmentor import ContextAugmentor
 from typing import Optional
 
-class MyCustomEvaluator(VerbalEvaluator):
-    """Custom evaluator for analyzing X."""
+class MyCustomAugmentor(ContextAugmentor):
+    """Custom augmentor for analyzing X."""
     
     def __init__(self, base_model, custom_param: str, **kwargs):
-        # Initialize parent
         super().__init__(
             base_model=base_model,
+            require_chat_model=True,
             temperature=kwargs.get('temperature', 0.0),
             max_new_tokens=kwargs.get('max_new_tokens', 500)
         )
         
         self.custom_param = custom_param
-        # evaluator_type is automatically set to 'mycustomevaluator'
+        # evaluator_type is automatically set to 'mycustomaugmentor'
 ```
 
 ### 2. Implement Required Methods
@@ -512,7 +508,7 @@ class MyCustomEvaluator(VerbalEvaluator):
         return "\n".join(prompt_parts)
 ```
 
-### 3. Benefits of Inheriting from VerbalEvaluator
+### 3. Benefits of Inheriting from ContextAugmentor
 
 The base class automatically provides:
 
@@ -524,16 +520,16 @@ The base class automatically provides:
 ### 4. Example: Complete Custom Evaluator
 
 ```python
-from lits.components.verbal_evaluator.base import VerbalEvaluator
+from lits.components.context_augmentor import ContextAugmentor
 from typing import Optional, Dict, Any
 
-class CodeStyleEvaluator(VerbalEvaluator):
+class CodeStyleEvaluator(ContextAugmentor):
     """Evaluates code style and best practices."""
     
     STYLE_PROMPT = "You are a code style expert. Evaluate code for PEP8 compliance..."
     
     def __init__(self, base_model, **kwargs):
-        super().__init__(base_model=base_model, **kwargs)
+        super().__init__(base_model=base_model, require_chat_model=True, **kwargs)
         self.base_model.sys_prompt = self.STYLE_PROMPT
     
     def evaluate(
@@ -603,7 +599,7 @@ policy.base_model.sys_prompt += "\n\n" + feedback
 ```
 
 The evaluator will automatically:
-- Save to `~/.lits_llm/verbal_evaluator/resultdicttojsonl_gpt-4_code_gen.jsonl`
+- Save to `~/.lits_llm/context_augmentor/resultdicttojsonl_gpt-4_code_gen.jsonl`
 - Add `evaluator_type: "codestyleevaluator"` to each record
 - Share the file with other evaluators for the same policy/task
 

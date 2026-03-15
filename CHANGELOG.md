@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-03-15 Unreleased (`0312-major-context-augmentation`)
+
+### Added
+- `ContextAugmentor` ABC and `ContextUnit` dataclass in `lits/components/context_augmentor/__init__.py`
+- `require_chat_model` param on `ContextAugmentor.__init__`
+- `sql_validator.py` and `sql_error_profiler.py` in `lits/components/context_augmentor/`
+- `normalize_trajectory_key()` in `lits/memory/types.py`
+
+### Changed
+- `SQLValidator` and `SQLErrorProfiler` now inherit directly from `ContextAugmentor`
+- `docs/components/verbal_evaluator/` → `docs/components/context_augmentor/`
+- `docs/agents/LEARNING_LOOP.md` → `docs/components/context_augmentor/LEARNING_LOOP.md`
+- `analyze()` uses `trajectory_key` kwarg (not `query_idx`) for `ContextUnit.trajectory_key`
+- `ContextUnit.trajectory_key` docstring updated to `q/0/1/3` format
+- Storage path `~/.lits_llm/verbal_evaluator/` → `~/.lits_llm/context_augmentor/`
+
+### Fixed
+- `_filter_by_history_access`: `cross_step` now matches both `trajectory_key` AND `query_id` to prevent cross-task leakage
+
+### Removed
+- `lits/components/verbal_evaluator/` subpackage (no backward-compat shim)
+- `VerbalEvaluator` class (`verbal_evaluator/base.py`)
+
 ## 2026-03-13 Unreleased (`x-0313-major-backprop-modes`)
 
 ### Added

@@ -19,21 +19,21 @@ Integration Patterns:
 
 Basic Usage:
     ```python
-    from lits.components.verbal_evaluator import SQLValidator
+    from lits.components.context_augmentor import SQLValidator
     from lits.lm import OpenAIChatModel
-    
+
     # Initialize validator with SQL tool names
     llm = OpenAIChatModel(model_name="gpt-4")
     validator = SQLValidator(
         base_model=llm,
         sql_tool_names=['sql_query', 'execute_sql']
     )
-    
+
     # Validate a SQL query
     sql_query = "SELECT * FROM users WHERE age > 18"
     context = "Database schema: users(id, name, age, email)"
     result = validator.validate(sql_query, context)
-    
+
     print(f"Valid: {result['is_valid']}")
     print(f"Score: {result['score']}")
     ```
@@ -41,23 +41,23 @@ Basic Usage:
 Integration with ToolUsePolicy:
     ```python
     from lits.components.policy.tool_use import ToolUsePolicy
-    from lits.components.verbal_evaluator import SQLValidator
+    from lits.components.context_augmentor import SQLValidator
     from lits.lm import OpenAIChatModel
-    
+
     # Setup policy and validator
     llm = OpenAIChatModel(model_name="gpt-4")
     policy = ToolUsePolicy(base_model=llm, tools=sql_tools)
-    
+
     # Initialize validator with SQL tool names
     sql_tool_names = ['sql_query', 'execute_sql', 'run_sql']
     validator = SQLValidator(
         base_model=llm,
         sql_tool_names=sql_tool_names
     )
-    
+
     # Generate actions
     steps = policy.get_actions(state, query="Find users over 18")
-    
+
     # Validate SQL in each step
     for step in steps:
         validation = validator.validate(
@@ -65,29 +65,15 @@ Integration with ToolUsePolicy:
             context="Schema: users(id, name, age, email)",
             user_intent="Find adult users"
         )
-        
+
         if validation and not validation['is_valid']:
             # Handle invalid SQL (skip, regenerate, etc.)
     ```
 
-Custom Validation Prompt:
-    ```python
-    custom_prompt = '''You are a SQL expert for PostgreSQL databases.
-    Validate queries for PostgreSQL-specific syntax and best practices.
-    Return JSON with: is_valid, score, issue.'''
-    
-    validator = SQLValidator(
-        base_model=llm,
-        sql_tool_names=['sql_query', 'execute_sql'],
-        validation_prompt=custom_prompt,
-        temperature=0.0,  # Deterministic validation
-    )
-    ```
-
 Standalone Function:
     ```python
-    from lits.components.verbal_evaluator import extract_sql_from_action
-    
+    from lits.components.context_augmentor import extract_sql_from_action
+
     # Extract SQL query from action (returns None if not a SQL action)
     action_str = '{"action": "sql_query", "action_input": {"query": "SELECT * FROM users"}}'
     sql = extract_sql_from_action(action_str, sql_tool_names=['sql_query'])
@@ -113,94 +99,73 @@ import logging
 import json
 from typing import Optional, Dict, Any, List
 from ...structures import ToolUseStep, ToolUseAction
-from ...lm import HfChatModel, OpenAIChatModel
-from ...lm.bedrock_chat import BedrockChatModel
 from ..utils import create_role
 from ...utils import parse_json_string
-from .base import VerbalEvaluator
+from . import ContextAugmentor
 
 logger = logging.getLogger(__name__)
 
 
 def extract_sql_from_action(action_data: str, sql_tool_names: List[str]) -> Optional[str]:
     """Extract SQL query from an action using the same logic as execute_tool_action.
-    
-    This function uses the same parsing logic as `lits.tools.utils.execute_tool_action`
+
+    This function uses the same parsing logic as ``lits.tools.utils.execute_tool_action``
     to extract SQL queries from tool actions.
-    
+
     Args:
         action_data: The raw action string (typically from ToolUseAction)
         sql_tool_names: List of SQL tool names to check against
-    
+
     Returns:
-        Optional[str]: The SQL query string if found, None otherwise
-    
-    Example:
-        ```python
-        action = '{"action": "sql_query", "action_input": {"query": "SELECT * FROM users"}}'
-        sql = extract_sql_from_action(action, sql_tool_names=['sql_query'])
-        # Returns: "SELECT * FROM users"
-        ```
+        The SQL query string if found, None otherwise.
     """
     if not action_data or not sql_tool_names:
         return None
-    
-    # Parse JSON using the same logic as execute_tool_action
+
     parsed_action, feedback = parse_json_string(action_data)
-    
+
     if parsed_action is None:
         logger.debug(f"Failed to parse action as JSON: {feedback}")
         return None
-    
-    # Check if this is a SQL action
+
     if "action" not in parsed_action or parsed_action["action"] not in sql_tool_names:
         return None
-    
-    # Extract action_input
+
     if "action_input" not in parsed_action:
         logger.warning(f"SQL action missing 'action_input': {parsed_action}")
         return None
-    
+
     action_input = parsed_action["action_input"]
-    
-    # Look for SQL query in common field names
+
     for field in ['query', 'sql', 'sql_query', 'command', 'statement']:
         if isinstance(action_input, dict) and field in action_input:
             return action_input[field]
-    
-    # If action_input is a string, it might be the SQL query itself
+
     if isinstance(action_input, str):
         return action_input
-    
+
     logger.warning(f"Could not extract SQL query from action_input: {action_input}")
     return None
 
 
-class SQLValidator(VerbalEvaluator):
+class SQLValidator(ContextAugmentor):
     """ LLM-based validator for SQL queries generated by ToolUsePolicy.
-    
+
     This component uses an LLM to evaluate SQL queries for:
     - Syntax correctness
     - Semantic validity (proper table/column references)
     - Query safety (no destructive operations if not intended)
     - Alignment with user intent
-    
-    Uses the same action parsing logic as `lits.tools.utils.execute_tool_action` to
+
+    Uses the same action parsing logic as ``lits.tools.utils.execute_tool_action`` to
     detect and extract SQL queries from tool actions.
-    
+
     Args:
         base_model: The LLM model to use for validation (HfChatModel, OpenAIChatModel, or BedrockChatModel)
         sql_tool_names: List of SQL tool names to detect (e.g., ['sql_query', 'execute_sql'])
         validation_prompt: Custom system prompt for validation. If None, uses default prompt.
         temperature: Sampling temperature for LLM generation (default: 0.0 for deterministic)
         max_new_tokens: Maximum tokens to generate in validation response (default: 500)
-    
-    Attributes:
-        base_model: The underlying LLM model
-        sql_tool_names: List of SQL tool names to detect
-        validation_prompt: System prompt used for validation
-        temperature: Temperature for LLM sampling
-        max_new_tokens: Max tokens for generation
     """
     DEFAULT_SQL_TOOL_NAMES = ['sql_db_query', 'sql_db_schema', 'sql_db_list_tables', 'list_spatial_functions', 'info_spatial_functions_sql', 'unique_values']
     DEFAULT_VALIDATION_PROMPT = """You are an expert SQL validator with deep expertise in PostgreSQL and PostGIS spatial databases. 
@@ -216,7 +181,7 @@ Every entry in "issues" MUST obey all rules below:
 
 1. **Self-contained and context-independent**
    - An issue description must stand alone.
-   - It MUST NOT refer to “the query”, “the SQL”, “this statement”, “the given use case”, 
+   - It MUST NOT refer to "the query", "the SQL", "this statement", "the given use case", 
      or any other contextual or situational language.
 
 2. ABSTRACT, GENERAL, PRINCIPLE-LEVEL
@@ -228,9 +193,9 @@ Every entry in "issues" MUST obey all rules below:
        - query fragments or instance-specific details.
 
    - Issues MAY mention, **when directly relevant to principle-level correctness**:
-       - generic geometry/geography fields (e.g., “a geometry column”, “a geography column”),
-       - CRS identifiers (e.g., “EPSG:4326”, “EPSG:3857”),
-       - PostGIS spatial functions in general form (e.g., “ST_DWithin”, “ST_Intersects”, “ST_Transform”)
+       - generic geometry/geography fields (e.g., "a geometry column", "a geography column"),
+       - CRS identifiers (e.g., "EPSG:4326", "EPSG:3857"),
+       - PostGIS spatial functions in general form (e.g., "ST_DWithin", "ST_Intersects", "ST_Transform")
          when they illustrate a principle of spatial or CRS correctness.
 
 3. **Allowed Format**
@@ -260,34 +225,34 @@ Return a JSON object:
         max_new_tokens: int = 500,
     ):
         """Initialize the SQL validator with an LLM model.
-        
+
         Args:
             base_model: The LLM model to use for validation
-            sql_tool_names: List of SQL tool names to detect (e.g., ['sql_query', 'execute_sql'])
+            sql_tool_names: List of SQL tool names to detect
             validation_prompt: Custom system prompt for validation
             temperature: Sampling temperature for LLM generation
             max_new_tokens: Maximum tokens to generate
         """
-        # Initialize parent class
         super().__init__(
             base_model=base_model,
+            require_chat_model=True,
             temperature=temperature,
             max_new_tokens=max_new_tokens
         )
-        
+
         if sql_tool_names is None:
             self.sql_tool_names = self.DEFAULT_SQL_TOOL_NAMES
         else:
             assert len(sql_tool_names) > 0, "sql_tool_names must be a non-empty list"
             self.sql_tool_names = sql_tool_names
-            
+
         self.sys_prompt = validation_prompt or self.DEFAULT_VALIDATION_PROMPT
-        
+
         logger.info(
             f"Initialized SQLValidator with model: {base_model.__class__.__name__}, "
             f"SQL tools: {self.sql_tool_names}"
         )
-    
+
     def _validate(
         self,
         sql_query: str,
@@ -296,60 +261,47 @@ Return a JSON object:
         query_idx: Optional[int] = None
     ) -> Dict[str, Any]:
         """ Validate a SQL query using the LLM.
-        
+
         Args:
             sql_query: The SQL query string to validate
             context: Optional context about database schema, tables, columns, etc.
             user_intent: Optional description of what the user wants to achieve
             query_idx: Optional index for logging/tracking
-        
+
         Returns:
             Dictionary containing:
                 - is_valid (bool): Whether the query is valid
                 - score (float): Confidence score 0.0-1.0
                 - issue (str): issue found
                 - raw_response (str): Raw LLM response
-        
-        Example:
-            ```python
-            result = validator.validate(
-                sql_query="SELECT name FROM users WHERE age > 18",
-                context="Schema: users(id, name, age, email)",
-                user_intent="Get names of adult users"
-            )
-            ```
         """
-        # Build validation message
         message = self._build_validation_message(sql_query, context, user_intent)
-        
+
         logger.debug(f"Validating SQL query (idx={query_idx}): {sql_query[:100]}...")
-        
+
         try:
-            # Call LLM for validation
-            # role = create_role("sql_validator", query_idx, "")
             response = self.base_model(
                 message,
                 role=None,
                 temperature=self.temperature,
                 max_new_tokens=self.max_new_tokens
             )
-            
+
             raw_response = response.text.strip()
             logger.debug(f"Raw validation response: {raw_response}")
-            
-            # Parse response
+
             result = self._parse_validation_response(raw_response)
             result['raw_response'] = raw_response
             result['query_idx'] = query_idx
             result['sql_query'] = sql_query
-            
+
             logger.info(
                 f"SQL validation result (idx={query_idx}): "
                 f"valid={result['is_valid']}, score={result['score']:.2f}"
             )
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error during SQL validation: {e}", exc_info=True)
             return {
@@ -359,8 +311,8 @@ Return a JSON object:
                 'raw_response': "",
                 "query_idx": query_idx
             }
-    
-    def _evaluate(
+
+    def _analyze(
         self,
         step: ToolUseStep,
         context: Optional[str] = None,
@@ -369,62 +321,43 @@ Return a JSON object:
         policy_model_name: Optional[str] = None,
         task_type: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
-        """ Validate SQL query from a ToolUseStep.
-        
-        This method extracts SQL queries from ToolUseStep actions and validates them.
-        Uses the same parsing logic as `lits.tools.utils.execute_tool_action`.
-        
+        """Validate SQL query from a ToolUseStep.
+
+        Extracts SQL queries from ToolUseStep actions and validates them.
+        Uses the same parsing logic as ``lits.tools.utils.execute_tool_action``.
+
         If validation finds an issue, it automatically saves to:
-        ~/.lits_llm/verbal_evaluator/resultdicttojsonl_{policy_model}_{task_type}.jsonl
-        
+        ~/.lits_llm/context_augmentor/resultdicttojsonl_{policy_model}_{task_type}.jsonl
+
         Args:
-            step: ToolUseStep containing the action to validate
-            context: Optional database schema context
-            user_intent: Optional user intent description
-            query_idx: Optional index for logging
-            policy_model_name: Policy model name (for file naming)
-            task_type: Task type (for file naming)
-        
+            step: ToolUseStep containing the action to validate.
+            context: Optional database schema context.
+            user_intent: Optional user intent description.
+            query_idx: Optional index for logging.
+            policy_model_name: Policy model name (for file naming).
+            task_type: Task type (for file naming).
+
         Returns:
-            Validation result dictionary, or None if no SQL query found in the step
-        
-        Example:
-            ```python
-            step = ToolUseStep(
-                action=ToolUseAction('{"action": "sql_query", "action_input": {"query": "SELECT * FROM users"}}')
-            )
-            result = validator._evaluate(
-                step, 
-                context="Schema: users(id, name)",
-                policy_model_name="gpt-4",
-                task_type="tool_use"
-            )
-            ```
+            Validation result dictionary, or None if no SQL query found.
         """
         if step.action is None:
             logger.debug("No action in ToolUseStep, skipping SQL validation")
             return None
-        
+
         action_str = str(step.action).strip()
-        
-        # Extract SQL query from action (returns None if not a SQL action or extraction fails)
+
         sql_query = extract_sql_from_action(action_str, self.sql_tool_names)
-        
+
         if sql_query is None:
             logger.debug(f"No SQL query found in action (tool names: {self.sql_tool_names})")
             return None
-        
-        # Use think content as additional context if available
+
         additional_context = step.think if step.think else None
         full_context = self._combine_contexts(context, additional_context)
-        
-        # Perform validation
+
         result = self._validate(sql_query, full_context, user_intent, query_idx)
-        
-        # Save to file if issue found and policy info provided
+
         if result and (result.get('issue') or result.get('issues')) and policy_model_name and task_type:
-            # Prepare result for saving (only include relevant fields)
-            # Unify format: convert single issue to list for consistency with profiler
             save_result = {
                 'issues': [result.get('issue')] if result.get('issue', None) else result.get('issues', []),
                 'is_valid': result.get('is_valid', False),
@@ -432,9 +365,9 @@ Return a JSON object:
                 'sql_query': result.get('sql_query', '')
             }
             self._save_eval(save_result, query_idx, policy_model_name, task_type)
-        
+
         return result
-    
+
     def _build_validation_message(
         self,
         sql_query: str,
@@ -443,35 +376,28 @@ Return a JSON object:
     ) -> str:
         """Build the validation message for the LLM."""
         message_parts = []
-        
+
         if user_intent:
             message_parts.append(f"**User Intent:**\n{user_intent}\n")
-            
+
         if context:
             message_parts.append(f"**Context:**\n{context}\n")
-        
+
         message_parts.append(f"**SQL Query to Validate:**\n```sql\n{sql_query}\n```\n")
         message_parts.append("Please provide your validation assessment in JSON format.")
-        
+
         return "\n".join(message_parts)
-    
+
     def _parse_validation_response(self, response: str) -> Dict[str, Any]:
-        """Parse the LLM's validation response into structured format.
-        
-        Attempts to extract JSON from the response. Falls back to heuristic parsing
-        if JSON extraction fails.
-        """
-        # Try to extract JSON from response
+        """Parse the LLM's validation response into structured format."""
         try:
-            # Look for JSON block
             json_start = response.find('{')
             json_end = response.rfind('}') + 1
-            
+
             if json_start >= 0 and json_end > json_start:
                 json_str = response[json_start:json_end]
                 result = json.loads(json_str)
-                
-                # Validate required fields
+
                 if 'is_valid' in result and 'score' in result:
                     return {
                         'is_valid': bool(result.get('is_valid', False)),
@@ -480,24 +406,18 @@ Return a JSON object:
                     }
         except (json.JSONDecodeError, ValueError) as e:
             logger.warning(f"Failed to parse JSON from response: {e}")
-        
-        # Fallback: heuristic parsing
+
         return self._heuristic_parse(response)
-    
+
     def _heuristic_parse(self, response: str) -> Dict[str, Any]:
-        """Fallback parser when JSON extraction fails.
-        
-        Uses keyword matching to determine validity and score.
-        """
+        """Fallback parser when JSON extraction fails."""
         response_lower = response.lower()
-        
-        # Determine validity
+
         is_valid = True
         if any(word in response_lower for word in ['invalid', 'incorrect', 'error', 'fail', 'wrong']):
             is_valid = False
-        
-        # Estimate score based on keywords
-        score = 0.5  # default
+
+        score = 0.5
         if any(word in response_lower for word in ['perfect', 'excellent', 'correct', 'valid']):
             score = 0.9
         elif any(word in response_lower for word in ['minor', 'small issue', 'mostly correct']):
@@ -506,13 +426,12 @@ Return a JSON object:
             score = 0.3
         elif any(word in response_lower for word in ['invalid', 'incorrect', 'fail']):
             score = 0.1
-        
+
         return {
             'is_valid': is_valid,
             'score': score,
             'issues': []
         }
-    
 
     def _combine_contexts(self, context1: Optional[str], context2: Optional[str]) -> Optional[str]:
         """Combine two context strings."""
