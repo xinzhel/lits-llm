@@ -8,10 +8,11 @@ context augmentation as described in the LiTS-Mem section of the documentation.
 
 Typical usage inside :mod:`lits.agents.tree_search` looks like::
 
-    from lits.memory import LiTSMemoryManager, LiTSMemoryConfig, Mem0MemoryBackend
-    from mem0 import Memory as Mem0
+    from lits.memory import LiTSMemoryManager, LiTSMemoryConfig, LocalMemoryBackend
+    from lits.lm import get_lm
 
-    mem_backend = Mem0MemoryBackend(Mem0(config=...))
+    llm = get_lm("bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0")
+    mem_backend = LocalMemoryBackend(llm=llm)
     mem_manager = LiTSMemoryManager(backend=mem_backend, config=LiTSMemoryConfig())
 
     # During expansion:
@@ -30,7 +31,7 @@ into the public classes exposed here without needing internal knowledge.
 
 from .config import LiTSMemoryConfig
 from .types import MemoryUnit, TrajectoryKey, TrajectorySimilarity
-from .backends import BaseMemoryBackend, Mem0MemoryBackend
+from .backends import BaseMemoryBackend, Mem0MemoryBackend, LocalMemoryBackend
 from .manager import LiTSMemoryManager, AugmentedContext
 
 __all__ = [
@@ -40,6 +41,7 @@ __all__ = [
     "TrajectorySimilarity",
     "BaseMemoryBackend",
     "Mem0MemoryBackend",
+    "LocalMemoryBackend",
     "LiTSMemoryManager",
     "AugmentedContext",
 ]

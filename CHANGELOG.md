@@ -6,10 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-03-16 Unreleased (`0316-minor-local-memory-backend`)
+
+### Added
+- `LocalMemoryBackend` in `lits/memory/backends.py` — in-memory backend with LLM fact extraction and embedding-based semantic dedup
+- `LocalMemoryBackend.save(dir)` / `load(dir)` persistence (jsonl + npz)
+- `_parse_facts_response()` helper for JSON/line-split fallback parsing (`lits/memory/backends.py`)
+- Length-heuristic update in `LocalMemoryBackend`: if new fact is >1.3× longer than matched existing, replaces in-place
+- `"memory"` role prefix for InferenceLogger token tracking of memory LLM calls (`lits/lm/base.py`, `lits/components/utils.py`)
+- `query_idx` parameter on `record_action()` / `add_messages()` for per-instance attribution
+
+### Changed
+- `LiTSMemoryManager.record_action()`: removed unused `facts` parameter; `messages` is now required
+- `LiTSMemoryManager.record_action()`: removed `metadata_for()` call; metadata passed through directly
+- `LiTSMemoryManager`: removed `_cache`, `_cache_dirty`, `_ensure_cache()` — caching now lives in backends
+- `LiTSMemoryManager.record_action()`: removed cache maintenance; delegates entirely to backend
+- `LiTSMemoryManager.list_inherited_units()` / `search_related_trajectories()`: call `backend.list_all_units()` directly
+- `LocalMemoryBackend._add_facts()`: reads trajectory info from `TrajectoryKey` directly instead of metadata dict
+- `LocalMemoryBackend._add_facts()`: cross-trajectory alias never mutates matched unit (trajectory isolation)
+- `LocalMemoryBackend._add_facts()`: extracted `_update_unit()` helper for in-place update
+- `LocalMemoryBackend._add_facts()`: in-place updates excluded from return value
+- `Mem0MemoryBackend.add_messages()`: constructs qdrant payload metadata from `TrajectoryKey` internally
+- `FactMemoryAugmentor`: removed unused `_buffer` usage and simplified `flush_buffer()` to no-op
+- `FactMemoryAugmentor` docstring: updated to reference `LocalMemoryBackend` instead of mem0
+- mcts.py `record_action()`: removed redundant `trajectory_path`/`trajectory_depth`/`ancestry_paths` from metadata
+
+### Removed
+- `LiTSMemoryConfig.metadata_for()` and `_metadata_defaults` (`lits/memory/config.py`)
+
 ## 2026-03-16 Unreleased (`0312-major-context-augmentation`)
 
 ### Added
 - `TrajectoryState.__init__(steps=None, **kwargs)` supporting list-based construction (`lits/structures/base.py`)
+- `ReflectionAugmentor` in `lits/components/context_augmentor/reflection.py`
+- `LATS_REFLECTION_PROMPTS` dict with `hotpotqa`, `webshop`, `humaneval` keys (`reflection.py`)
+- `flush_threshold` param on `ContextAugmentor.__init__` (0 = no auto-flush)
+- Buffer accumulation + auto-flush in ABC `ContextAugmentor.analyze()`
+- `set_storage_context(policy_model_name, task_type)` on `ContextAugmentor` ABC
+- `FactMemoryAugmentor` in `lits/components/context_augmentor/fact_memory.py`
 
 ### Changed
 - `analyze(traj_state)` is now mandatory (no `None` default) on `ContextAugmentor` ABC

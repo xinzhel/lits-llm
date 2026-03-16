@@ -754,12 +754,7 @@ class MCTSSearch(BaseTreeSearch):
                             self.memory_manager.record_action(
                                 trajectory=child.trajectory_key,
                                 messages=messages,
-                                metadata={
-                                    "trajectory_path": child.trajectory_key.path_str,
-                                    "trajectory_depth": child.trajectory_key.depth,
-                                    "ancestry_paths": list(child.trajectory_key.ancestry_paths),
-                                    "from_phase": "expand"
-                                }
+                                metadata={"from_phase": "expand"},
                             )
                             recorded_count += 1
                     recording_elapsed_ms = (time.time() - recording_start_time) * 1000

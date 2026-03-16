@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from .backends import BaseMemoryBackend
 from .config import LiTSMemoryConfig
@@ -138,8 +138,6 @@ class LiTSMemoryManager:
         self.backend = backend
         self.config = config or LiTSMemoryConfig()
         self.retriever = TrajectorySearchEngine(self.config)
-        self._cache: Dict[str, List[MemoryUnit]] = {}
-        self._cache_dirty: set[str] = set()
 
     # -------------------------------------------------------------------------
     # Mutations
@@ -148,38 +146,30 @@ class LiTSMemoryManager:
         self,
         trajectory: TrajectoryKey,
         *,
-        messages: Optional[Sequence[Dict[str, str]]] = None,
-        facts: Optional[Sequence[str]] = None,
-        metadata: Optional[Dict] = None,
+        messages: Sequence[dict[str, str]],
+        metadata: Optional[dict] = None,
         infer: bool = True,
+        query_idx: Optional[int] = None,
     ) -> None:
         """
-        Store new information produced along ``trajectory``.  At least one of
-        ``messages`` or ``facts`` must be supplied.  When ``messages`` are passed and
-        ``infer`` is ``True``, the backend (typically mem0) extracts atomic facts via an
-        LLM before inserting them into the vector store.
-        
+        Store new information produced along ``trajectory``.  ``messages`` are passed
+        to the backend; when ``infer`` is ``True``, the backend extracts atomic facts
+        via an LLM before inserting them into the store.
+
+        Args:
+            trajectory: The trajectory key identifying the current position.
+            messages: Chat messages (role/content dicts).
+            metadata: Optional metadata dict. May contain ``from_phase`` (e.g.
+                ``"expand"``) which is forwarded to InferenceLogger role construction.
+            infer: Whether to use LLM to extract facts from messages.
+            query_idx: Example index for InferenceLogger attribution.
 
         Use with other lits subpackages:
         :mod:`lits.agents.tree_search.mcts` should call this method immediately after
         ``policy.expand`` so the generated action is available for subsequent nodes.
         """
 
-        metadata = self.config.metadata_for(trajectory, metadata)
-
-        inserted: List[MemoryUnit] = []
-        if facts:
-            inserted = self.backend.add_facts(trajectory, facts, metadata)
-        elif messages:
-            inserted = self.backend.add_messages(trajectory, messages, metadata, infer=infer)
-        else:
-            raise ValueError("Either `messages` or `facts` must be provided.")
-
-        if inserted:
-            cache = self._cache.setdefault(trajectory.search_id, [])
-            cache.extend(inserted)
-        else:
-            self._cache_dirty.add(trajectory.search_id)
+        self.backend.add_messages(trajectory, messages, metadata, infer=infer, query_idx=query_idx)
 
     # -------------------------------------------------------------------------
     # Retrieval helpers
@@ -201,7 +191,7 @@ class LiTSMemoryManager:
         inserts new memories.
         """
 
-        units = self._ensure_cache(trajectory.search_id)
+        units = self.backend.list_all_units(trajectory.search_id)
         inherited = [
             unit for unit in units if unit.inherited_by(trajectory.path_str)
         ]
@@ -213,7 +203,7 @@ class LiTSMemoryManager:
         Run the trajectory search stage starting from ``trajectory``.
         """
 
-        units = self._ensure_cache(trajectory.search_id)
+        units = self.backend.list_all_units(trajectory.search_id)
         inherited = [
             unit for unit in units if unit.inherited_by(trajectory.path_str)
         ]
@@ -243,23 +233,3 @@ class LiTSMemoryManager:
             inherited_units=inherited,
             retrieved_trajectories=tuple(limited_results),
         )
-
-    # -------------------------------------------------------------------------
-    # Cache helpers
-    # -------------------------------------------------------------------------
-    def _ensure_cache(self, search_id: str) -> List[MemoryUnit]:
-        """
-        Return the cached memory list for ``search_id``, refreshing it from the backend
-        when necessary.
-
-        The manager keeps a per-search cache so repeated calls to
-        :meth:`list_inherited_units` or :meth:`search_related_trajectories` do not hit
-        mem0/Qdrant for every node expansion.  When the cache entry is missing or marked
-        dirty (e.g., because ``record_action`` added new memories without concrete IDs),
-        this helper pulls the latest units from ``backend.list_all_units`` and clears the
-        dirty flag before returning the list.
-        """
-        if search_id not in self._cache or search_id in self._cache_dirty:
-            self._cache[search_id] = self.backend.list_all_units(search_id)
-            self._cache_dirty.discard(search_id)
-        return self._cache[search_id]

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional
-
-from .types import TrajectoryKey
+from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -41,53 +39,6 @@ class LiTSMemoryConfig:
     max_augmented_memories: int = 16
     attach_depth_cap: Optional[int] = None
     include_metadata_snapshot: bool = True
-    _metadata_defaults: Dict[str, str] = field(
-        default_factory=lambda: {
-            "trajectory_path": "trajectory_path",
-            "trajectory_depth": "trajectory_depth",
-            "ancestry_paths": "ancestry_paths",
-            "memory_namespace": "memory_namespace",
-        }
-    )
-
-    def metadata_for(self, trajectory: TrajectoryKey, extra: Optional[Dict] = None) -> Dict:
-        """
-        Construct metadata for storing facts along ``trajectory``.
-
-        The resulting dictionary can be passed directly into :meth:`mem0.Memory.add`
-        as ``metadata`` so that downstream modules (policies, evaluators, tool chains)
-        can recover trajectory position from stored memories.
-
-        Args:
-            trajectory: Target trajectory descriptor.
-            extra: Optional metadata (e.g., reward estimates) supplied by the caller.
-                   These keys override LiTS defaults if duplicates exist.
-
-        Returns:
-            Dict enriched with ``trajectory_path``, ``trajectory_depth``,
-            ``ancestry_paths`` and ``memory_namespace`` fields.
-
-        Example usage:
-            Within :mod:`lits.agents.tree_search.mcts`, call ::
-
-                metadata = mem_config.metadata_for(node.trajectory, {"stage": "expand"})
-                mem_backend.add_messages(node.trajectory, rollout_messages, metadata)
-        
-        Example output:
-            {
-              'trajectory_path': 'q/0', 
-              'trajectory_depth': 1, 
-              'ancestry_paths': ['q', 'q/0'], 
-              'memory_namespace': 'lits_mem
-            }
-        """
-
-        metadata = dict(extra or {})
-        metadata.setdefault(self._metadata_defaults["trajectory_path"], trajectory.path_str)
-        metadata.setdefault(self._metadata_defaults["trajectory_depth"], trajectory.depth)
-        metadata.setdefault(self._metadata_defaults["ancestry_paths"], list(trajectory.ancestry_paths))
-        metadata.setdefault(self._metadata_defaults["memory_namespace"], self.metadata_namespace)
-        return metadata
 
     def target_cardinality(self, reference_size: int) -> int:
         """

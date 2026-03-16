@@ -74,6 +74,9 @@ class ContextAugmentor(ABC):
             Used by LLM-based augmentors (SQLValidator, SQLErrorProfiler).
         temperature: Sampling temperature for LLM generation.
         max_new_tokens: Maximum tokens to generate.
+        flush_threshold: Buffer size that triggers auto-flush to
+            persistent storage. 0 (default) disables auto-flush,
+            which is appropriate for non-buffering augmentors.
     """
 
     def __init__(
@@ -83,6 +86,7 @@ class ContextAugmentor(ABC):
         require_chat_model: bool = False,
         temperature: float = 0.0,
         max_new_tokens: int = 500,
+        flush_threshold: int = 0,
         **kwargs,
     ):
         if require_chat_model:
@@ -97,8 +101,11 @@ class ContextAugmentor(ABC):
         self.persist = persist  # True / False / "auto"
         self.temperature = temperature
         self.max_new_tokens = max_new_tokens
+        self.flush_threshold = flush_threshold
         self._result_saver = None
         self._buffer: List[ContextUnit] = []
+        self._policy_model_name: Optional[str] = None
+        self._task_type: Optional[str] = None
 
         # Evaluator type identifier (used in stored records)
         # Respect subclass class-level override (e.g. CriticAugmentor.evaluator_type = "critic")
@@ -112,6 +119,27 @@ class ContextAugmentor(ABC):
             )
         else:
             logger.info(f"Initialized {self.__class__.__name__} (no base_model)")
+
+    # ------------------------------------------------------------------
+    # Storage context: set once, used by store() and flush_buffer()
+    # ------------------------------------------------------------------
+
+    def set_storage_context(
+        self,
+        policy_model_name: str,
+        task_type: str,
+    ) -> None:
+        """Set storage parameters used by store() and flush_buffer().
+
+        Called once by setup_augmentors() at search start. After this,
+        store() and flush_buffer() no longer need these as kwargs.
+
+        Args:
+            policy_model_name: Model name for result file path.
+            task_type: Task type for result file path.
+        """
+        self._policy_model_name = policy_model_name
+        self._task_type = task_type
 
     # ------------------------------------------------------------------
     # Abstract: subclasses implement _analyze (was _evaluate)
@@ -180,8 +208,13 @@ class ContextAugmentor(ABC):
         Paper: f_k(H_k).
 
         Default implementation calls _analyze() and wraps the result dict
-        into a ContextUnit. Subclasses that need a different flow can
-        override this method directly.
+        into a ContextUnit. If the unit is non-None, it is appended to
+        ``_buffer``. When ``flush_threshold > 0`` and the buffer reaches
+        that size, ``flush_buffer()`` is called automatically.
+
+        Subclasses implement ``_analyze()`` only; they should NOT override
+        ``analyze()`` unless they need a completely different flow (e.g.
+        FactMemoryAugmentor).
         """
         if hasattr(self, "sys_prompt") and self.base_model is not None:
             self.base_model.sys_prompt = self.sys_prompt
@@ -205,13 +238,24 @@ class ContextAugmentor(ABC):
         if not content:
             return None
 
-        return ContextUnit(
+        unit = ContextUnit(
             content=content,
             source=self.evaluator_type,
             trajectory_key=normalize_trajectory_key(kwargs.get("trajectory_key")),
             query_id=kwargs.get("query_idx", -1),
             metadata={k: v for k, v in result.items() if k != "issues"},
         )
+
+        # Buffer accumulation + auto-flush (generic for all subclasses)
+        self._buffer.append(unit)
+        logger.debug(
+            f"{self.__class__.__name__}: buffered unit "
+            f"(buffer size: {len(self._buffer)})"
+        )
+        if self.flush_threshold > 0 and len(self._buffer) >= self.flush_threshold:
+            self.flush_buffer()
+
+        return unit
 
     def should_persist(self, unit: ContextUnit) -> bool:
         """Decide whether to persist a context unit.
@@ -238,9 +282,12 @@ class ContextAugmentor(ABC):
 
         Default implementation writes to jsonl. Subclasses may override
         (e.g. FactMemoryAugmentor delegates to LiTSMemoryManager).
+
+        Uses self._policy_model_name / self._task_type set by
+        set_storage_context(). Falls back to kwargs for backward compat.
         """
-        policy_model_name = kwargs.get("policy_model_name")
-        task_type = kwargs.get("task_type")
+        policy_model_name = self._policy_model_name or kwargs.get("policy_model_name")
+        task_type = self._task_type or kwargs.get("task_type")
         if not policy_model_name or not task_type:
             logger.debug(
                 "store() skipped: policy_model_name or task_type not provided"
@@ -564,11 +611,15 @@ class ContextAugmentor(ABC):
 from .sql_validator import SQLValidator, extract_sql_from_action
 from .sql_error_profiler import SQLErrorProfiler
 from .critic import CriticAugmentor
+from .reflection import ReflectionAugmentor
+from .fact_memory import FactMemoryAugmentor
 
 __all__ = [
     "ContextUnit",
     "ContextAugmentor",
     "CriticAugmentor",
+    "ReflectionAugmentor",
+    "FactMemoryAugmentor",
     "SQLValidator",
     "SQLErrorProfiler",
     "extract_sql_from_action",
