@@ -59,11 +59,9 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         n_actions,
         temperature,
         at_depth_limit,
-        critic: str = None,
         from_phase: str = "",
         **kwargs
     ) -> list[ToolUseStep]:
-        assert critic is None, "ToolUsePolicy does not support critic guidance"
         messages = self._build_messages(query, state)
         outputs: list[ToolUseStep] = []
         

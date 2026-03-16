@@ -280,11 +280,11 @@ Return a JSON object:
         logger.debug(f"Validating SQL query (idx={query_idx}): {sql_query[:100]}...")
 
         try:
-            response = self.base_model(
+            response = self._call_model(
                 message,
-                role=None,
+                query_idx=query_idx,
                 temperature=self.temperature,
-                max_new_tokens=self.max_new_tokens
+                max_new_tokens=self.max_new_tokens,
             )
 
             raw_response = response.text.strip()
@@ -314,23 +314,24 @@ Return a JSON object:
 
     def _analyze(
         self,
-        step: ToolUseStep,
+        traj_state,
         context: Optional[str] = None,
         user_intent: Optional[str] = None,
         query_idx: Optional[int] = None,
         policy_model_name: Optional[str] = None,
         task_type: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
-        """Validate SQL query from a ToolUseStep.
+        """Validate SQL query from the last step of a trajectory.
 
-        Extracts SQL queries from ToolUseStep actions and validates them.
-        Uses the same parsing logic as ``lits.tools.utils.execute_tool_action``.
+        Accepts either a TrajectoryState / list of steps (extracts the
+        last step) or a single ToolUseStep for backward compatibility.
 
         If validation finds an issue, it automatically saves to:
         ~/.lits_llm/context_augmentor/resultdicttojsonl_{policy_model}_{task_type}.jsonl
 
         Args:
-            step: ToolUseStep containing the action to validate.
+            traj_state: TrajectoryState, list of steps, or a single
+                ToolUseStep (backward compat).
             context: Optional database schema context.
             user_intent: Optional user intent description.
             query_idx: Optional index for logging.
@@ -340,6 +341,10 @@ Return a JSON object:
         Returns:
             Validation result dictionary, or None if no SQL query found.
         """
+        # Extract the step to validate
+        if len(traj_state) == 0:
+            return None
+        step = traj_state[-1]
         if step.action is None:
             logger.debug("No action in ToolUseStep, skipping SQL validation")
             return None

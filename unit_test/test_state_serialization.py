@@ -42,8 +42,8 @@ def test_tool_use_state_serialization():
     print(json.dumps(serialized, indent=2))
     
     # Verify type information is present
-    assert all("__type__" in step for step in serialized), "Missing __type__ in serialized steps"
-    assert serialized[0]["__type__"] == "ToolUseStep"
+    assert all("__type__" in step for step in serialized["steps"]), "Missing __type__ in serialized steps"
+    assert serialized["steps"][0]["__type__"] == "ToolUseStep"
     
     # Deserialize
     restored_state = ToolUseState.from_dict(serialized)
@@ -84,8 +84,8 @@ def test_env_step_serialization():
     print(json.dumps(serialized, indent=2))
     
     # Verify type information
-    assert all("__type__" in step for step in serialized), "Missing __type__ in serialized steps"
-    assert serialized[0]["__type__"] == "EnvStep"
+    assert all("__type__" in step for step in serialized["steps"]), "Missing __type__ in serialized steps"
+    assert serialized["steps"][0]["__type__"] == "EnvStep"
     
     # Deserialize
     restored_state = TrajectoryState.from_dict(serialized)
@@ -93,13 +93,11 @@ def test_env_step_serialization():
     for i, step in enumerate(restored_state):
         print(f"  Step {i}: {type(step).__name__}")
         print(f"    action: {step.action}")
-        print(f"    reward: {step.reward}")
     
     # Verify restoration
     assert len(restored_state) == 2
     assert isinstance(restored_state[0], EnvStep)
     assert str(restored_state[0].action) == "unstack A from B"
-    assert restored_state[1].reward == 10.0
     
     print("\n✓ EnvStep serialization test passed!")
 
@@ -113,12 +111,12 @@ def test_mixed_state_serialization():
     # Create a generic trajectory state with mixed steps
     state = TrajectoryState()
     state.append(ToolUseStep(think="Thinking", action=None, answer=None))
-    state.append(EnvStep(action=EnvAction("move forward"), reward=5.0))
+    state.append(EnvStep(action=EnvAction("move forward")))
     
     # Serialize
     serialized = state.to_dict()
-    print(f"\nSerialized mixed state ({len(serialized)} steps):")
-    for i, step_data in enumerate(serialized):
+    print(f"\nSerialized mixed state ({len(serialized['steps'])} steps):")
+    for i, step_data in enumerate(serialized["steps"]):
         print(f"  Step {i}: {step_data['__type__']}")
     
     # Deserialize

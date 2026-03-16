@@ -21,7 +21,6 @@ def _continuation(
     threshold_gamma: float = None,    # BN evaluator threshold
     threshold_gamma1: float = None,   # BN pre-filter threshold
     n_actions_for_bne: int = None,    # actions for BN evaluation
-    use_critic: bool = False,
     on_step: callable = None,
     transition_before_evaluate: bool = False,  # V(s') vs Q(s,a)
 ) -> list[SearchNode]

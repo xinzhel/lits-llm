@@ -866,7 +866,6 @@ class Policy(ABC, Generic[StateT, StepT]):
         query: Optional[str] = None,
         n_actions: Optional[int] = None,
         query_idx: Optional[int] = None,
-        critic: Optional[str] = None,
         from_phase: str = "",
         *args,
         **kwargs
@@ -887,7 +886,6 @@ class Policy(ABC, Generic[StateT, StepT]):
             n_actions: Number of actions to generate. If None, uses self.n_actions
                       or 1 if at depth limit.
             query_idx: Optional index for logging or batching.
-            critic: Optional critic for action evaluation.
             from_phase: Description of the current algorithm phase.
             *args, **kwargs: Additional arguments passed to _get_actions.
                 - memory_context: Optional AugmentedContext from LiTS-Mem for
@@ -926,7 +924,6 @@ class Policy(ABC, Generic[StateT, StepT]):
                 query=query,
                 at_depth_limit=at_depth_limit,
                 query_idx=query_idx,
-                critic=critic,
                 from_phase=from_phase,
                 *args,
                 **kwargs
@@ -967,7 +964,6 @@ class Policy(ABC, Generic[StateT, StepT]):
                     'state': state,
                     'n_actions': n_actions,
                     'temperature': temperature,
-                    'critic': critic,
                     'from_phase': from_phase,
                     'policy_model_name': kwargs.get('policy_model_name'),
                     'task_name': kwargs.get('task_name'),

@@ -57,7 +57,6 @@ _DEFAULT_SEARCH_ARGS: Dict[str, Any] = {
     "max_try_for_bn_eval": None,
     # Other
     "check_action_sim": False,
-    "use_critic": False,
 }
 
 _DEFAULT_COMPONENT_ARGS: Dict[str, Any] = {

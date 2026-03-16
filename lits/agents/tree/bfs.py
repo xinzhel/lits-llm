@@ -53,14 +53,13 @@ def _expand(
     world_model=None,
     reward_model=None,
     assign_rewards=True,
-    use_critic=False,
     from_phase=""
 ):
     """
     Expand the node with new actions. 
     """
     log_phase(logger, "Expand", "Begin")
-    steps = policy.get_actions(node.state, query=example, critic=None, n_actions=n_actions, query_idx=query_idx, from_phase=from_phase)
+    steps = policy.get_actions(node.state, query=example, n_actions=n_actions, query_idx=query_idx, from_phase=from_phase)
 
     is_terminal_for_repeats = []
     for step in steps:
@@ -106,7 +105,6 @@ def _expand_with_existing(
     reward_model=None,
     world_model=None,
     assign_rewards=True,
-    use_critic=False,
     from_phase=""
 ):
     """ Expand the node with existing children. 
@@ -119,8 +117,6 @@ def _expand_with_existing(
         node,
         policy,
         n_actions,
-        transition_model=world_model,
-        use_critic=use_critic,
         from_phase=from_phase
     )
 
@@ -266,7 +262,6 @@ class BFSSearch(BaseTreeSearch):
                         threshold_gamma=config.reward_gamma,
                         threshold_gamma1=config.reward_gamma1,
                         n_actions_for_bne=config.n_actions_for_bne,
-                        use_critic=False,
                         on_step=update_traj_key
                     )
 

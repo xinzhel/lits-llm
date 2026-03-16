@@ -126,14 +126,13 @@ class ConcatPolicy(Policy):
             logger.error(f"Tuple contents: {self.task_prompt_spec}")
             raise TypeError(f"task_prompt_spec should be a string, not a tuple: {self.task_prompt_spec}")
 
-    def _build_messages(self, query: str, state: State, critic: str = None, at_depth_limit: bool = False) -> str:
+    def _build_messages(self, query: str, state: State, at_depth_limit: bool = False) -> str:
         """
         Generate the user message for the LLM.
         
         Args:
             query: The question/problem to solve
             state: Current reasoning state with existing steps
-            critic: Optional critic feedback
             at_depth_limit: Whether we're at the maximum depth
         
         Returns:
@@ -142,9 +141,6 @@ class ConcatPolicy(Policy):
         logger.debug(f"_build_messages called with query type: {type(query)}, query value: {query}")
         
         user_message = verbalize_concat_state(query, state)
-        
-        if critic:
-            user_message += f"Advice: {critic}\n"
         
         user_message += f"Step {len(state) + 1}: "
         
@@ -312,7 +308,6 @@ class ConcatPolicy(Policy):
         temperature: float,
         at_depth_limit: bool,
         query_idx: int,
-        critic: str = None,
         from_phase: str = "",
         **kwargs
     ) -> list[ThoughtStep]:
@@ -326,7 +321,6 @@ class ConcatPolicy(Policy):
             temperature: Sampling temperature
             at_depth_limit: Whether at maximum depth
             query_idx: Query index for logging
-            critic: Optional critic feedback
             from_phase: Phase identifier for logging
         
         Returns:
@@ -335,7 +329,7 @@ class ConcatPolicy(Policy):
         assert isinstance(query_idx, int), f"query_idx should be an integer, got {query}"
         
         # Build prompt
-        user_message = self._build_messages(query, state, critic=critic, at_depth_limit=at_depth_limit)
+        user_message = self._build_messages(query, state, at_depth_limit=at_depth_limit)
         if isinstance(self.base_model, HfChatModel):
             prompt = user_message
         else:

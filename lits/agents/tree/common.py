@@ -125,8 +125,6 @@ def _sample_actions_with_existing(
     node,
     policy,
     n_actions,
-    transition_model=None,
-    use_critic=False,
     from_phase="",
     memory_context=None
 ):
@@ -139,8 +137,6 @@ def _sample_actions_with_existing(
         node: The node to expand
         policy: Policy model for action generation
         n_actions: Number of actions to generate
-        transition_model: Optional transition model for critic generation
-        use_critic: Whether to use critic for action evaluation
         from_phase: Algorithm phase (expand, simulate, continuation)
         memory_context: Optional AugmentedContext from LiTS-Mem for cross-trajectory
                        memory augmentation. If provided, formatted as prompt blocks
@@ -149,8 +145,6 @@ def _sample_actions_with_existing(
     Returns:
         List of Step objects representing the generated actions
     """
-    if transition_model is None:
-        assert use_critic is False
     assert from_phase in ["expand", "simulate", "continuation"]
     
     # expand the node
@@ -167,12 +161,6 @@ def _sample_actions_with_existing(
     n_needed = max(0, n_actions - n_existing)
     logger.debug(f"n_needed={n_needed}, n_actions - n_existing={n_actions} - {n_existing}")
 
-    critic = None
-    if use_critic:
-        critic = transition_model.generate_critic(node.state, query_or_goals, query_idx)
-        if critic == "" or critic is None:
-            logger.debug(f"Critic is empty")
-            critic = "No Critic"
     steps = []
     if n_needed > 0:
         # Allow duplicates during continuation for BN self-consistency evaluation
@@ -180,7 +168,6 @@ def _sample_actions_with_existing(
         steps = policy.get_actions(
             node.state,
             query=query_or_goals,
-            critic=critic,  # can extend later if use_critic=True
             n_actions=n_needed,
             query_idx=query_idx,
             from_phase=from_phase,

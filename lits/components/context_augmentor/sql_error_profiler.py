@@ -170,11 +170,11 @@ Return a JSON object:
         logger.debug(f"Profiling trajectory (idx={query_idx})...")
 
         try:
-            response = self.base_model(
+            response = self._call_model(
                 message,
-                role=None,
+                query_idx=query_idx,
                 temperature=self.temperature,
-                max_new_tokens=self.max_new_tokens
+                max_new_tokens=self.max_new_tokens,
             )
 
             raw_response = response.text.strip()

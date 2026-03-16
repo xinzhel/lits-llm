@@ -8,12 +8,13 @@ This module provides the core components for building reasoning agents:
 - Factory: Component creation utilities
 """
 
-from .context_augmentor import ContextAugmentor, ContextUnit, SQLValidator, SQLErrorProfiler
+from .context_augmentor import ContextAugmentor, ContextUnit, CriticAugmentor, SQLValidator, SQLErrorProfiler
 from .factory import create_components, create_bn_evaluator
 
 __all__ = [
     "ContextAugmentor",
     "ContextUnit",
+    "CriticAugmentor",
     "SQLValidator",
     "SQLErrorProfiler",
     "create_components",

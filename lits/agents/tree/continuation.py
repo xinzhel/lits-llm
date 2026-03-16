@@ -23,7 +23,6 @@ def _continuation(
     threshold_gamma: float= None,
     threshold_gamma1: float= None,
     n_actions_for_bne: int=None,
-    use_critic: bool=False,
     on_step: callable=None,
     transition_before_evaluate: bool = False,
 ) -> SearchNode:
@@ -122,8 +121,6 @@ def _continuation(
         n_actions_for_bne: Number of candidate actions to expand for BN
             Eval entropy/sc mode.  Mapped from
             ``config.n_actions_for_bne``.
-        use_critic: Whether to use critic during expansion (passed
-            through to ``expand_func``).
         on_step: Optional callback invoked with each new child node
             after it becomes the current frontier.  Used to update
             ``trajectory_key`` in inference logs at each hop.
@@ -170,7 +167,7 @@ def _continuation(
             assert bn_evaluator is None or bn_evaluator.eval_method not in ["entropy", "sc"], "BN-entropy and -SC evaluator is not compatible with fast reward thresholding so far"
             expand_func(query_or_goals, query_idx, node, policy, n_actions=1,
                         reward_model=reward_model, world_model=world_model,
-                        use_critic=use_critic, from_phase="continuation",
+                        from_phase="continuation",
                         transition_before_evaluate=transition_before_evaluate)
             # if reward is "good", chain forward; otherwise, stop
             if node.children[0].fast_reward < threshold_alpha:
@@ -209,7 +206,7 @@ def _continuation(
             else:
                 assert bn_evaluator.eval_method == "direct"
                 if len(node.children) == 0:
-                    expand_func(query_or_goals, query_idx, node, policy, n_actions=1, reward_model=reward_model, assign_rewards=False, use_critic=use_critic, from_phase="continuation")
+                    expand_func(query_or_goals, query_idx, node, policy, n_actions=1, reward_model=reward_model, assign_rewards=False, from_phase="continuation")
                 bn_score = bn_evaluator.evaluate(query_or_goals, node.state, [node.children[0].action], query_idx=query_idx)
                 node.children[0].bn_score = bn_score
 

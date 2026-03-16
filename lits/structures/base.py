@@ -68,9 +68,20 @@ from ..type_registry import register_state, register_type
 @register_state
 @dataclass
 class TrajectoryState(State, list):
-    """State that accumulates steps as a trajectory. Supports `len()` to return number of accumulated steps"""
-    
+    """State that accumulates steps as a trajectory. Supports `len()` to return number of accumulated steps.
+
+    Supports both ``TrajectoryState()`` (empty) and
+    ``TrajectoryState(steps_list)`` (pre-populated) construction.
+    """
+
     default_step: Step = None
+
+    def __init__(self, steps=None, **kwargs):
+        list.__init__(self, steps or [])
+        self.default_step = kwargs.pop("default_step", None)
+        # Allow subclass dataclass fields (e.g. EnvState.init_state)
+        for key, value in kwargs.items():
+            setattr(self, key, value)
     
     def render_history(self) -> str:
         return "\n".join([step.verb_step() for step in self])

@@ -101,7 +101,9 @@ class ContextAugmentor(ABC):
         self._buffer: List[ContextUnit] = []
 
         # Evaluator type identifier (used in stored records)
-        self.evaluator_type = self.__class__.__name__.lower()
+        # Respect subclass class-level override (e.g. CriticAugmentor.evaluator_type = "critic")
+        if 'evaluator_type' not in type(self).__dict__:
+            self.evaluator_type = self.__class__.__name__.lower()
 
         if base_model is not None:
             logger.info(
@@ -131,10 +133,48 @@ class ContextAugmentor(ABC):
         )
 
     # ------------------------------------------------------------------
+    # LLM call helper (unified role for inference logging)
+    # ------------------------------------------------------------------
+
+    def _call_model(
+        self,
+        message: str,
+        query_idx=None,
+        from_phase: str = "",
+        temperature: Optional[float] = None,
+        max_new_tokens: Optional[int] = None,
+        **kwargs,
+    ):
+        """Call self.base_model with a proper role for inference logging.
+
+        Constructs role as ``augmentor_{query_idx}_{from_phase}`` so that
+        InferenceLogger can attribute cost to this augmentor.
+
+        Args:
+            message: User message to send.
+            query_idx: Example index (for logging).
+            from_phase: Algorithm phase (for logging).
+            temperature: Override self.temperature if given.
+            max_new_tokens: Override self.max_new_tokens if given.
+
+        Returns:
+            LLM output object (has ``.text`` attribute).
+        """
+        from ..utils import create_role
+        role = create_role("augmentor", query_idx, from_phase)
+        return self.base_model(
+            message,
+            role=role,
+            temperature=temperature if temperature is not None else self.temperature,
+            max_new_tokens=max_new_tokens if max_new_tokens is not None else self.max_new_tokens,
+            **kwargs,
+        )
+
+    # ------------------------------------------------------------------
     # Core pipeline: analyze -> should_persist -> store -> retrieve
     # ------------------------------------------------------------------
 
-    def analyze(self, traj_state=None, **kwargs) -> Optional[ContextUnit]:
+    def analyze(self, traj_state, **kwargs) -> Optional[ContextUnit]:
         """Analyze trajectory state and produce a context unit.
 
         Paper: f_k(H_k).
@@ -146,10 +186,7 @@ class ContextAugmentor(ABC):
         if hasattr(self, "sys_prompt") and self.base_model is not None:
             self.base_model.sys_prompt = self.sys_prompt
 
-        if traj_state is not None:
-            result = self._analyze(traj_state, **kwargs)
-        else:
-            result = self._analyze(**kwargs)
+        result = self._analyze(traj_state, **kwargs)
 
         if result is None:
             return None
@@ -526,10 +563,12 @@ class ContextAugmentor(ABC):
 
 from .sql_validator import SQLValidator, extract_sql_from_action
 from .sql_error_profiler import SQLErrorProfiler
+from .critic import CriticAugmentor
 
 __all__ = [
     "ContextUnit",
     "ContextAugmentor",
+    "CriticAugmentor",
     "SQLValidator",
     "SQLErrorProfiler",
     "extract_sql_from_action",

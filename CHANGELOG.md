@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-03-16 Unreleased (`0312-major-context-augmentation`)
+
+### Added
+- `TrajectoryState.__init__(steps=None, **kwargs)` supporting list-based construction (`lits/structures/base.py`)
+
+### Changed
+- `analyze(traj_state)` is now mandatory (no `None` default) on `ContextAugmentor` ABC
+- `SQLValidator._analyze()` expects trajectory/list, extracts `traj_state[-1]`
+
+### Fixed
+- `test_sql_validator.py`: `traj_state=step` → `traj_state=[step]` in sections 3, 4, 7
+- `test_state_serialization.py`: fixed `serialized` dict iteration bugs
+
 ## 2026-03-15 Unreleased (`0312-major-context-augmentation`)
 
 ### Added
@@ -13,11 +26,23 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `require_chat_model` param on `ContextAugmentor.__init__`
 - `sql_validator.py` and `sql_error_profiler.py` in `lits/components/context_augmentor/`
 - `normalize_trajectory_key()` in `lits/memory/types.py`
+- `CriticAugmentor` in `lits/components/context_augmentor/critic.py` with `task_type` support (`language_grounded`, `tool_use`)
+- `_call_model()` helper on `ContextAugmentor` ABC with `"augmentor"` role for InferenceLogger cost attribution (`lits/components/context_augmentor/__init__.py`, `lits/components/utils.py`)
 
 ### Changed
 - `SQLValidator` and `SQLErrorProfiler` now inherit directly from `ContextAugmentor`
 - `docs/components/verbal_evaluator/` → `docs/components/context_augmentor/`
 - `docs/agents/LEARNING_LOOP.md` → `docs/components/context_augmentor/LEARNING_LOOP.md`
+- `SQLValidator._validate()` and `SQLErrorProfiler._analyze()` use `_call_model()` instead of `role=None`
+- `CriticAugmentor._analyze()` uses `_call_model()` instead of direct `create_role("dynamics_critic", ...)`
+
+### Fixed
+- `evaluator_type` class attribute on subclasses (e.g. `CriticAugmentor.evaluator_type = "critic"`) no longer overwritten by ABC `__init__`
+
+### Removed
+- `generate_critic()` from `ConcatTransition`
+- `use_critic` from `MCTSConfig`, `_expand`, `_simulate`, `_continuation`, `_sample_actions_with_existing`, `config.py`
+- `critic=` parameter from `Policy.get_actions()`, `Policy._get_actions()`, `ConcatPolicy`, `ToolUsePolicy`
 - `analyze()` uses `trajectory_key` kwarg (not `query_idx`) for `ContextUnit.trajectory_key`
 - `ContextUnit.trajectory_key` docstring updated to `q/0/1/3` format
 - Storage path `~/.lits_llm/verbal_evaluator/` → `~/.lits_llm/context_augmentor/`

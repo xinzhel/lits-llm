@@ -59,7 +59,7 @@ def run():
     )
 
     unit = validator.analyze(
-        traj_state=step,
+        traj_state=[step],
         context="PostGIS database with psr_point, psr_polygon tables. CRS: EPSG:4283.",
         user_intent="Is the site at 124 La Trobe St a priority site?",
         query_idx=0,
@@ -79,7 +79,7 @@ def run():
     non_sql_step = ToolUseStep(
         action=ToolUseAction(json.dumps({"action": "calculator", "action_input": {"expr": "2+2"}}))
     )
-    non_sql_unit = validator.analyze(traj_state=non_sql_step)
+    non_sql_unit = validator.analyze(traj_state=[non_sql_step])
     print(f"  result: {non_sql_unit}  (expected None)")
 
     # ── 5. Check saved results via load_results() ──────────────────
@@ -122,7 +122,7 @@ def run():
                 sql = extract_sql_from_action(str(s.action), sql_tool_names)
                 if sql:
                     sql_count += 1
-                    u = validator.analyze(traj_state=s, user_intent=query)
+                    u = validator.analyze(traj_state=[s], user_intent=query)
                     if u:
                         print(f"  Step {idx+1}: issue found — {u.content[:100]}")
                     else:

@@ -121,7 +121,6 @@ class MCTSConfig(BaseSearchConfig):
         simulate_strategy: Strategy for simulation action selection: 'max', 'sample', 'random' (default: 'max')
         output_strategy: Strategy for selecting final output: 'max_reward', 'follow_max', 'max_visit', 'max_iter', 'last_iter', 'last_terminal_iter' (default: 'max_reward')
         output_trace_in_each_iter: Whether to output trace at each iteration (default: True)
-        use_critic: Whether to use critic for action evaluation (default: False)
         transition_before_evaluate: Whether to run transition before reward scoring in _expand().
             False (default) = Q(s,a) estimate: score action without observation.
             True = V(s') estimate: run transition first, then score with observation (LATS §4.2).
@@ -148,8 +147,6 @@ class MCTSConfig(BaseSearchConfig):
     # output
     output_strategy: str = 'max_reward'
     output_trace_in_each_iter: bool = True
-
-    use_critic: bool = False
 
     # LATS-aligned evaluation: run transition before fast_reward scoring.
     # False (default) = Q(s,a): score proposed action without observation.
@@ -278,7 +275,6 @@ def _expand(
     reward_model, 
     world_model=None, 
     assign_rewards=True, 
-    use_critic=False, 
     from_phase="expand",
     memory_context: Optional[AugmentedContext] = None,
     transition_before_evaluate: bool = False,
@@ -295,7 +291,6 @@ def _expand(
         reward_model: Reward model for fast reward assignment
         world_model: Optional transition model
         assign_rewards: Whether to assign fast rewards to children
-        use_critic: Whether to use critic for action evaluation
         from_phase: Algorithm phase (expand, simulate, continuation)
         memory_context: Optional AugmentedContext from LiTS-Mem for cross-trajectory
                        memory augmentation. If provided, the memory context is formatted
@@ -312,8 +307,6 @@ def _expand(
         node,
         policy,
         n_actions,
-        transition_model=world_model,
-        use_critic=use_critic,
         from_phase=from_phase,
         memory_context=memory_context
     )
@@ -400,7 +393,6 @@ def _simulate(
     world_model, 
     policy, 
     reward_model, 
-    use_critic=False, 
     roll_out_steps=10000,
     on_step: callable=None,
     transition_before_evaluate: bool = False,
@@ -428,7 +420,6 @@ def _simulate(
             reward_model=reward_model, 
             world_model=world_model,
             assign_rewards=True,
-            use_critic=use_critic,
             from_phase="simulate",
             transition_before_evaluate=transition_before_evaluate,
         )
@@ -692,7 +683,6 @@ class MCTSSearch(BaseTreeSearch):
                     threshold_gamma=config.reward_gamma,
                     threshold_gamma1=config.reward_gamma1,
                     n_actions_for_bne=config.n_actions_for_bne,
-                    use_critic=config.use_critic,
                     on_step=update_traj_key,
                     transition_before_evaluate=config.transition_before_evaluate)
                 path.extend(continuous_trace[1:])
@@ -747,7 +737,7 @@ class MCTSSearch(BaseTreeSearch):
                 query, query_idx, path[-1], self.policy,
                 n_actions=self.policy.n_actions,
                 reward_model=self.reward_model, world_model=self.world_model,
-                assign_rewards=True, use_critic=config.use_critic,
+                assign_rewards=True,
                 from_phase="expand", memory_context=memory_context,
                 transition_before_evaluate=config.transition_before_evaluate,
             )
@@ -796,7 +786,7 @@ class MCTSSearch(BaseTreeSearch):
             is_terminal_for_repeat, unselected_terminal_paths = _simulate(
                 query, query_idx, path, config,
                 self.world_model, self.policy, self.reward_model,
-                use_critic=config.use_critic, roll_out_steps=config.roll_out_steps,
+                roll_out_steps=config.roll_out_steps,
                 on_step=update_traj_key,
                 transition_before_evaluate=config.transition_before_evaluate,
             )

@@ -44,6 +44,7 @@ def create_role(llm_role: str, query_idx: Optional[int] = None, from_phase: str 
         "policy", "policy_env_grounded",
         "bn_entropy_agg", "bn_entropy_remove", "bn_eval", "bn_entropy",
         "rm",
+        "augmentor",
         None, ""
     ]
     VALID_PHASES = [

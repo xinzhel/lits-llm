@@ -7,7 +7,7 @@ Module-level function in `lits/agents/tree/mcts.py`. Expands a node by generatin
 ```python
 def _expand(
     query_or_goals, query_idx, node, policy, n_actions, reward_model,
-    world_model=None, assign_rewards=True, use_critic=False,
+    world_model=None, assign_rewards=True,
     from_phase="expand", memory_context=None,
     transition_before_evaluate=False,
 )
@@ -42,7 +42,6 @@ The `assign_rewards` and `transition_before_evaluate` flags give callers fine-gr
 | Repeat detection | `step.get_action()` / `step.terminate` | always | sets `child.is_terminal_for_repeat` |
 | Reward scoring | `_assign_fast_reward(child)` | `assign_rewards` and not `transition_before_evaluate` | Q(s,a): scores `parent.state + step` without observation |
 | State simulation + reward | `_world_modeling(child)` | `assign_rewards` and `transition_before_evaluate` | V(s'): runs transition, then scores with observation |
-| Critic generation | `transition_model.generate_critic()` (inside `_sample_actions_with_existing`) | `use_critic` | critic text injected into policy prompt |
 | Backfill unscored children | same as reward/state rows above | `assign_rewards` and `child.fast_reward == -1` | scores children from prior `assign_rewards=False` calls |
 
 ## Callers

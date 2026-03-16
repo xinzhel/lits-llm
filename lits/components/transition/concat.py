@@ -3,7 +3,6 @@ from typing import Union, Tuple, Optional
 from ...structures import ThoughtStep, log_state, StateT
 from ..base import LlmTransition
 from ..registry import register_transition
-from ...lm.base import DETERMINISTIC_TEMPERATURE
 from ..utils import verbalize_concat_state, create_role, extract_existing_steps
 from ...log import log_event
 
@@ -96,7 +95,6 @@ your task is to decide whether the solution has **not yet reached one numerical 
 Output only one of: COMPLETE, or INCOMPLETE. 
 Do not explain anything. Do not add extra text.
 """
-        self.critic = """""Given a science or math problem and a corresponding solution that may be incomplete, your task is to give some advice on how to solve the problem based on current steps or what to consider next."""
 
     def init_state(self, **kwargs) -> list:
         return []
@@ -156,32 +154,5 @@ Do not explain anything. Do not add extra text.
         return True
 
     def _get_llm_role(self) -> str:
-        """Return the LLM role prefix for critic generation."""
-        return "dynamics_critic"
-    
-    def generate_critic(self, state: StateT, query_or_goals: str, query_idx: int=None, from_phase: str='') -> str:
-        """Generate critic feedback for the current state.
-        
-        Args:
-            state: The current state
-            query_or_goals: The problem/question being solved
-            query_idx: Index of the example (for logging)
-            from_phase: Description of algorithm phase (for logging)
-        
-        Returns:
-            Critic feedback as a string
-        """
-        # Store context for _call_model() helper
-        self._query_idx = query_idx
-        self._from_phase = from_phase
-        
-        # Build user message
-        user_message = "Question: " + query_or_goals + "\n"
-        for idx, thought in enumerate(state):
-            user_message += "Step " + str(idx + 1) + ": " + thought.action + "\n"
-        
-        # Generate critic
-        self.base_model.sys_prompt = self.critic
-        output_text = self._call_model(user_message, temperature=DETERMINISTIC_TEMPERATURE, max_new_tokens=1024).text.strip()
-        output_text = output_text.lower().strip()
-        return output_text    
+        """Return the LLM role prefix for transition generation."""
+        return "dynamics"
