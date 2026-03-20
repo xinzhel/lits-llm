@@ -75,8 +75,9 @@ class PDFClient(BaseClient):
         print("\n" + "="*70)
         print(f"Initializing PDF Client - Loading embedding model: {embedding_model}")
         print("="*70)
-        self.encoder = SentenceTransformer(embedding_model)
-        self.embedding_dim = self.encoder.get_sentence_embedding_dimension()
+        from lits.embedding import get_embedder
+        self.encoder = get_embedder(embedding_model)
+        self.embedding_dim = self.encoder.embedding_dim
         print("="*70)
         print("PDF Client initialization complete!")
         print("="*70 + "\n")
@@ -175,7 +176,7 @@ class PDFClient(BaseClient):
         chunks = self._chunk_text(text)
         
         # Generate embeddings
-        embeddings = self.encoder.encode(chunks, show_progress_bar=False)
+        embeddings = self.encoder.embed(chunks)
         
         # Create points for Qdrant
         points = []
@@ -221,7 +222,7 @@ class PDFClient(BaseClient):
             self._index_document(url, text)
         
         # Perform similarity search
-        query_embedding = self.encoder.encode(query, show_progress_bar=False)
+        query_embedding = self.encoder.embed([query])[0]
         
         # Create proper Qdrant filter
         query_filter = Filter(

@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-03-20 Unreleased (`0316-minor-embedding-subpackage`)
+
+### Added
+- `lits/embedding/` subpackage: `BaseEmbedder` ABC, `SentenceTransformerEmbedder`, `BedrockEmbedder`, `get_embedder()` factory
+- `docs/embedding/EMBEDDING.md`
+
+### Changed
+- `LocalMemoryBackend`: eager embedder init (was lazy); accepts `embedder: BaseEmbedder`
+- `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
+- `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
+
 ## 2026-03-16 Unreleased (`0316-minor-local-memory-backend`)
 
 ### Added
