@@ -174,7 +174,7 @@ _FACT_EXTRACTION_PROMPT = """\
 Extract atomic facts from the following text.
 Return a JSON object with a "facts" key containing an array of strings.
 Each fact should be a single, self-contained statement.
-If no facts can be extracted, return {"facts": []}.
+If no facts can be extracted, return {{"facts": []}}.
 
 Text:
 {text}"""
@@ -237,8 +237,10 @@ class LocalMemoryBackend(BaseMemoryBackend):
     Args:
         llm: A lits LLM model (e.g. from ``get_lm()``). Used for fact
             extraction when ``add_messages(infer=True)`` is called.
-        embedding_model: A ``SentenceTransformer`` instance. If None,
-            lazy-loaded with ``multi-qa-mpnet-base-cos-v1``.
+        embedder: A ``BaseEmbedder`` instance (from ``lits.embedding``).
+            If None, defaults to ``get_embedder()`` which creates a
+            ``SentenceTransformerEmbedder("multi-qa-mpnet-base-cos-v1")``.
+            Loaded eagerly at construction for fail-fast behaviour.
         dedup_threshold: Cosine similarity threshold (0–1). Facts above
             this threshold compared to an existing fact are considered
             duplicates (skip or alias).
@@ -250,29 +252,23 @@ class LocalMemoryBackend(BaseMemoryBackend):
     def __init__(
         self,
         llm,
-        embedding_model=None,
+        embedder=None,
         dedup_threshold: float = 0.85,
         update_length_ratio: float = 1.3,
     ):
+        from lits.embedding import get_embedder
+
         self._llm = llm
-        self._embedding_model = embedding_model
+        self._embedder = embedder if embedder is not None else get_embedder()
         self.dedup_threshold = dedup_threshold
         self.update_length_ratio = update_length_ratio
         # Aligned parallel structures per search_id
         self._units: Dict[str, List[MemoryUnit]] = {}
         self._vectors: Dict[str, np.ndarray] = {}  # (N, D) or empty
 
-    def _get_embedding_model(self):
-        """Lazy-load sentence-transformers model."""
-        if self._embedding_model is None:
-            from sentence_transformers import SentenceTransformer
-            self._embedding_model = SentenceTransformer("multi-qa-mpnet-base-cos-v1")
-        return self._embedding_model
-
     def _embed(self, texts: List[str]) -> np.ndarray:
         """Embed a list of texts, returns (N, D) array."""
-        model = self._get_embedding_model()
-        return model.encode(texts, normalize_embeddings=True)
+        return self._embedder.embed(texts)
 
     def _get_matrix(self, search_id: str) -> Optional[np.ndarray]:
         """Return the embedding matrix for *search_id*, or None if empty."""

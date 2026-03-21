@@ -212,6 +212,6 @@ class TrajectorySimilarity:
         expansion prompt inside tree search policies.
         """
 
-        header = f"Trajectory {self.trajectory_path} (score={self.score:.2f})"
+        header = f"# Insights from a previous attempt (relevance: {self.score:.2f})"
         details = "\n".join(f"- {unit.text}" for unit in self.missing_units)
         return f"{header}\n{details}".strip()

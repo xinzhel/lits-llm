@@ -21,6 +21,7 @@ does NOT call an LLM directly — the memory backend handles fact extraction
 
 Usage::
 
+    # Programmatic construction (e.g., in tests or custom scripts)
     from lits.memory.manager import LiTSMemoryManager
     from lits.memory.backends import LocalMemoryBackend  # or Mem0MemoryBackend
 
@@ -33,6 +34,26 @@ Usage::
 
     # In policy prompt construction:
     prompt_block = fact_aug.retrieve(query_context={"trajectory_key": traj_key})
+
+CLI usage (via ``--memory-arg``, see ``docs/cli/search.md``)::
+
+    # Local backend (default) — in-process embeddings + LLM fact extraction
+    lits-search --dataset math500 --search_framework rest \\
+        --memory-arg backend=local model=bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0
+
+    # Local with Bedrock Cohere embedder
+    lits-search --dataset math500 --search_framework rest \\
+        --memory-arg backend=local \\
+            model=bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0 \\
+            embedding_model=bedrock-embed/cohere.embed-english-v3
+
+    # Mem0 backend — delegates to mem0 library
+    lits-search --dataset math500 --search_framework rest \\
+        --memory-arg backend=mem0 mem0_config_path=./mem0_config.json
+
+``--memory-arg`` implicitly enables memory. ``setup_memory_manager()`` in
+``lits/cli/search.py`` constructs the backend and wires it into
+``LiTSMemoryManager``; ``FactMemoryAugmentor`` is backend-agnostic.
 """
 
 import logging

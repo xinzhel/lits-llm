@@ -46,6 +46,7 @@ from lits.registry import import_custom_modules
 from lits.cli import (
     parse_experiment_args, apply_config_overrides, parse_dataset_kwargs,
     parse_script_vars, parse_search_args, parse_component_args, print_config_help,
+    parse_memory_args,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,89 +91,142 @@ def setup_result_savers(search_algorithm: str, result_dir: str, override: bool):
     return result_saver, result_saver_unselected
 
 
-def setup_memory_manager(config: ExperimentConfig, run_logger):
+def setup_memory_manager(config: ExperimentConfig, run_logger, memory_kwargs: Dict = None):
     """Initialize memory manager if memory is enabled in config.
 
+    Dispatches on ``memory_kwargs["backend"]``:
+    - ``"local"`` (default): ``LocalMemoryBackend`` — in-process, no external
+      services.  Uses ``lits.embedding.get_embedder()`` for embeddings and
+      the eval LLM for fact extraction.
+    - ``"mem0"``: ``Mem0MemoryBackend`` — delegates to mem0 library.  Requires
+      ``mem0_config_path`` pointing to a JSON file with mem0 provider config.
+
     Args:
-        config: ExperimentConfig with enable_memory and memory_config fields
-        run_logger: Logger instance for debug output
+        config: ExperimentConfig with ``enable_memory`` flag.
+        run_logger: Logger instance for debug output.
+        memory_kwargs: Dict from ``parse_memory_args()``.  Keys:
+            backend, embedding_model, dedup_threshold, update_length_ratio,
+            mem0_config_path.
 
     Returns:
-        LiTSMemoryManager instance if memory is enabled, None otherwise
+        LiTSMemoryManager instance if memory is enabled, None otherwise.
 
     Raises:
-        ValueError: If memory is enabled but configuration is invalid
+        ValueError: If memory is enabled but configuration is invalid.
 
-    Example memory_config structure::
+    CLI examples::
 
-        {
-            "llm": {
-                "provider": "aws_bedrock",
-                "config": {"model": "anthropic.claude-3-5-sonnet-20240620-v1:0"}
-            },
-            "embedder": {
-                "provider": "aws_bedrock",
-                "config": {"model": "amazon.titan-embed-text-v2:0"}
-            },
-            "vector_store": {
-                "provider": "qdrant",
-                "config": {"path": "./qdrant_local"}
-            },
-            "lits_mem": {
-                "similarity_threshold": 0.35,
-                "max_retrieved_trajectories": 3
-            }
-        }
+        # Local backend (default, uses default Bedrock Claude model)
+        lits-search --memory-arg backend=local
+
+        # Local with explicit model and Bedrock embedder
+        lits-search --memory-arg backend=local \\
+            model=bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0 \\
+            embedding_model=bedrock-embed/cohere.embed-english-v3
+
+        # Mem0 backend
+        lits-search --memory-arg backend=mem0 mem0_config_path=mem0_config.json
     """
     if not config.enable_memory:
         return None
 
+    memory_kwargs = memory_kwargs or {"backend": "local"}
+    backend_type = memory_kwargs.get("backend", "local")
+
     try:
-        from mem0 import Memory
-
-        mem0_config = config.memory_config or {}
-
-        if mem0_config:
-            if not isinstance(mem0_config, dict):
-                raise ValueError(
-                    f"memory_config must be a dictionary, got {type(mem0_config).__name__}"
-                )
-            recommended_sections = ["llm", "embedder", "vector_store"]
-            missing_sections = [s for s in recommended_sections if s not in mem0_config]
-            if missing_sections:
-                run_logger.warning(
-                    f"memory_config is missing recommended sections: {missing_sections}. "
-                    "mem0 will use default providers which may require additional setup."
-                )
+        if backend_type == "local":
+            backend = _create_local_backend(memory_kwargs, run_logger)
+        elif backend_type == "mem0":
+            backend = _create_mem0_backend(config, memory_kwargs, run_logger)
         else:
-            run_logger.warning(
-                "Memory enabled but no memory_config provided. "
-                "Using default mem0 configuration which may require OpenAI API key."
-            )
+            raise ValueError(f"Unknown memory backend: '{backend_type}'. Expected: local, mem0")
 
-        memory = Memory.from_config(mem0_config) if mem0_config else Memory()
-        backend = Mem0MemoryBackend(memory)
-
-        lits_mem_config_dict = mem0_config.get("lits_mem", {})
-        lits_mem_config = LiTSMemoryConfig(**lits_mem_config_dict) if lits_mem_config_dict else LiTSMemoryConfig()
-
+        lits_mem_config = LiTSMemoryConfig()
         memory_manager = LiTSMemoryManager(backend=backend, config=lits_mem_config)
-        run_logger.info("Memory manager initialized successfully")
+        run_logger.info(f"Memory manager initialized (backend={backend_type})")
         return memory_manager
 
     except ImportError as e:
-        raise ValueError(
-            f"Memory is enabled but mem0 is not installed. "
-            f"Install with: pip install mem0ai. Error: {e}"
-        )
-    except TypeError as e:
-        raise ValueError(
-            f"Invalid memory configuration. Check that all config values are valid. Error: {e}"
-        )
+        raise ValueError(f"Memory dependency missing: {e}")
     except Exception as e:
-        raise ValueError(
-            f"Failed to initialize memory manager with provided configuration. Error: {e}"
+        raise ValueError(f"Failed to initialize memory manager: {e}")
+
+
+def _create_local_backend(memory_kwargs: Dict, run_logger):
+    """Create a LocalMemoryBackend from CLI kwargs.
+
+    The LLM model name must be specified via ``--memory-arg model=...``.
+    If omitted, defaults to ``bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0``.
+
+    Args:
+        memory_kwargs: Parsed --memory-arg dict.
+        run_logger: Logger.
+
+    Returns:
+        LocalMemoryBackend instance.
+    """
+    from lits.lm import get_lm
+    from lits.embedding import get_embedder
+    from lits.memory.backends import LocalMemoryBackend
+
+    model_name = memory_kwargs.get(
+        "model", "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0"
+    )
+    llm = get_lm(model_name)
+    embedding_model = memory_kwargs.get("embedding_model", "multi-qa-mpnet-base-cos-v1")
+    embedder = get_embedder(embedding_model)
+
+    dedup_threshold = float(memory_kwargs.get("dedup_threshold", 0.85))
+    update_length_ratio = float(memory_kwargs.get("update_length_ratio", 1.3))
+
+    run_logger.info(
+        f"LocalMemoryBackend: model={model_name}, embedder={embedding_model}, "
+        f"dedup={dedup_threshold}, update_ratio={update_length_ratio}"
+    )
+    return LocalMemoryBackend(
+        llm=llm,
+        embedder=embedder,
+        dedup_threshold=dedup_threshold,
+        update_length_ratio=update_length_ratio,
+    )
+
+
+def _create_mem0_backend(config: ExperimentConfig, memory_kwargs: Dict, run_logger):
+    """Create a Mem0MemoryBackend from CLI kwargs.
+
+    Requires ``mem0_config_path`` in memory_kwargs pointing to a JSON file
+    with mem0 provider configuration (llm, embedder, vector_store sections).
+
+    Falls back to ``config.memory_config`` if no path is provided (legacy).
+
+    Args:
+        config: ExperimentConfig.
+        memory_kwargs: Parsed --memory-arg dict.
+        run_logger: Logger.
+
+    Returns:
+        Mem0MemoryBackend instance.
+    """
+    from mem0 import Memory
+
+    config_path = memory_kwargs.get("mem0_config_path")
+    if config_path:
+        import json as _json
+        with open(config_path) as f:
+            mem0_config = _json.load(f)
+        run_logger.info(f"Mem0MemoryBackend: loaded config from {config_path}")
+    elif config.memory_config:
+        mem0_config = config.memory_config
+        run_logger.info("Mem0MemoryBackend: using config.memory_config (legacy)")
+    else:
+        run_logger.warning(
+            "Mem0MemoryBackend: no config provided, using mem0 defaults "
+            "(may require OpenAI API key)"
         )
+        mem0_config = {}
+
+    memory = Memory.from_config(mem0_config) if mem0_config else Memory()
+    return Mem0MemoryBackend(memory)
 
 
 def save_terminal_nodes(algo_output, query_or_goals, query_idx, result_dir, run_logger):
@@ -505,7 +559,11 @@ def main() -> int:
     )
 
     # Initialize memory manager if enabled
-    memory_manager = setup_memory_manager(config, run_logger)
+    # --memory-arg implicitly enables memory (no need for --cfg enable_memory=true)
+    if cli_args.memory_args:
+        config.enable_memory = True
+    memory_kwargs = parse_memory_args(cli_args) if config.enable_memory else None
+    memory_manager = setup_memory_manager(config, run_logger, memory_kwargs)
 
     # Slice dataset
     if config.eval_idx:

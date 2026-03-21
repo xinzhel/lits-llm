@@ -17,7 +17,23 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
 - `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
 
-## 2026-03-16 Unreleased (`0316-minor-local-memory-backend`)
+## 2026-03-21 Unreleased (`x-0316-0321-major-local-memory-backend`)
+
+### Added
+- `--memory-arg` CLI flag in `lits/cli/args.py` with `parse_memory_args()` parser
+- `_create_local_backend()` / `_create_mem0_backend()` factory helpers in `lits/cli/search.py`
+- `memory_args` field on `ExperimentConfig` (`lits/config.py`)
+- CLI usage and case study sections in `docs/memory/LOCAL_MEMORY_BACKEND.md`
+
+### Changed
+- `setup_memory_manager()` in `lits/cli/search.py`: rewrote to use `parse_memory_args()` with `backend=local|mem0` routing
+- `to_prompt_blocks()` heading: "Inherited memories" → "Known facts from your current reasoning"
+- `TrajectorySimilarity.to_prompt_section()` heading: "Trajectory q/..." → "Insights from a previous attempt"
+
+### Deprecated
+- `ExperimentConfig.memory_config` field (use `memory_args` instead)
+
+## 2026-03-16 Unreleased (`x-0316-0321-major-local-memory-backend`)
 
 ### Added
 - `LocalMemoryBackend` in `lits/memory/backends.py` — in-memory backend with LLM fact extraction and embedding-based semantic dedup

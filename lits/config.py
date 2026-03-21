@@ -80,7 +80,7 @@ _EXCLUDE_FROM_SEARCH_CONFIG: Set[str] = {
     "dataset", "search_framework", "search_algorithm",
     "offset", "limit", "eval_idx",
     "verbose", "model_verbose", "print_answer_for_each_example", "override_log_result",
-    "enable_memory", "memory_config", "check_action_sim"
+    "enable_memory", "memory_config", "memory_args", "check_action_sim"
 }
 
 
@@ -197,7 +197,8 @@ class ExperimentConfig:
     
     # === Memory (feature toggle) ===
     enable_memory: bool = False
-    memory_config: Optional[Dict[str, Any]] = None
+    memory_args: Dict[str, Any] = field(default_factory=dict)
+    memory_config: Optional[Dict[str, Any]] = None  # deprecated: use memory_args
     
     # === Execution (not saved to config) ===
     offset: int = 0
@@ -465,7 +466,8 @@ class ExperimentConfig:
             "dataset_kwargs": self.dataset_kwargs,
             # Memory
             "enable_memory": self.enable_memory,
-            "memory_config": self.memory_config,
+            "memory_args": self.memory_args,
+            "memory_config": self.memory_config,  # deprecated, kept for backward compat
             # Output
             "output_dir": self.output_dir,
             # Version

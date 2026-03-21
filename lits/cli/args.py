@@ -40,6 +40,8 @@ class CLIArgs:
     help_config: bool = False  # --help-config to show available params
     # Output directory
     output_dir: Optional[str] = None  # --output-dir / -o
+    # Memory args
+    memory_args: Optional[List[str]] = None  # --memory-arg KEY=VALUE for memory backend params
 
 
 class _AppendList(argparse.Action):
@@ -340,6 +342,22 @@ Common Options:
         action="store_true",
         help="Show all available --search-arg and --component-arg parameters with descriptions"
     )
+
+    parser.add_argument(
+        "--memory-arg",
+        dest="memory_args",
+        type=str,
+        nargs="+",
+        action=_AppendList,
+        metavar="KEY=VALUE",
+        help=(
+            "Memory backend kwargs (e.g., --memory-arg backend=local "
+            "model=bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0 "
+            "embedding_model=bedrock-embed/cohere.embed-english-v3 dedup_threshold=0.9). "
+            "Keys: backend (local|mem0), model, embedding_model, dedup_threshold, "
+            "update_length_ratio, mem0_config_path"
+        ),
+    )
     
     parser.add_argument(
         "--output-dir", "-o",
@@ -388,6 +406,7 @@ def parse_experiment_args(args: List[str] = None, description: str = "Run LiTS e
         component_args=parsed.component_args,
         help_config=parsed.help_config,
         output_dir=parsed.output_dir,
+        memory_args=parsed.memory_args,
     )
 
 
@@ -845,3 +864,61 @@ def _get_component_classes() -> Dict[str, type]:
                 pass
     
     return components
+
+
+# Keys that must be coerced to float (since _parse_value with old_value=None
+# would parse "0.85" as float anyway, but "1" would become int — explicit is safer)
+_MEMORY_FLOAT_KEYS = {"dedup_threshold", "update_length_ratio"}
+
+# Valid backend choices
+_MEMORY_BACKENDS = {"local", "mem0"}
+
+
+def parse_memory_args(cli_args: CLIArgs, verbose: bool = True) -> Dict[str, Any]:
+    """Parse --memory-arg arguments for memory backend configuration.
+
+    Recognized keys:
+        backend: Memory backend type ("local" or "mem0", default "local")
+        model: LLM model name for fact extraction in LocalMemoryBackend
+            (default "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0")
+        embedding_model: Embedder name for LocalMemoryBackend
+            (default "multi-qa-mpnet-base-cos-v1")
+        dedup_threshold: Cosine similarity threshold for dedup (float, default 0.85)
+        update_length_ratio: Length ratio for in-place update (float, default 1.3)
+        mem0_config_path: Path to JSON config file for Mem0MemoryBackend
+
+    Args:
+        cli_args: Parsed CLI arguments containing memory_args list
+        verbose: Print parsed kwargs
+
+    Returns:
+        Dict of memory kwargs. Always contains "backend" key.
+    """
+    kwargs: Dict[str, Any] = {"backend": "local"}
+
+    if not cli_args.memory_args:
+        return kwargs
+
+    for arg in cli_args.memory_args:
+        if "=" not in arg:
+            print(f"Warning: Invalid format '{arg}', expected KEY=VALUE")
+            continue
+
+        key, value_str = arg.split("=", 1)
+
+        if key in _MEMORY_FLOAT_KEYS:
+            value = float(value_str)
+        else:
+            value = _parse_value(value_str, None)
+
+        # Validate backend choice
+        if key == "backend" and value not in _MEMORY_BACKENDS:
+            print(f"Warning: Unknown memory backend '{value}'. Expected: {_MEMORY_BACKENDS}")
+            continue
+
+        kwargs[key] = value
+
+        if verbose:
+            print(f"Memory: {key}={value}")
+
+    return kwargs

@@ -78,11 +78,11 @@ class AugmentedContext:
         This method renders all memory information into a human-readable format that can
         be injected into LLM prompts. The output includes:
         
-        1. **Inherited memories** (if ``include_inherited=True``): Facts from ancestor
-           nodes, formatted as a bulleted list under "# Inherited memories"
-        2. **Cross-trajectory memories**: For each similar trajectory found, includes
-           the trajectory path, similarity score, and the "missing units" (facts that
-           the current trajectory doesn't have but the similar one does)
+        1. **Known facts** (if ``include_inherited=True``): Facts already established
+           in the current reasoning chain, formatted as a bulleted list under
+           "# Known facts from your current reasoning"
+        2. **Insights from other attempts**: For each similar trajectory found,
+           includes facts that the current reasoning chain hasn't discovered yet
 
         Args:
             include_inherited: Whether to include inherited memories in the output.
@@ -94,11 +94,11 @@ class AugmentedContext:
 
         Example output::
 
-            # Inherited memories
+            # Known facts from your current reasoning
             - The problem requires finding the derivative
             - Using chain rule for composition
 
-            Trajectory q/1 (score=0.75)
+            # Insights from a previous attempt (relevance: 0.75)
             - Consider substitution u = x^2
             - Apply power rule after substitution
 
@@ -110,7 +110,7 @@ class AugmentedContext:
         blocks: List[str] = []
         if include_inherited and self.inherited_units:
             inherited_text = "\n".join(f"- {unit.text}" for unit in self.inherited_units)
-            blocks.append(f"# Inherited memories\n{inherited_text}")
+            blocks.append(f"# Known facts from your current reasoning\n{inherited_text}")
 
         for result in self.retrieved_trajectories:
             blocks.append(result.to_prompt_section())
