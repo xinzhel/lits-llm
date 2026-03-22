@@ -674,8 +674,10 @@ class MCTSSearch(BaseTreeSearch):
             # Define callback to update trajectory_key at each hop
             def update_traj_key(node):
                 if node.trajectory_key:
+                    # Alawys update for inference logging
                     traj_key_str = node.trajectory_key.path_str
                     self.set_log_field("trajectory_key", traj_key_str)
+                    
                     # Update augmentor query_context so _combined_retrieve()
                     # sees the current trajectory_key for memory retrieval
                     if augmentor_query_context is not None:

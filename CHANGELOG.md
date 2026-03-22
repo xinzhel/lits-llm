@@ -12,6 +12,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Fixed
 - `augmentor_setup.py`: `on_step_complete`/`on_trajectory_complete` call `aug.analyze()` instead of `aug.evaluate()` — fixes `FactMemoryAugmentor` crash (`_analyze()` not implemented)
 - `mcts.py`: `_combined_retrieve()` closure now sees current `trajectory_key` — `augmentor_query_context` dict mutated by `update_traj_key()` before each `_expand()`
+- `common.py::_sample_actions_with_existing`: preserve expand-phase children during simulate truncation
 
 ## 2026-03-21 Unreleased (`0312-major-context-augmentation`, Task 5)
 

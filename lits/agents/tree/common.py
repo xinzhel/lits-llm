@@ -148,12 +148,20 @@ def _sample_actions_with_existing(
         logger.debug("Terminal node reached, no expansion needed.")
         return []
 
-    # Step 1: If node already has children, reuse up to n_actions
-    existing_children = node.children[:n_actions] if node.children else []
-    node.children = existing_children  # truncate if too many
+    # Step 1: If node already has children, reuse up to n_actions.
+    # Only truncate non-expand children (e.g. continuation children that
+    # expand needs to replace).  Expand-phase children are never truncated
+    # so that simulate (n_action_for_simulate=1) doesn't destroy siblings
+    # created by a prior expand (n_actions=3).
+    if node.children:
+        expand_children = [c for c in node.children if getattr(c, 'from_expand', False)]
+        other_children = [c for c in node.children if not getattr(c, 'from_expand', False)]
+        # Truncate only non-expand children to make room for new actions
+        keep_others = other_children[:max(0, n_actions - len(expand_children))]
+        node.children = expand_children + keep_others
 
     # Step 2: Determine how many more actions we need
-    n_existing = len(existing_children)
+    n_existing = len(node.children) if node.children else 0
     n_needed = max(0, n_actions - n_existing)
     logger.debug(f"n_needed={n_needed}, n_actions - n_existing={n_actions} - {n_existing}")
 

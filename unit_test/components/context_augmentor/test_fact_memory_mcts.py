@@ -134,12 +134,15 @@ def run():
     query_idx = 0
 
     # mirrors mcts.py::MCTSConfig — minimal config for inspection
+    # n_iters=4 ensures at least one iteration expands AFTER facts are recorded
+    # by on_step_complete in earlier iterations, so _combined_retrieve() can
+    # inject memory notes into the policy prompt (has_memory_notes=True).
     config = MCTSConfig(
         policy_model_name=MODEL_NAME,
         eval_model_name=MODEL_NAME,
         n_actions=2,
         max_steps=4,
-        n_iters=2,
+        n_iters=4,
         roll_out_steps=2,
         w_exp=1.0,
         force_terminating_on_depth_limit=True,
