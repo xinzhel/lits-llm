@@ -6,16 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
-## 2026-03-20 Unreleased (`0316-minor-embedding-subpackage`)
+
+## 2026-03-22 Unreleased (`0312-major-context-augmentation`, Task 5)
+
+### Fixed
+- `augmentor_setup.py`: `on_step_complete`/`on_trajectory_complete` call `aug.analyze()` instead of `aug.evaluate()` — fixes `FactMemoryAugmentor` crash (`_analyze()` not implemented)
+- `mcts.py`: `_combined_retrieve()` closure now sees current `trajectory_key` — `augmentor_query_context` dict mutated by `update_traj_key()` before each `_expand()`
+
+## 2026-03-21 Unreleased (`0312-major-context-augmentation`, Task 5)
 
 ### Added
-- `lits/embedding/` subpackage: `BaseEmbedder` ABC, `SentenceTransformerEmbedder`, `BedrockEmbedder`, `get_embedder()` factory
-- `docs/embedding/EMBEDDING.md`
+- `lits/agents/tree/augmentor_setup.py`: `setup_augmentors()` callback wiring for tree search
+- `on_step_complete` callback param in `_expand()` and `_simulate()`
+- `on_trajectory_complete` callback in `MCTSSearch.search()` after backpropagation
+- `augmentors` param on `BaseTreeSearch.__init__()`
+- Augmentor buffer flush in `BaseTreeSearch._teardown()`
+
+### Removed
+- Hardcoded "Memory Context Retrieval" and "Memory Recording" blocks from `MCTSSearch.search()`
+- `memory_context` param from `_expand()`, `_sample_actions_with_existing()`, `Policy.get_actions()`
+- `_current_memory_context` / `_format_memory_context()` from `Policy`
+
+## 2026-03-21 Unreleased (`0312-major-context-augmentation`, inference-logging)
 
 ### Changed
-- `LocalMemoryBackend`: eager embedder init (was lazy); accepts `embedder: BaseEmbedder`
-- `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
-- `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
+- `setup_inference_logging()` in `lits/lm/loader.py`: positional model params → `*models` varargs with `LanguageModel` type check
+- `lits/cli/search.py`: memory_llm (via `backend._llm`) included in `setup_inference_logging` call
+- `lits/cli/chain.py`: migrated `setup_inference_logging` call to keyword-only style
 
 ## 2026-03-21 Unreleased (`x-0316-0321-major-local-memory-backend`)
 
@@ -32,6 +49,17 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Deprecated
 - `ExperimentConfig.memory_config` field (use `memory_args` instead)
+
+## 2026-03-20 Unreleased (`x-0316-0320-minor-embedding-subpackage`)
+
+### Added
+- `lits/embedding/` subpackage: `BaseEmbedder` ABC, `SentenceTransformerEmbedder`, `BedrockEmbedder`, `get_embedder()` factory
+- `docs/embedding/EMBEDDING.md`
+
+### Changed
+- `LocalMemoryBackend`: eager embedder init (was lazy); accepts `embedder: BaseEmbedder`
+- `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
+- `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
 
 ## 2026-03-16 Unreleased (`x-0316-0321-major-local-memory-backend`)
 

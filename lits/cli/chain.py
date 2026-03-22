@@ -196,8 +196,7 @@ def main() -> int:
     # Setup inference logging
     from lits.lm import setup_inference_logging
     setup_inference_logging(
-        base_model, None, None, None,
-        result_dir, override
+        base_model, root_dir=result_dir, override=override
     )
 
     # Create transition model using the registry-looked-up Transition class

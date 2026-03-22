@@ -135,6 +135,7 @@ class BaseTreeSearch(ABC):
         init_state_kwargs: Optional[dict] = None,
         checkpoint_dir: Optional[str] = None,
         memory_manager=None,
+        augmentors=None,
     ):
         self.config = config
         self.world_model = world_model
@@ -143,6 +144,7 @@ class BaseTreeSearch(ABC):
         self.bn_evaluator = bn_evaluator
         self.checkpoint_dir = checkpoint_dir
         self.memory_manager = memory_manager
+        self.augmentors = augmentors or []
         self._init_kwargs: dict = init_state_kwargs or {}
 
         # Set during _setup(); declared here for type clarity
@@ -205,10 +207,17 @@ class BaseTreeSearch(ABC):
         self.inference_logger = _get_inference_logger(self.policy)
 
     def _teardown(self):
-        """Post-search cleanup.  Logs elapsed hours."""
+        """Post-search cleanup.  Logs elapsed hours and flushes augmentor buffers."""
         # Peripheral 9
         elapsed_hours = (time.time() - self._start_time) / 3600
         log_metric(logger, "hours_used", elapsed_hours, level="debug")
+
+        # Flush augmentor buffers
+        for aug in getattr(self, 'augmentors', []):
+            try:
+                aug.flush_buffer()
+            except Exception as e:
+                logger.warning(f"Failed to flush buffer for {aug.__class__.__name__}: {e}")
 
     # ------------------------------------------------------------------
     # Error handling

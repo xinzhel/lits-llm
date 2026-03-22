@@ -126,7 +126,6 @@ def _sample_actions_with_existing(
     policy,
     n_actions,
     from_phase="",
-    memory_context=None
 ):
     """
     Sample actions from the policy, reusing existing children if available.
@@ -138,9 +137,6 @@ def _sample_actions_with_existing(
         policy: Policy model for action generation
         n_actions: Number of actions to generate
         from_phase: Algorithm phase (expand, simulate, continuation)
-        memory_context: Optional AugmentedContext from LiTS-Mem for cross-trajectory
-                       memory augmentation. If provided, formatted as prompt blocks
-                       and passed to the policy.
     
     Returns:
         List of Step objects representing the generated actions
@@ -172,7 +168,6 @@ def _sample_actions_with_existing(
             query_idx=query_idx,
             from_phase=from_phase,
             allow_duplicates=allow_duplicates,
-            memory_context=memory_context
         )
     return steps
     

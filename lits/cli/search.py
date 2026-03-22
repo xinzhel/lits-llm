@@ -134,6 +134,7 @@ def setup_memory_manager(config: ExperimentConfig, run_logger, memory_kwargs: Di
     backend_type = memory_kwargs.get("backend", "local")
 
     try:
+        memory_llm = None
         if backend_type == "local":
             backend = _create_local_backend(memory_kwargs, run_logger)
         elif backend_type == "mem0":
@@ -503,15 +504,25 @@ def main() -> int:
         model_verbose=config.model_verbose
     )
 
+    # Initialize memory manager if enabled (before inference logging so memory_llm is included)
+    # --memory-arg implicitly enables memory (no need for --cfg enable_memory=true)
+    if cli_args.memory_args:
+        config.enable_memory = True
+    memory_kwargs = parse_memory_args(cli_args) if config.enable_memory else None
+
     # Setup logging
     run_logger = setup_logging(
         "execution", result_dir,
         add_console_handler=True, verbose=config.verbose,
         override=config.override_log_result
     )
+
+    memory_manager = setup_memory_manager(config, run_logger, memory_kwargs)
+    # Include memory_llm (via backend._llm) so its token usage is tracked
+    memory_llm = getattr(getattr(memory_manager, 'backend', None), '_llm', None)
     inference_logger = setup_inference_logging(
-        base_model, eval_model, terminal_model, terminate_ORM,
-        result_dir, config.override_log_result
+        base_model, eval_model, terminal_model, terminate_ORM, memory_llm,
+        root_dir=result_dir, override=config.override_log_result,
     )
 
     # Create components
@@ -557,13 +568,6 @@ def main() -> int:
     result_saver, result_saver_unselected = setup_result_savers(
         config.search_algorithm, result_dir, config.override_log_result
     )
-
-    # Initialize memory manager if enabled
-    # --memory-arg implicitly enables memory (no need for --cfg enable_memory=true)
-    if cli_args.memory_args:
-        config.enable_memory = True
-    memory_kwargs = parse_memory_args(cli_args) if config.enable_memory else None
-    memory_manager = setup_memory_manager(config, run_logger, memory_kwargs)
 
     # Slice dataset
     if config.eval_idx:

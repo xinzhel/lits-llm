@@ -1,7 +1,6 @@
 import json
 import logging
 import math
-import time
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field, asdict
@@ -15,12 +14,12 @@ except ImportError:
     torch = None
 from ...structures.base import State, Action, Trace
 from ...memory.types import TrajectoryKey
-from ...memory.manager import LiTSMemoryManager, AugmentedContext
 from .node import MCTSNode, SearchNode
 from .base import BaseSearchConfig
 from .search_base import BaseTreeSearch, SearchResult
 from .common import visualize_node, visualize_path, _sample_actions_with_existing, _world_modeling, _is_terminal_with_depth_limit, _is_terminal_with_depth_limit_and_r_threshold, create_child_node
 from .continuation import _continuation
+from .augmentor_setup import setup_augmentors
 from ..registry import register_search
 from ...log import log_phase, log_event, log_metric
 
@@ -276,8 +275,8 @@ def _expand(
     world_model=None, 
     assign_rewards=True, 
     from_phase="expand",
-    memory_context: Optional[AugmentedContext] = None,
     transition_before_evaluate: bool = False,
+    on_step_complete: callable = None,
 ):
     """
     Expand a node by generating candidate actions using the policy.
@@ -292,12 +291,14 @@ def _expand(
         world_model: Optional transition model
         assign_rewards: Whether to assign fast rewards to children
         from_phase: Algorithm phase (expand, simulate, continuation)
-        memory_context: Optional AugmentedContext from LiTS-Mem for cross-trajectory
-                       memory augmentation. If provided, the memory context is formatted
-                       and passed to the policy for prompt injection.
         transition_before_evaluate: If True, run _world_modeling() per child before
             reward scoring (V(s') estimate). If False (default), score without
             transition (Q(s,a) estimate). Requires world_model when True.
+        on_step_complete: Optional callback invoked after each NEW child node is
+            fully created (after transition/reward assignment and phase tagging).
+            Signature: ``on_step_complete(step, node, query_idx, **kwargs)``.
+            Used by ``setup_augmentors()`` to trigger per-step augmentors
+            (CriticAugmentor, SQLValidator, FactMemoryAugmentor).
     """
     log_phase(logger, "Expand", f"Begin (example={query_idx})")
 
@@ -308,7 +309,6 @@ def _expand(
         policy,
         n_actions,
         from_phase=from_phase,
-        memory_context=memory_context
     )
     
     # Determine the starting index for new children (to handle existing children).
@@ -360,6 +360,9 @@ def _expand(
         
         node.children.append(child)
         logger.debug(visualize_node(child))
+
+        if on_step_complete is not None:
+            on_step_complete(step, child, query_idx)
     
     # Step 4: Ensure existing children have the required attributes
     for child in node.children:
@@ -396,12 +399,16 @@ def _simulate(
     roll_out_steps=10000,
     on_step: callable=None,
     transition_before_evaluate: bool = False,
+    on_step_complete: callable = None,
 ):
     """Simulate phase of MCTS.
     
     Args:
         on_step: Optional callback called with each new node during simulation.
                  Used to update trajectory_key in inference logs at each step.
+        on_step_complete: Optional callback passed through to ``_expand()``.
+                 Invoked after each new child node is fully created.
+                 Signature: ``on_step_complete(step, node, query_idx, **kwargs)``.
     """
     assert path[-1].state is not None, "node.state should not be None for rollout"
 
@@ -422,6 +429,7 @@ def _simulate(
             assign_rewards=True,
             from_phase="simulate",
             transition_before_evaluate=transition_before_evaluate,
+            on_step_complete=on_step_complete,
         )
 
         if node.is_terminal_for_repeat:
@@ -627,6 +635,19 @@ class MCTSSearch(BaseTreeSearch):
 
         config = self.config
 
+        # Setup augmentor callbacks
+        on_step_complete = None
+        on_trajectory_complete = None
+        augmentor_query_context = None
+        if hasattr(self, 'augmentors') and self.augmentors:
+            augmentor_query_context = {
+                'policy_model_name': getattr(self.config, 'policy_model_name', ''),
+                'task_type': getattr(self.config, 'task_type', ''),
+                'query_or_goals': query,
+            }
+            on_step_complete, on_trajectory_complete = setup_augmentors(
+                self.policy, self.augmentors, query_context=augmentor_query_context)
+
         def _dfs_max_reward(path: list[MCTSNode]) -> tuple[float, list[MCTSNode]]:
             cur = path[-1]
             if cur.is_terminal:
@@ -653,7 +674,12 @@ class MCTSSearch(BaseTreeSearch):
             # Define callback to update trajectory_key at each hop
             def update_traj_key(node):
                 if node.trajectory_key:
-                    self.set_log_field("trajectory_key", node.trajectory_key.path_str)
+                    traj_key_str = node.trajectory_key.path_str
+                    self.set_log_field("trajectory_key", traj_key_str)
+                    # Update augmentor query_context so _combined_retrieve()
+                    # sees the current trajectory_key for memory retrieval
+                    if augmentor_query_context is not None:
+                        augmentor_query_context["trajectory_key"] = traj_key_str
             
             path = _select(config.w_exp, self.root, config.max_steps, config.force_terminating_on_depth_limit)
             
@@ -712,58 +738,15 @@ class MCTSSearch(BaseTreeSearch):
                     log_event(logger, "MCTS", "Continues to next iteration due to terminal node (after world modeling)", level="debug")
                     continue
 
-            # ====== Memory Context Retrieval ======
-            memory_context: Optional[AugmentedContext] = None
-            if self.memory_manager is not None and path[-1].trajectory_key is not None:
-                try:
-                    retrieval_start_time = time.time()
-                    memory_context = self.memory_manager.build_augmented_context(path[-1].trajectory_key)
-                    retrieval_elapsed_ms = (time.time() - retrieval_start_time) * 1000
-                    total_augmented = sum(
-                        len(result.missing_units)
-                        for result in memory_context.retrieved_trajectories
-                    )
-                    logger.info(f"[Memory Retrieval] Node {path[-1].id} "
-                               f"(trajectory: {path[-1].trajectory_key.path_str}): "
-                               f"inherited={len(memory_context.inherited_units)}, "
-                               f"augmented={total_augmented} from "
-                               f"{len(memory_context.retrieved_trajectories)} trajectories, "
-                               f"elapsed={retrieval_elapsed_ms:.2f}ms")
-                except Exception as e:
-                    logger.warning(f"Failed to retrieve memory context for node {path[-1].id}: {e}")
-                    memory_context = None
-
             _expand(
                 query, query_idx, path[-1], self.policy,
                 n_actions=self.policy.n_actions,
                 reward_model=self.reward_model, world_model=self.world_model,
                 assign_rewards=True,
-                from_phase="expand", memory_context=memory_context,
+                from_phase="expand",
                 transition_before_evaluate=config.transition_before_evaluate,
+                on_step_complete=on_step_complete,
             )
-
-            # ====== Memory Recording ======
-            if self.memory_manager is not None and path[-1].trajectory_key is not None:
-                try:
-                    recording_start_time = time.time()
-                    recorded_count = 0
-                    for child in path[-1].children:
-                        if (child.trajectory_key is not None and
-                            hasattr(child, 'step') and child.step is not None):
-                            messages = child.step.to_messages()
-                            self.memory_manager.record_action(
-                                trajectory=child.trajectory_key,
-                                messages=messages,
-                                metadata={"from_phase": "expand"},
-                            )
-                            recorded_count += 1
-                    recording_elapsed_ms = (time.time() - recording_start_time) * 1000
-                    logger.info(f"[Memory Recording] Node {path[-1].id} "
-                               f"(trajectory: {path[-1].trajectory_key.path_str}): "
-                               f"recorded={recorded_count} actions, "
-                               f"elapsed={recording_elapsed_ms:.2f}ms")
-                except Exception as e:
-                    logger.warning(f"Failed to record actions to memory for node {path[-1].id}: {e}")
 
             # ====== Simulate ======
             if path[-1].state is None:
@@ -784,6 +767,7 @@ class MCTSSearch(BaseTreeSearch):
                 roll_out_steps=config.roll_out_steps,
                 on_step=update_traj_key,
                 transition_before_evaluate=config.transition_before_evaluate,
+                on_step_complete=on_step_complete,
             )
 
             # ====== Terminate on First Solution ======
@@ -793,6 +777,9 @@ class MCTSSearch(BaseTreeSearch):
                     _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)
                 else:
                     _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
+                # Trigger per-trajectory augmentors
+                if on_trajectory_complete is not None:
+                    on_trajectory_complete(path, path[-1].reward, query_idx)
                 trace_in_each_iter.append(deepcopy(path))
                 break
 
@@ -800,6 +787,10 @@ class MCTSSearch(BaseTreeSearch):
                 _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)
             else:
                 _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
+
+            # Trigger per-trajectory augmentors
+            if on_trajectory_complete is not None:
+                on_trajectory_complete(path, path[-1].reward, query_idx)
 
             trace_in_each_iter.append(deepcopy(path))
             unselected_terminal_paths_during_simulate.extend(unselected_terminal_paths)

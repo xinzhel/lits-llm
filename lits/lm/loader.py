@@ -6,7 +6,7 @@ that are independent of specific benchmarks or experiments.
 
 from typing import Optional, Tuple
 
-from .base import HfChatModel, HfModel, InferenceLogger
+from .base import HfChatModel, HfModel, InferenceLogger, LanguageModel
 from ..utils.sys_utils import is_running_in_jupyter
 
 
@@ -32,42 +32,44 @@ def configure_hf_model_logging():
 
 
 def setup_inference_logging(
-    policy_model,
-    eval_model=None,
-    terminal_model=None,
-    terminate_ORM=None,
+    *models,
     root_dir: str = "results",
-    override: bool = True
+    override: bool = True,
 ) -> InferenceLogger:
-    """
-    Setup inference logging for all models.
-    
-    Creates an InferenceLogger and attaches it to all provided models.
-    This enables tracking of token usage and inference costs across
-    all model calls during an experiment.
-    
+    """Create an InferenceLogger and attach it to all provided models.
+
+    Accepts any number of model instances (policy, eval, terminal,
+    memory LLM, etc.).  ``None`` values are silently skipped.
+
     Args:
-        policy_model: Primary model for action/thought generation
-        eval_model: Optional model for reward/scoring evaluation
-        terminal_model: Optional model for terminal state generation
-        terminate_ORM: Optional outcome reward model for termination
-        root_dir: Root directory for log files
-        override: Whether to override existing log files
-    
+        *models: LanguageModel instances to attach the logger to.
+            None values are ignored, so callers can pass optional
+            models without filtering.
+        root_dir: Root directory for log files.
+        override: Whether to override existing log files.
+
     Returns:
-        InferenceLogger instance attached to all models
+        InferenceLogger instance shared across all models.
+
+    Example::
+
+        inference_logger = setup_inference_logging(
+            base_model, eval_model, terminal_model, memory_llm,
+            root_dir=result_dir,
+        )
     """
     inference_logger = InferenceLogger(run_id='', root_dir=root_dir, override=override)
-    
-    policy_model.inference_logger = inference_logger
-    if eval_model:
-        eval_model.inference_logger = inference_logger
-    
-    if terminal_model:
-        terminal_model.inference_logger = inference_logger
-    if terminate_ORM:
-        terminate_ORM.inference_logger = inference_logger
-    
+
+    for model in models:
+        if model is not None:
+            if not isinstance(model, LanguageModel):
+                raise TypeError(
+                    f"setup_inference_logging expects LanguageModel instances, "
+                    f"got {type(model).__name__}. Did you pass root_dir or "
+                    f"override as a positional argument?"
+                )
+            model.inference_logger = inference_logger
+
     return inference_logger
 
 

@@ -30,6 +30,25 @@ python main_search.py --dataset <dataset> --search_framework <framework> [option
 | `--override` | Clean and overwrite existing results |
 | `--dry-run` | Print first dataset element and exit |
 | `--help-config` | Show all available parameters |
+| `--memory-arg` | Memory backend params (e.g., `backend=local model=... embedding_model=...`) |
+
+### Memory Parameters (`--memory-arg`)
+
+Passing `--memory-arg` implicitly enables memory (no need for `--cfg enable_memory=true`).
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `backend` | Backend type: `local` or `mem0` | `local` |
+| `model` | LLM for fact extraction (LocalMemoryBackend) | `bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0` |
+| `embedding_model` | Embedder name (LocalMemoryBackend) | `multi-qa-mpnet-base-cos-v1` |
+| `dedup_threshold` | Cosine similarity threshold for dedup (0–1) | `0.85` |
+| `update_length_ratio` | Replace existing fact if new is N× longer | `1.3` |
+| `mem0_config_path` | Path to JSON config for Mem0MemoryBackend | — |
+
+**Backend comparison:**
+
+- `local` (default): In-process, no external services. Uses `lits.embedding` for embeddings and a lits LLM (`model`) for fact extraction. Reproducible, fast startup.
+- `mem0`: Delegates to mem0 library. Requires `mem0_config_path` pointing to a JSON file with mem0 provider config (llm, embedder, vector_store sections). Falls back to `ExperimentConfig.memory_config` (deprecated) if no path given.
 
 ### Output Files
 
@@ -70,6 +89,27 @@ python main_search.py \
     --dataset blocksworld \
     --include lits_benchmark.blocksworld \
     --search-arg max_steps=6 roll_out_steps=6 terminate_on_first_solution=true
+
+# With memory (local backend, default embedder)
+python main_search.py \
+    --dataset math500 \
+    --search_framework rest \
+    --memory-arg backend=local model=bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0
+
+# With memory (local backend, Bedrock Cohere embedder)
+python main_search.py \
+    --dataset blocksworld \
+    --include lits_benchmark.blocksworld \
+    --memory-arg backend=local \
+        model=bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0 \
+        embedding_model=bedrock-embed/cohere.embed-english-v3 \
+        dedup_threshold=0.9
+
+# With memory (mem0 backend)
+python main_search.py \
+    --dataset math500 \
+    --search_framework rest \
+    --memory-arg backend=mem0 mem0_config_path=./mem0_config.json
 ```
 
 ## eval_search.py
@@ -181,6 +221,29 @@ Key points:
 - `max_new_tokens`: Max tokens to generate per call, set on component (Policy/RewardModel)
 - Component params override model defaults (e.g., Policy's `max_new_tokens=1024` overrides model's default `512`)
 - Different components can have different generation params while sharing the same model
+
+### Question 4: How does `--memory-arg` flow to the memory backend?
+
+```
+CLI --memory-arg backend=local model=bedrock/... embedding_model=multi-qa-mpnet-base-cos-v1
+  → cli_args.memory_args = ["backend=local", "model=bedrock/...", ...]
+  → config.enable_memory = True                          # search.py (implicit)
+  → memory_kwargs = parse_memory_args(cli_args)           # args.py → {"backend": "local", "model": "bedrock/...", ...}
+  → setup_memory_manager(config, run_logger, memory_kwargs)
+  → _create_local_backend(memory_kwargs, run_logger)      # no config dependency
+    → llm = get_lm(memory_kwargs["model"])
+    → embedder = get_embedder(memory_kwargs["embedding_model"])
+    → LocalMemoryBackend(llm, embedder, dedup_threshold, update_length_ratio)
+  → LiTSMemoryManager(backend=backend)
+```
+
+For `backend=mem0`:
+```
+  → _create_mem0_backend(config, memory_kwargs, run_logger)
+    → loads JSON from memory_kwargs["mem0_config_path"]
+    → Memory.from_config(mem0_config)
+    → Mem0MemoryBackend(memory)
+```
 
 ## Limitations (TODO)
 
