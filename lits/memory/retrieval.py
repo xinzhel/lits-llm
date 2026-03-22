@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
 from typing import Iterable, List, Sequence
 
 from .config import LiTSMemoryConfig
 from .normalizer import normalize_pair, select_new_units
 from .types import MemoryUnit, TrajectoryKey, TrajectorySimilarity, path_is_prefix
+from ..log import log_event
+
+logger = logging.getLogger(__name__)
 
 
 class TrajectorySearchEngine:
@@ -108,6 +112,11 @@ class TrajectorySearchEngine:
             candidate_signatures = {unit.signature() for unit in norm_candidate}
             overlap_keys = ref_signatures & candidate_signatures
             if not overlap_keys:
+                log_event(
+                    logger, "Memory",
+                    f"search: {trajectory.path_str} vs {candidate_path}: "
+                    f"no overlap (ref={len(ref_signatures)}, cand={len(candidate_signatures)})",
+                )
                 continue
 
             score = len(overlap_keys) / max(1, len(ref_signatures))
@@ -115,6 +124,12 @@ class TrajectorySearchEngine:
             # Issue 2: Apply threshold to exclude low-score trajectories
             # Low overlap means different problem-solving directions - not useful
             if score < self.config.similarity_threshold:
+                log_event(
+                    logger, "Memory",
+                    f"search: {trajectory.path_str} vs {candidate_path}: "
+                    f"score={score:.3f} < threshold={self.config.similarity_threshold} "
+                    f"(overlap={len(overlap_keys)}/{len(ref_signatures)})",
+                )
                 continue
 
             missing_units = select_new_units(
@@ -122,11 +137,23 @@ class TrajectorySearchEngine:
                 existing_signatures=ref_signatures,
             )
             if not missing_units:
+                log_event(
+                    logger, "Memory",
+                    f"search: {trajectory.path_str} vs {candidate_path}: "
+                    f"score={score:.3f} >= threshold={self.config.similarity_threshold} "
+                    f"but missing_units=0 (all facts already inherited)",
+                )
                 continue
 
             overlapping_units = [
                 unit for unit in norm_candidate if unit.signature() in overlap_keys
             ]
+            log_event(
+                logger, "Memory",
+                f"search: {trajectory.path_str} vs {candidate_path}: "
+                f"score={score:.3f} >= threshold={self.config.similarity_threshold}, "
+                f"missing={len(missing_units)}, overlap={len(overlap_keys)}",
+            )
             results.append(
                 TrajectorySimilarity(
                     trajectory_path=candidate_path,

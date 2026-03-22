@@ -644,6 +644,7 @@ class MCTSSearch(BaseTreeSearch):
                 'policy_model_name': getattr(self.config, 'policy_model_name', ''),
                 'task_type': getattr(self.config, 'task_type', ''),
                 'query_or_goals': query,
+                'query_idx': query_idx,
             }
             on_step_complete, on_trajectory_complete = setup_augmentors(
                 self.policy, self.augmentors, query_context=augmentor_query_context)

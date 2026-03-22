@@ -13,6 +13,21 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `augmentor_setup.py`: `on_step_complete`/`on_trajectory_complete` call `aug.analyze()` instead of `aug.evaluate()` — fixes `FactMemoryAugmentor` crash (`_analyze()` not implemented)
 - `mcts.py`: `_combined_retrieve()` closure now sees current `trajectory_key` — `augmentor_query_context` dict mutated by `update_traj_key()` before each `_expand()`
 - `common.py::_sample_actions_with_existing`: preserve expand-phase children during simulate truncation
+- `mcts.py`: `augmentor_query_context` missing `query_idx` — `_combined_retrieve()` constructed wrong `search_id`, causing empty memory retrieval
+- `fact_memory.py`: assert `query_idx is not None` in `analyze()`/`retrieve()` to fail loudly on missing `query_idx`
+
+### Added
+- `augmentor_setup.py`: INFO-level `[Memory]` logging in `_combined_retrieve()` (traj_key, result length)
+- `fact_memory.py`: INFO-level `[Memory]` logging in `retrieve()` (search_id, inherited count, retrieved_trajs count)
+- `retrieval.py`: INFO-level `[Memory]` logging in `TrajectorySearchEngine.search()` (per-candidate score vs threshold, missing_units count)
+- `docs/memory/TRAJECTORY_SEARCH_ENGINE.md` — architecture diagram, data flow, and case study
+- `docs/components/callback.md` — FAQ on single `[Memory] retrieve` per expand
+
+### Changed
+- `base.py::Policy._get_dynamic_notes()`: "You MUST AVOID the following mistakes:" → neutral "Additional Notes:" prefix
+
+### Fixed
+- `test_fact_memory_mcts.py`: `MemoryUnit` attribute errors (`trajectory_key` → `origin_path`, `content` → `text`)
 
 ## 2026-03-21 Unreleased (`0312-major-context-augmentation`, Task 5)
 

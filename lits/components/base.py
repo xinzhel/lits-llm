@@ -761,7 +761,7 @@ class Policy(ABC, Generic[StateT, StepT]):
             if not notes:
                 return ""
             
-            return f"\n\nYou MUST AVOID the following mistakes:\n\n{notes}"
+            return f"\n\nAdditional Notes:\n{notes}"
         except Exception as e:
             logger.error(f"Error retrieving dynamic notes: {e}", exc_info=True)
             return ""

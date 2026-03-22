@@ -178,7 +178,10 @@ def run():
     print(f"\n=== 6. Policy LLM call log ({len(llm_call_log)} calls) ===")
     for i, entry in enumerate(llm_call_log):
         sp = entry["sys_prompt"] or ""
-        has_memory_notes = "MUST AVOID" in sp or "Known facts" in sp
+        # "Additional Notes" — base.py::Policy._get_dynamic_notes() wrapper prefix
+        # "Insights from"   — types.py::TrajectorySimilarity.to_prompt_section() cross-trajectory header
+        # "Known facts"     — manager.py::AugmentedContext.to_prompt_blocks() inherited memory header
+        has_memory_notes = "Additional Notes" in sp or "Insights from" in sp or "Known facts" in sp
         print(f"  [{i}] phase={entry['from_phase']}, "
               f"sys_prompt_len={len(sp)}, "
               f"has_memory_notes={has_memory_notes}, "
@@ -188,16 +191,16 @@ def run():
 
     # ── 7. Inspect memory backend state ──────────────────────────────
     #    backend._units mirrors backends.py::LocalMemoryBackend internal storage.
-    #    Each MemoryUnit has .trajectory_key, .content (extracted fact), .embedding.
+    #    Each MemoryUnit has .origin_path, .text (extracted fact), .content_hash.
     print(f"\n=== 7. Memory backend state (backends.py::LocalMemoryBackend._units) ===")
     print(f"  search_ids with units: {list(backend._units.keys())}")
     for search_id, units in backend._units.items():
         print(f"  [{search_id}] {len(units)} units:")
         for j, unit in enumerate(units):
-            print(f"    [{j}] traj={unit.trajectory_key.path_str}, "
-                  f"fact='{unit.content[:80]}...'")
-
-    breakpoint()  # inspect: backend._units, backend._vectors
+            print(f"    [{j}] origin={unit.origin_path}, "
+                  f"hash={unit.content_hash[:8] if unit.content_hash else 'N/A'}, "
+                  f"text='{unit.text[:80]}'")
+    breakpoint()  # inspect: len(backend._units['q_0']), backend._vectors['q_0'].shape
 
     # ── 8. Inspect MCTS tree structure ──────────────────────────────
     #    result.root is the MCTSNode tree built by mcts.py::MCTSSearch.search.
@@ -233,12 +236,15 @@ def run():
             sys_prompt_variants[sp_hash]["count"] += 1
 
     for info in sys_prompt_variants.values():
-        has_memory_notes = "MUST AVOID" in info["prompt"] or "Known facts" in info["prompt"]
+        # "Additional Notes" — base.py::Policy._get_dynamic_notes() wrapper prefix
+        # "Insights from"   — types.py::TrajectorySimilarity.to_prompt_section() cross-trajectory header
+        # "Known facts"     — manager.py::AugmentedContext.to_prompt_blocks() inherited memory header
+        has_memory_notes = "Additional Notes" in info["prompt"] or "Insights from" in info["prompt"] or "Known facts" in info["prompt"]
         print(f"  variant (first@call {info['first_seen_at_call']}, "
               f"seen {info['count']}x, len={len(info['prompt'])}, "
               f"has_memory_notes={has_memory_notes})")
         if has_memory_notes:
-            for marker in ["MUST AVOID", "Known facts"]:
+            for marker in ["Additional Notes", "Insights from", "Known facts"]:
                 idx = info["prompt"].find(marker)
                 if idx >= 0:
                     print(f"    ...{info['prompt'][max(0, idx - 20):idx + 200]}...")

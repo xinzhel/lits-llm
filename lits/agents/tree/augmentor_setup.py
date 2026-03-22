@@ -27,6 +27,7 @@ context is injected into the system prompt before each action generation.
 import logging
 from typing import List, Tuple, Callable, Optional
 
+from ...log import log_event
 from ...components.context_augmentor import (
     ContextAugmentor,
     CriticAugmentor,
@@ -82,11 +83,23 @@ def setup_augmentors(
     # 2. Register combined retrieve to policy dynamic notes
     def _combined_retrieve() -> List[str]:
         notes = []
+        traj_key = query_context.get("trajectory_key", "<unset>")
         for aug in augmentors:
             try:
                 result = aug.retrieve(query_context)
                 if result:
                     notes.append(result)
+                    log_event(
+                        logger, "Memory",
+                        f"_combined_retrieve: {aug.__class__.__name__} "
+                        f"returned {len(result)} chars for traj_key={traj_key}",
+                    )
+                else:
+                    log_event(
+                        logger, "Memory",
+                        f"_combined_retrieve: {aug.__class__.__name__} "
+                        f"returned empty for traj_key={traj_key}",
+                    )
             except Exception as e:
                 logger.warning(
                     f"retrieve() failed for {aug.__class__.__name__}: {e}"

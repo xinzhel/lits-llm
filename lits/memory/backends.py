@@ -472,6 +472,20 @@ class LocalMemoryBackend(BaseMemoryBackend):
         """Return all stored units for a search_id."""
         return list(self._units.get(search_id, []))
 
+    def list_trajectory_keys(self, search_id: str = None) -> set[str]:
+        """Return distinct ``origin_path`` values across stored units.
+
+        Args:
+            search_id: If given, restrict to that search_id.
+                If None, aggregate across all search_ids.
+
+        Returns:
+            Set of ``origin_path`` strings (e.g. ``{"q/0", "q/0/0", "q/1"}``).
+        """
+        if search_id is not None:
+            return {u.origin_path for u in self._units.get(search_id, [])}
+        return {u.origin_path for units in self._units.values() for u in units}
+
     # ------------------------------------------------------------------
     # Persistence: save / load
     # ------------------------------------------------------------------

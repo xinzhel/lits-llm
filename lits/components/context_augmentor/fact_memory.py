@@ -60,6 +60,7 @@ import logging
 from typing import Optional, Dict, Any
 
 from . import ContextAugmentor, ContextUnit
+from ...log import log_event
 from ...memory.manager import LiTSMemoryManager, AugmentedContext
 from ...memory.types import TrajectoryKey, normalize_trajectory_key
 
@@ -168,8 +169,12 @@ class FactMemoryAugmentor(ContextAugmentor):
         if isinstance(trajectory_key, TrajectoryKey):
             traj_key_obj = trajectory_key
         elif isinstance(trajectory_key, str) and trajectory_key:
-            # Infer search_id from query_idx
-            search_id = f"q_{query_idx}" if query_idx is not None else "q"
+            # Infer search_id from query_idx (must be set by caller)
+            assert query_idx is not None, (
+                "FactMemoryAugmentor.analyze: query_idx is required when "
+                "trajectory_key is a string (needed to construct search_id)"
+            )
+            search_id = f"q_{query_idx}"
             traj_key_obj = TrajectoryKey.from_path(search_id, trajectory_key)
         else:
             logger.debug("FactMemoryAugmentor.analyze: no trajectory_key, skipping")
@@ -243,7 +248,12 @@ class FactMemoryAugmentor(ContextAugmentor):
             traj_key_obj = trajectory_key
         elif isinstance(trajectory_key, str) and trajectory_key:
             query_idx = query_context.get("query_idx")
-            search_id = f"q_{query_idx}" if query_idx is not None else "q"
+            assert query_idx is not None, (
+                "FactMemoryAugmentor.retrieve: query_context must contain "
+                "'query_idx' (int) when trajectory_key is a string "
+                "(needed to construct search_id)"
+            )
+            search_id = f"q_{query_idx}"
             traj_key_obj = TrajectoryKey.from_path(search_id, trajectory_key)
         else:
             return ""
@@ -251,7 +261,16 @@ class FactMemoryAugmentor(ContextAugmentor):
         context: AugmentedContext = self.memory_manager.build_augmented_context(
             traj_key_obj
         )
-        return context.to_prompt_blocks(include_inherited=self.include_inherited)
+        result = context.to_prompt_blocks(include_inherited=self.include_inherited)
+        log_event(
+            logger, "Memory",
+            f"retrieve: traj_key={traj_key_obj.path_str}, "
+            f"search_id={traj_key_obj.search_id}, "
+            f"inherited={len(context.inherited_units)}, "
+            f"retrieved_trajs={len(context.retrieved_trajectories)}, "
+            f"result_len={len(result)}",
+        )
+        return result
 
     # ------------------------------------------------------------------
     # flush_buffer: override to skip jsonl write (mem0 is the store)

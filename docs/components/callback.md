@@ -531,6 +531,26 @@ class MyCustomPolicy(Policy):
 
 ---
 
+## FAQ
+
+### Why does `[Memory] retrieve` log appear only once per expand when `n_actions > 1`?
+
+`_dynamic_notes_fn` is called inside `set_system_prompt()`, which is called exactly once at the top of `get_actions()` — before the N candidate actions are generated:
+
+```
+get_actions(n_actions=2)
+  └── set_system_prompt()          ← called once
+        └── _get_dynamic_notes()   ← calls _combined_retrieve() once
+              └── FactMemoryAugmentor.retrieve()  ← [Memory] retrieve log
+  └── _get_actions(n_actions=2)    ← generates 2 candidates in one LLM call
+```
+
+The system prompt (including memory notes) is constructed once, then the policy generates all N candidates using that same prompt. All candidates share the same memory context — there is no per-candidate retrieval. This is by design: memory context depends on the node being expanded (its `trajectory_key`), not on individual candidate actions.
+
+Relevant code path: `base.py::Policy.get_actions` → `base.py::Policy.set_system_prompt` → `base.py::Policy._get_dynamic_notes` → `augmentor_setup.py::_combined_retrieve`.
+
+---
+
 ## Testing
 
 See `lits_llm/unit_test/components/test_dynamic_notes.py` for comprehensive test examples:
