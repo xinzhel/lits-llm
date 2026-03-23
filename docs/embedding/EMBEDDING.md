@@ -42,14 +42,15 @@ Wraps AWS Bedrock embedding models. Auto-detects model family from `model_id` pr
 | Family | Models | Batch | Server-side norm |
 |---|---|---|---|
 | Titan (`amazon.*`) | `amazon.titan-embed-text-v2:0` | No (1 text/call) | Yes |
-| Cohere (`cohere.*`) | `cohere.embed-english-v3`, `cohere.embed-multilingual-v3` | Yes (up to 96) | No (client-side) |
+| Cohere v3 (`cohere.embed-english-v3`, `cohere.embed-multilingual-v3`) | `cohere.embed-english-v3` | Yes (up to 96) | No (client-side) |
+| Cohere v4 (`cohere.embed-v4:0`) | `cohere.embed-v4:0` | Yes (up to 96) | No (client-side) |
 
 | Param | Default | Description |
 |---|---|---|
 | `model_id` | `"amazon.titan-embed-text-v2:0"` | Bedrock model identifier |
 | `region` | `None` | AWS region (uses default session if None) |
-| `dimensions` | `1024` | Output dim (Titan only) |
-| `input_type` | `"search_document"` | Cohere input type |
+| `dimensions` | `1024` | Output dim (Titan: `dimensions`; Cohere v4: `output_dimension` 256/512/1024/1536; Cohere v3: ignored) |
+| `input_type` | `"search_document"` | Cohere input type (`"search_document"` or `"search_query"`) |
 
 Dimensionality is probed at init via a single API call (`_probe_dim()`).
 
