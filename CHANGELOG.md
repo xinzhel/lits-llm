@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
-## 2026-03-22 Unreleased (`0312-major-context-augmentation`, Task 5)
+## 2026-03-22 - 2026-03-25 Unreleased (`0312-major-context-augmentation`, Task 5)
 
 ### Fixed
 - `augmentor_setup.py`: `on_step_complete`/`on_trajectory_complete` call `aug.analyze()` instead of `aug.evaluate()` — fixes `FactMemoryAugmentor` crash (`_analyze()` not implemented)
@@ -25,6 +25,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Changed
 - `base.py::Policy._get_dynamic_notes()`: "You MUST AVOID the following mistakes:" → neutral "Additional Notes:" prefix
+- `cli/search.py`: wire `FactMemoryAugmentor` into `augmentors` list when `memory_manager` is created; pass `augmentors` through `run_tree_search` to searcher
 
 ### Fixed
 - `test_fact_memory_mcts.py`: `MemoryUnit` attribute errors (`trajectory_key` → `origin_path`, `content` → `text`)

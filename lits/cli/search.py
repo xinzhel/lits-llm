@@ -42,6 +42,7 @@ from lits.components.bn_evaluator import BNEvaluator
 from lits.memory.manager import LiTSMemoryManager
 from lits.memory.backends import Mem0MemoryBackend
 from lits.memory.config import LiTSMemoryConfig
+from lits.components.context_augmentor.fact_memory import FactMemoryAugmentor
 from lits.registry import import_custom_modules
 from lits.cli import (
     parse_experiment_args, apply_config_overrides, parse_dataset_kwargs,
@@ -264,7 +265,7 @@ def run_tree_search(
     query_or_goals: str, query_idx: int, search_config, world_model: Transition, policy: Policy,
     evaluator: RewardModel, bn_evaluator: BNEvaluator, result_saver: TreeToJsonl, result_dir: str,
     result_saver_unselected=None, init_state_kwargs: dict = None,
-    memory_manager: Optional[LiTSMemoryManager] = None,
+    augmentors: list = None,
     search_algorithm: str = "mcts",
     run_logger=None,
 ):
@@ -287,9 +288,8 @@ def run_tree_search(
         result_saver_unselected: Unselected paths saver (MCTS only)
         init_state_kwargs: Optional kwargs passed to world_model.init_state().
                            For env_grounded tasks, should include 'init_state_str'.
-        memory_manager: Optional LiTSMemoryManager for cross-trajectory memory.
-                       If provided, enables memory retrieval before expansion and
-                       recording of actions after expansion.
+        augmentors: List of ContextAugmentor instances to wire into the search loop
+                   via setup_augmentors().
         search_algorithm: Search algorithm to use ("mcts", "bfs", or custom registered algorithm)
         run_logger: Logger instance (falls back to module logger if None)
 
@@ -304,7 +304,7 @@ def run_tree_search(
     search_kwargs = {
         "init_state_kwargs": init_state_kwargs,
         "checkpoint_dir": result_dir,
-        "memory_manager": memory_manager,
+        "augmentors": augmentors or [],
     }
 
     algo_output = search_fn(
@@ -520,6 +520,11 @@ def main() -> int:
     memory_manager = setup_memory_manager(config, run_logger, memory_kwargs)
     # Include memory_llm (via backend._llm) so its token usage is tracked
     memory_llm = getattr(getattr(memory_manager, 'backend', None), '_llm', None)
+
+    # Wrap memory_manager in FactMemoryAugmentor for the augmentor callback pipeline
+    augmentors = []
+    if memory_manager is not None:
+        augmentors.append(FactMemoryAugmentor(memory_manager=memory_manager))
     inference_logger = setup_inference_logging(
         base_model, eval_model, terminal_model, terminate_ORM, memory_llm,
         root_dir=result_dir, override=config.override_log_result,
@@ -600,7 +605,7 @@ def main() -> int:
             result_dir=result_dir,
             result_saver_unselected=result_saver_unselected,
             init_state_kwargs=example,
-            memory_manager=memory_manager,
+            augmentors=augmentors,
             search_algorithm=config.search_algorithm,
             run_logger=run_logger,
         )

@@ -134,7 +134,6 @@ class BaseTreeSearch(ABC):
         bn_evaluator=None,
         init_state_kwargs: Optional[dict] = None,
         checkpoint_dir: Optional[str] = None,
-        memory_manager=None,
         augmentors=None,
     ):
         self.config = config
@@ -143,7 +142,6 @@ class BaseTreeSearch(ABC):
         self.reward_model = reward_model
         self.bn_evaluator = bn_evaluator
         self.checkpoint_dir = checkpoint_dir
-        self.memory_manager = memory_manager
         self.augmentors = augmentors or []
         self._init_kwargs: dict = init_state_kwargs or {}
 
