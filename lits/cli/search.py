@@ -21,7 +21,7 @@ import time
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
 from dotenv import load_dotenv, find_dotenv
 from tqdm import tqdm
@@ -483,7 +483,10 @@ def main() -> int:
     # Login to Hugging Face (only if HF_TOKEN is set)
     hf_token = os.getenv("HF_TOKEN")
     if hf_token:
-        login(token=hf_token)
+        try:
+            login(token=hf_token)
+        except Exception as e:
+            logger.warning(f"HF login failed (non-fatal): {e}")
 
     # Load models
     search_args = config.get_search_args()

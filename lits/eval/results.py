@@ -1,15 +1,18 @@
+from __future__ import annotations
+
 from typing import List, Dict, Any, Optional
-from ..agents.tree.node import SearchNode
 import json
 import os
 from typing import List, Dict, Union
 from abc import ABC, abstractmethod
 import logging
 logger = logging.getLogger(__name__)
-# -------------------------------------------------------------------
-# Assume SearchNode (and its .to_dict()/.from_dict()) is already defined
-# and in scope, including the is_continuous attribute.
-# -------------------------------------------------------------------
+
+
+def _get_search_node_class():
+    """Lazy import to break circular dependency: eval → agents → components → eval."""
+    from ..agents.tree.node import SearchNode
+    return SearchNode
 
 def _slice_dataset(dataset: List[Dict], offset: int, limit: Optional[int]) -> List[Dict]:
     if limit is None:
@@ -128,9 +131,9 @@ class TreeToJsonl(BaseResults):
         run_id: str,
         root_dir: Optional[str] = None,
         override: bool = False,
-        node_type: type = SearchNode
+        node_type: type = None
     ):
-        self.node_type = node_type
+        self.node_type = node_type or _get_search_node_class()
         # use .jsonl extension
         super().__init__(run_id, root_dir, override, ext="jsonl")
         
@@ -200,6 +203,7 @@ class TreeToJsonl(BaseResults):
             return
         if paths[0] is None:
             logger.debug("the final trace is None")
+            SearchNode = _get_search_node_class()
             paths = [[SearchNode(state=[], action='')]]
             
         # serialize every node in every path
