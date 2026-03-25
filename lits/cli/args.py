@@ -40,6 +40,7 @@ class CLIArgs:
     help_config: bool = False  # --help-config to show available params
     # Output directory
     output_dir: Optional[str] = None  # --output-dir / -o
+    root_dir: Optional[str] = None  # --root-dir
     # Memory args
     memory_args: Optional[List[str]] = None  # --memory-arg KEY=VALUE for memory backend params
 
@@ -366,6 +367,14 @@ Common Options:
         default=None,
         help="Custom output directory for results, logs, and checkpoints. Overrides the auto-generated path."
     )
+
+    parser.add_argument(
+        "--root-dir",
+        dest="root_dir",
+        type=str,
+        default=None,
+        help="Root directory for results. The auto-generated path ({model}_results/{dataset}_{method}/run_{version}) is created under this directory."
+    )
     
     return parser
 
@@ -406,6 +415,7 @@ def parse_experiment_args(args: List[str] = None, description: str = "Run LiTS e
         component_args=parsed.component_args,
         help_config=parsed.help_config,
         output_dir=parsed.output_dir,
+        root_dir=parsed.root_dir,
         memory_args=parsed.memory_args,
     )
 

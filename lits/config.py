@@ -207,6 +207,7 @@ class ExperimentConfig:
     
     # === Output ===
     output_dir: Optional[str] = None
+    root_dir: Optional[str] = None
     
     # === Logging ===
     model_verbose: bool = True
@@ -386,6 +387,8 @@ class ExperimentConfig:
         run_id = self.get_run_id(is_jupyter)
         if self.output_dir:
             result_dir = self.output_dir
+        elif self.root_dir:
+            result_dir = os.path.join(self.root_dir, self.get_result_dir(run_id))
         else:
             result_dir = self.get_result_dir(run_id)
         os.makedirs(result_dir, exist_ok=True)
@@ -470,6 +473,7 @@ class ExperimentConfig:
             "memory_config": self.memory_config,  # deprecated, kept for backward compat
             # Output
             "output_dir": self.output_dir,
+            "root_dir": self.root_dir,
             # Version
             "package_version": self.package_version,
         }
