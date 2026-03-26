@@ -380,9 +380,25 @@ class ToolUsePRM(RewardModel):
         # Check cache first
         cache_key = self._create_cache_key(query, state, step_or_action)
         if cache_key in self._reward_cache:
-            cached_score = self._reward_cache[cache_key]
-            log_event(logger, "REWARD", f"Cache hit for query_idx={query_idx}, score={cached_score:.3f}", level="debug")
-            return cached_score
+            cached = self._reward_cache[cache_key]
+            log_event(logger, "REWARD", f"Cache hit for query_idx={query_idx}, score={cached['score']:.3f}", level="debug")
+            # Replay the original inference log entry so cost comparison is fair
+            inference_logger = getattr(self.base_model, 'inference_logger', None)
+            if inference_logger is not None:
+                from ..utils import create_role
+                role = create_role(self._get_llm_role(), query_idx, from_phase)
+                record = dict(cached["log_record"])
+                record["role"] = role  # update role to current context
+                inference_logger.update_usage(
+                    input_tokens=record.get("input_tokens", 0),
+                    output_tokens=record.get("output_tokens", 0),
+                    batch=record.get("batch", False),
+                    batch_size=record.get("batch_size", 0),
+                    role=role,
+                    running_time=record.get("running_time", 0.0),
+                    cached=True,
+                )
+            return cached["score"]
         
         if self.max_rollout_steps > 0:
             # Rollout mode: complete trajectory with real tool execution, then score
@@ -414,7 +430,13 @@ class ToolUsePRM(RewardModel):
             score = self._extract_score(response)
             log_event(logger, "REWARD", f"[{label}] Extracted score: {score:.3f}", level="debug")
             
-            self._reward_cache[cache_key] = score
+            # Store score + last inference log record for cache hit replay
+            inference_logger = getattr(self.base_model, 'inference_logger', None)
+            log_record = inference_logger.get_last_record() if inference_logger else {}
+            self._reward_cache[cache_key] = {
+                "score": score,
+                "log_record": log_record or {},
+            }
             
         except Exception as e:
             logger.error(
@@ -422,7 +444,10 @@ class ToolUsePRM(RewardModel):
                 exc_info=True
             )
             score = 0.5
-            self._reward_cache[cache_key] = score
+            self._reward_cache[cache_key] = {
+                "score": score,
+                "log_record": {},
+            }
         
         # Save trajectory if save directory is provided (rollout mode only)
         if self.save_rollouts_dir and query_idx is not None and self.max_rollout_steps > 0:

@@ -24,6 +24,23 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `mcts.py`: iteration number in log (`[MCTS] Iteration 0/30 (example=0)`), `from_phase` in Expand Begin/End logs
 - `mcts.py`: `from_phase` passed through `on_step_complete` and `on_trajectory_complete` callbacks
 - `sql_error_profiler.py`, `sql_validator.py`: `from_phase` forwarded to `_call_model()` for inference logging
+- `lm/base.py`: `InferenceLogger.get_last_record()` method, `cached` field on `update_usage()`
+- `reward/tool_use.py`: `ToolUsePRM` logs cache hits in inference logger with original token counts and `cached=True`
+
+### Changed
+- `cli/search.py`: removed dead `memory_manager` param from `run_tree_search()` (only `augmentors` passed now)
+- `search_base.py`: removed `memory_manager` param from `BaseTreeSearch.__init__`
+- `bedrock_chat.py`: Sonnet 4.6/4.5 reject `temperature` + `top_p` together — skip `top_p` for newer models
+- `fact_memory.py`: `record_action()` missing `query_idx` — memory LLM calls not attributed to instances in inference report
+- `fact_memory.py`: `record_action()` missing `metadata.from_phase` — memory LLM calls not attributed to search phases
+- `mcts.py`: `on_trajectory_complete` not called for terminal nodes found after expand/continuation/world_modeling — only fired after simulate
+
+### Added
+- `cli/args.py`: `--root-dir` CLI flag — prepends custom root to auto-generated result path
+- `config.py`: `root_dir` field on `ExperimentConfig`, wired into `setup_directories()`
+- `mcts.py`: iteration number in log (`[MCTS] Iteration 0/30 (example=0)`), `from_phase` in Expand Begin/End logs
+- `mcts.py`: `from_phase` passed through `on_step_complete` and `on_trajectory_complete` callbacks
+- `sql_error_profiler.py`, `sql_validator.py`: `from_phase` forwarded to `_call_model()` for inference logging
 
 ### Changed
 - `cli/search.py`: removed dead `memory_manager` param from `run_tree_search()` (only `augmentors` passed now)

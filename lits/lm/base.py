@@ -5,7 +5,7 @@ import os
 from contextlib import contextmanager
 import warnings
 import logging
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +111,7 @@ class InferenceLogger:
         batch_size: int,
         role: str,
         running_time: float=None,
+        cached: bool=False,
     ):
         """
         Append one record (one LLM call) to the log file.
@@ -120,6 +121,7 @@ class InferenceLogger:
         - batch_size:    size of the batch (0 or 1 for non-batch)
         - role:          profiling role, e.g. "chat", "summarization"
         - running_time:  running time of the LLM call
+        - cached:        True if this is a replayed cache hit (not a real LLM call)
         """
         # prefix of role must be one of VALID_ROLES_PREFIX
         if not any(role.startswith(prefix) for prefix in VALID_ROLES_PREFIX):
@@ -133,11 +135,25 @@ class InferenceLogger:
             "batch_size":      batch_size,
             # flatten_calls = number of “unbundled” calls = batch_size for a batch, else 0
             "num_flatten_calls": batch_size if batch else 0,
-            "running_time":    running_time 
+            "running_time":    running_time,
+            "cached":          cached,
         }
         record.update(self._extra_fields)
         with open(self.filepath, "a") as f:
             f.write(json.dumps(record) + "\n")
+
+    def get_last_record(self) -> Optional[Dict]:
+        """Return the last logged record, or None if the log is empty."""
+        try:
+            with open(self.filepath, 'r', encoding='utf-8') as f:
+                last_line = None
+                for line in f:
+                    stripped = line.strip()
+                    if stripped:
+                        last_line = stripped
+                return json.loads(last_line) if last_line else None
+        except Exception:
+            return None
 
     def _get_metrics(self, filter_fn: Callable[[Dict], bool]) -> Dict[str, int]:
         """ Read all lines from the file and aggregate:
