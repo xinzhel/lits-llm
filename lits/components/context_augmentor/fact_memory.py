@@ -157,7 +157,11 @@ class FactMemoryAugmentor(ContextAugmentor):
 
         Returns:
             ContextUnit summarizing what was recorded, or None if
-            the step yielded no extractable content.
+            the step yielded no extractable content. Note: this return
+            value is informational only (for debugging/logging). The
+            actual fact persistence happens inside ``record_action()``
+            above — the returned ContextUnit is not buffered or
+            persisted by the ABC machinery.
         """
         if traj_state is None or len(traj_state) == 0:
             return None
@@ -194,7 +198,9 @@ class FactMemoryAugmentor(ContextAugmentor):
             infer=True,
         )
 
-        # Return a summary ContextUnit (not buffered — facts already persisted)
+        # UNUSED; 
+        # (not buffered — facts already persisted)
+        # (for debugging/logging only)
         content_summary = "; ".join(
             m.get("content", "")[:100] for m in messages
         )
