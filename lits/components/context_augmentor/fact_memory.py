@@ -168,6 +168,7 @@ class FactMemoryAugmentor(ContextAugmentor):
 
         trajectory_key = kwargs.get("trajectory_key")
         query_idx = kwargs.get("query_idx", -1)
+        from_phase = kwargs.get("from_phase", "")
 
         # Resolve TrajectoryKey
         if isinstance(trajectory_key, TrajectoryKey):
@@ -195,7 +196,9 @@ class FactMemoryAugmentor(ContextAugmentor):
         self.memory_manager.record_action(
             traj_key_obj,
             messages=messages,
+            metadata={"from_phase": from_phase},
             infer=True,
+            query_idx=query_idx,
         )
 
         # UNUSED; 

@@ -300,7 +300,7 @@ def _expand(
             Used by ``setup_augmentors()`` to trigger per-step augmentors
             (CriticAugmentor, SQLValidator, FactMemoryAugmentor).
     """
-    log_phase(logger, "Expand", f"Begin (example={query_idx})")
+    log_phase(logger, "Expand", f"Begin (example={query_idx}, phase={from_phase})")
 
     new_steps_or_actions = _sample_actions_with_existing(
         query_or_goals,
@@ -362,7 +362,7 @@ def _expand(
         logger.debug(visualize_node(child))
 
         if on_step_complete is not None:
-            on_step_complete(step, child, query_idx)
+            on_step_complete(step, child, query_idx, from_phase=from_phase)
     
     # Step 4: Ensure existing children have the required attributes
     for child in node.children:
@@ -384,7 +384,7 @@ def _expand(
                 logger.debug(f"Child's (Node {child.id}) fast_reward not been assigned and not required to be assigned")
         else:
             logger.debug(f"Child's (Node {child.id}) fast_reward already assigned as {child.fast_reward}")
-    log_phase(logger, "Expand", "End")
+    log_phase(logger, "Expand", f"End (phase={from_phase})")
 ##### EXPAND (END) #####
 
 ##### SIMULATE (Begin) (REUSE EXPAND...) #####
@@ -667,7 +667,7 @@ class MCTSSearch(BaseTreeSearch):
 
         for idx_iter in trange(config.n_iters, desc='MCTS iteration', leave=False):
             self.check_runtime_limit()
-            log_phase(logger, "MCTS", f"Iteration {idx_iter}")
+            logger.info(f"{'='*20} [MCTS] Iteration {idx_iter}/{config.n_iters} (example={query_idx}) {'='*20}")
             
             # Set iteration field for all LLM calls in this iteration
             self.set_log_field("iteration", idx_iter)
@@ -721,6 +721,9 @@ class MCTSSearch(BaseTreeSearch):
 
                 if _is_terminal_with_depth_limit_and_r_threshold(path[-1], config.max_steps, config.force_terminating_on_depth_limit, config.r_terminating):
                     trace_in_each_iter.append(deepcopy(path))
+                    # Trigger per-trajectory augmentors — continuation just created a terminal node
+                    if on_trajectory_complete is not None:
+                        on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="continuation")
                     if config.terminate_on_terminal_node:
                         log_event(logger, "MCTS", "Terminates due to terminal node (after continuation)", level="debug")
                         break
@@ -734,6 +737,9 @@ class MCTSSearch(BaseTreeSearch):
 
             if _is_terminal_with_depth_limit_and_r_threshold(path[-1], config.max_steps, config.force_terminating_on_depth_limit, config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
+                # Trigger per-trajectory augmentors — world_modeling just revealed a terminal node
+                if on_trajectory_complete is not None:
+                    on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="expand")
                 if config.terminate_on_terminal_node:
                     log_event(logger, "MCTS", "Terminates due to terminal node (after world modeling)", level="debug")
                     break
@@ -757,6 +763,10 @@ class MCTSSearch(BaseTreeSearch):
 
             if _is_terminal_with_depth_limit_and_r_threshold(path[-1], config.max_steps, config.force_terminating_on_depth_limit, config.r_terminating):
                 trace_in_each_iter.append(deepcopy(path))
+                # Trigger per-trajectory augmentors — expand just created a terminal node,
+                # this is a new completed trajectory worth reflecting on
+                if on_trajectory_complete is not None:
+                    on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="expand")
                 if config.terminate_on_terminal_node:
                     log_event(logger, "MCTS", "Terminates due to terminal node (before simulate)", level="debug")
                     break
@@ -782,7 +792,7 @@ class MCTSSearch(BaseTreeSearch):
                     _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
                 # Trigger per-trajectory augmentors
                 if on_trajectory_complete is not None:
-                    on_trajectory_complete(path, path[-1].reward, query_idx)
+                    on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="simulate")
                 trace_in_each_iter.append(deepcopy(path))
                 break
 
@@ -793,7 +803,7 @@ class MCTSSearch(BaseTreeSearch):
 
             # Trigger per-trajectory augmentors
             if on_trajectory_complete is not None:
-                on_trajectory_complete(path, path[-1].reward, query_idx)
+                on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="simulate")
 
             trace_in_each_iter.append(deepcopy(path))
             unselected_terminal_paths_during_simulate.extend(unselected_terminal_paths)

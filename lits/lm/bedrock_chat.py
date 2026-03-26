@@ -365,9 +365,10 @@ class BedrockChatModel(LanguageModel):
             "maxTokens": max_new_tokens,
         }
         
-        # Claude Opus 4.5 doesn't allow both temperature and top_p
-        # Use temperature only for Opus 4.5, both for other models
-        if "opus-4" in self.model_name.lower():
+        # Claude 4.5+ models don't allow both temperature and top_p
+        # Newer models (Opus 4.5+, Sonnet 4.6+) require temperature only
+        model_lower = self.model_name.lower()
+        if any(tag in model_lower for tag in ["opus-4", "sonnet-4-6", "sonnet-4-5"]):
             inference_config["temperature"] = temperature
         else:
             inference_config["temperature"] = temperature

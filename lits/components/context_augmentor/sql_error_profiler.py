@@ -173,6 +173,7 @@ Return a JSON object:
             response = self._call_model(
                 message,
                 query_idx=query_idx,
+                from_phase=kwargs.get("from_phase", ""),
                 temperature=self.temperature,
                 max_new_tokens=self.max_new_tokens,
             )

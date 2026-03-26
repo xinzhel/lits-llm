@@ -7,6 +7,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-03-26 Unreleased (`0312-major-context-augmentation`, Task 5/8)
+
+### Fixed
+- `eval/results.py`: circular import `eval→agents→components→eval` — lazy import `SearchNode` via `_get_search_node_class()` + `from __future__ import annotations`
+- `cli/search.py`: missing `Dict` import (was resolved transitively before circular import fix)
+- `cli/search.py`: HF login crash on expired token — wrapped in try/except (non-fatal for non-HF models)
+- `bedrock_chat.py`: Sonnet 4.6/4.5 reject `temperature` + `top_p` together — skip `top_p` for newer models
+- `fact_memory.py`: `record_action()` missing `query_idx` — memory LLM calls not attributed to instances in inference report
+- `fact_memory.py`: `record_action()` missing `metadata.from_phase` — memory LLM calls not attributed to search phases
+- `mcts.py`: `on_trajectory_complete` not called for terminal nodes found after expand/continuation/world_modeling — only fired after simulate
+
+### Added
+- `cli/args.py`: `--root-dir` CLI flag — prepends custom root to auto-generated result path
+- `config.py`: `root_dir` field on `ExperimentConfig`, wired into `setup_directories()`
+- `mcts.py`: iteration number in log (`[MCTS] Iteration 0/30 (example=0)`), `from_phase` in Expand Begin/End logs
+- `mcts.py`: `from_phase` passed through `on_step_complete` and `on_trajectory_complete` callbacks
+- `sql_error_profiler.py`, `sql_validator.py`: `from_phase` forwarded to `_call_model()` for inference logging
+
+### Changed
+- `cli/search.py`: removed dead `memory_manager` param from `run_tree_search()` (only `augmentors` passed now)
+- `search_base.py`: removed `memory_manager` param from `BaseTreeSearch.__init__`
+
 ## 2026-03-22 - 2026-03-25 Unreleased (`0312-major-context-augmentation`, Task 5)
 
 ### Fixed
