@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-03-27 Unreleased (`0327-minor-semantic-diversity`)
+
+### Added
+- `eval/llm_call_logger.py`: `cluster_by_embedding()` — embedding-based candidate grouping with union-find
+- `eval/llm_call_logger.py`: `judge_semantic_equivalence()` — LLM judge for semantic equivalence
+- `eval/llm_call_logger.py`: `_apply_semantic_dedup()` — two-stage pipeline integration
+- `eval/llm_call_logger.py`: `make_crosswords_correctness_checker()` — task-agnostic correctness predicate
+- `eval/llm_call_logger.py`: `semantic_dedup` parameter on `get_diversity_stats()` and `print_diversity_report()`
+- `cli/search.py`: auto-enable `semantic_dedup` for `language_grounded` tasks
+
+### Changed
+- `eval/llm_call_logger.py`: `correct_actions: Dict` → `is_correct: Callable[[str], bool]`
+- `cli/search.py`: updated crosswords caller to use `make_crosswords_correctness_checker()`
+
 ## 2026-03-26 Unreleased (`0312-major-context-augmentation`, Task 5/8)
 
 ### Fixed

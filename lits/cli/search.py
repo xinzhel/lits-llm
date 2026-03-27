@@ -623,12 +623,12 @@ def main() -> int:
     # Log final metrics
     log_final_metrics(run_logger, base_model.inference_logger)
 
-    # Log diversity report to file (env_grounded tasks only)
+    # Log diversity report to file
     if llm_calls_path:
         try:
             records = load_llm_calls(llm_calls_path)
             if task_type == "env_grounded" and config.dataset == "crosswords":
-                from lits.eval.llm_call_logger import normalize_crosswords_action, parse_crosswords_correct_actions
+                from lits.eval.llm_call_logger import normalize_crosswords_action, parse_crosswords_correct_actions, make_crosswords_correctness_checker
                 # Aggregate correct actions from all examples
                 all_correct_actions = {}
                 for ex in full_dataset:
@@ -637,7 +637,16 @@ def main() -> int:
                 print_diversity_report(
                     records,
                     normalize_fn=normalize_crosswords_action,
-                    correct_actions=all_correct_actions if all_correct_actions else None
+                    is_correct=make_crosswords_correctness_checker(all_correct_actions) if all_correct_actions else None
+                )
+            elif task_type == "language_grounded":
+                # Semantic dedup for language reasoning (math500, gsm8k, etc.)
+                # Reuse the search LLM as judge; load a lightweight embedder
+                from lits.embedding import get_embedder
+                embedder = get_embedder("multi-qa-mpnet-base-cos-v1")
+                print_diversity_report(
+                    records,
+                    semantic_dedup={"embedder": embedder, "llm": base_model, "threshold": 0.65},
                 )
             else:
                 print_diversity_report(records)
