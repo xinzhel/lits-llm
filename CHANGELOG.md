@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-03-28 Unreleased (`0328-minor-react-dbbench`)
+
+### Added
+- `cli/chain.py`: tool-use support via `ReActChat` (auto-detected by `has_resource()`)
+- `agents/base.py`: `root_dir` and `eval_model_name` fields on `BaseConfig`
+
+### Fixed
+- `agents/main.py`: removed stale `reasoning_method` kwarg from `ReactChatConfig` construction
+- `agents/main.py`: fixed `task_type` → `task_name` kwarg in `ReActChat` construction
+
 ## 2026-03-28 Unreleased (`0312-major-context-augmentation`, Task 5/8)
 
 ### Added

@@ -79,8 +79,7 @@ def create_tool_use_agent(
 
     # Save configuration
     ReactChatConfig(
-        reasoning_method="react_chat",
-        package_version=PACKAGE_VERSION,
+        package_version=f"v{PACKAGE_VERSION}",
         policy_model_name=model_name,
         exclude_think_when_verb=exclude_think_when_verb,
         enable_think=enable_think_policy,
@@ -123,7 +122,7 @@ def create_tool_use_agent(
             transition=transition,
             max_iter=max_iter,
             policy_model_name=model_name,
-            task_type=task_name,
+            task_name=task_name,
             step_evaluators=step_evaluators,
             trajectory_evaluators=trajectory_evaluators,
         )

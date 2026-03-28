@@ -1,22 +1,30 @@
 """
-lits-chain: Environment-grounded chain agent CLI entry point.
+lits-chain: Chain agent CLI entry point (env_grounded + tool-use).
 
-Runs chain-based reasoning for environment-grounded tasks like BlocksWorld.
-Unlike tree search (lits-search), this uses a sequential chain agent that
-executes actions step-by-step without branching.
+Runs chain-based reasoning for both environment-grounded tasks (BlocksWorld,
+Crosswords) and tool-use tasks (DBBench, MapEval).  For env_grounded tasks it
+uses ``EnvChain``; for tool-use tasks it uses ``ReActChat``.
 
 Usage:
+    # env_grounded
     lits-chain --dataset blocksworld --include lits_benchmark.blocksworld
     lits-chain --dataset crosswords --include lits_benchmark.crosswords \
         --dataset-arg data_file=crosswords/data/mini0505.json
-    lits-chain --dry-run --dataset blocksworld --include lits_benchmark.blocksworld
+
+    # tool-use
+    lits-chain --dataset dbbench --dataset-arg database=wikisql \
+        --include lits_benchmark.dbbench \
+        --policy-model bedrock/us.anthropic.claude-sonnet-4-6
+
+    lits-chain --dry-run --dataset dbbench --dataset-arg database=wikisql \
+        --include lits_benchmark.dbbench
     lits-chain --help
 
 Two-Stage Workflow:
 1. Run lits-chain to execute chain agent and save checkpoints
-2. Run lits-eval-chain to evaluate results from checkpoint files
-
-See docs/cli/search.md for full CLI documentation.
+2. Evaluate:
+   - env_grounded → lits-eval-chain
+   - tool-use     → lits-eval
 """
 
 import sys
@@ -27,14 +35,14 @@ import logging
 
 from dotenv import load_dotenv, find_dotenv
 
-from lits.agents.main import create_env_chain_agent
+from lits.agents.main import create_env_chain_agent, create_tool_use_agent
 from lits.agents.chain.env_chain import EnvChainConfig
 from lits.components.registry import ComponentRegistry
 from lits.registry import import_custom_modules
 from lits.lm import get_lm
 from lits.eval import _slice_dataset
 from lits.log import setup_logging
-from lits.benchmarks.registry import load_dataset
+from lits.benchmarks.registry import load_dataset, has_resource, load_resource
 from lits.cli import (
     parse_experiment_args, apply_config_overrides,
     parse_dataset_kwargs, parse_script_vars,
@@ -43,20 +51,22 @@ from lits.cli import (
 logger = logging.getLogger(__name__)
 
 
-
-
 def main() -> int:
     """Entry point for lits-chain command.
-    
-    Runs an environment-grounded chain agent on a registered benchmark.
-    
+
+    Supports both env_grounded (EnvChain) and tool-use (ReActChat) tasks.
+    Task type is auto-detected via ``has_resource()`` — if a resource loader
+    is registered for the dataset, it is treated as tool-use.
+
     Returns:
         Exit code (0 for success, non-zero for error)
     """
     # Load .env — find_dotenv() searches upward from cwd
     load_dotenv(find_dotenv())
 
-    # Default config — CLI flags override these values
+    # Default config — CLI flags override these values.
+    # We start with EnvChainConfig (superset of ChainConfig) and switch to
+    # ReactChatConfig for tool-use after detection.
     config = EnvChainConfig(
         dataset="blocksworld",
         policy_model_name="bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0",
@@ -66,7 +76,7 @@ def main() -> int:
     )
 
     # Parse CLI arguments and apply config overrides
-    cli_args = parse_experiment_args(description="Run environment-grounded chain agent")
+    cli_args = parse_experiment_args(description="Run chain agent (env_grounded + tool-use)")
     config = apply_config_overrides(config, cli_args)
 
     # Apply explicit CLI flags (take precedence over --cfg)
@@ -78,10 +88,14 @@ def main() -> int:
     # Apply model flags
     if cli_args.policy_model:
         config.policy_model_name = cli_args.policy_model
+    if cli_args.eval_model:
+        config.eval_model_name = cli_args.eval_model
 
-    # Map --output-dir flag
+    # Map --output-dir and --root-dir flags
     if cli_args.output_dir:
         config.output_dir = cli_args.output_dir
+    if cli_args.root_dir:
+        config.root_dir = cli_args.root_dir
 
     # Parse script-level variables (not part of algorithm config)
     script_vars = parse_script_vars(cli_args, {'offset': 0, 'limit': None})
@@ -99,36 +113,12 @@ def main() -> int:
             return 1
         print(f"Imported custom modules: {cli_args.import_modules}")
 
-    # Get Transition class from registry
-    # Explicit --transition flag takes precedence, otherwise fall back to dataset name
+    # --- Task-type detection (1.1) ---
     benchmark_name = config.dataset
-    transition_key = getattr(config, 'transition', None) or benchmark_name
-    try:
-        TransitionCls = ComponentRegistry.get_transition(transition_key)
-    except KeyError:
-        available = ComponentRegistry.list_by_task_type("env_grounded")
-        print(f"Error: Transition '{transition_key}' not found in registry.", file=sys.stderr)
-        print(f"Available env_grounded benchmarks: {available}", file=sys.stderr)
-        print(f"Did you forget to use --include to load the module containing "
-              f"@register_transition('{transition_key}')?", file=sys.stderr)
-        return 1
-
-    # Get goal_check and generate_actions from Transition class
-    if not hasattr(TransitionCls, 'goal_check'):
-        print(f"Error: Transition class '{TransitionCls.__name__}' does not have "
-              f"a 'goal_check' static method.", file=sys.stderr)
-        return 1
-    # Note: generate_actions is optional (for infinite action spaces like crosswords)
-    # validate_action is optional (for finite action spaces like blocksworld)
-
-    goal_check = TransitionCls.goal_check
-    generate_all_actions = getattr(TransitionCls, 'generate_actions', None)
-    validate_action = getattr(TransitionCls, 'validate_action', None)
+    is_tool_use = has_resource(benchmark_name)
 
     # Load dataset kwargs from CLI --dataset-arg or config
     dataset_kwargs = parse_dataset_kwargs(cli_args)
-
-    # Merge with config.dataset_kwargs (CLI takes precedence)
     if config.dataset_kwargs:
         merged_kwargs = {**config.dataset_kwargs, **dataset_kwargs}
         dataset_kwargs = merged_kwargs
@@ -148,17 +138,128 @@ def main() -> int:
         print("Please register a dataset loader using @register_dataset decorator.", file=sys.stderr)
         return 1
 
-    # Dry-run mode: print first dataset element and exit with no side effects
+    # --- Dry-run mode ---
     if cli_args.dry_run:
         print(f"\n=== Dry Run Mode ===")
         print(f"Benchmark: {benchmark_name}")
-        print(f"Transition: {TransitionCls.__name__}")
+        print(f"Task type: {'tool_use' if is_tool_use else 'env_grounded'}")
         print(f"Dataset size: {len(full_dataset)}")
         print(f"\nFirst element:")
         print(json.dumps(full_dataset[0], indent=2, default=str))
         return 0
 
-    # --- Everything below only runs for real execution ---
+    # --- Real execution below ---
+
+    if is_tool_use:
+        return _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
+                             offset, limit, override)
+    else:
+        return _run_env_grounded(config, benchmark_name, full_dataset, dataset_kwargs,
+                                 offset, limit, override)
+
+
+# ---------------------------------------------------------------------------
+# Tool-use path (ReActChat)
+# ---------------------------------------------------------------------------
+
+def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
+                  offset, limit, override) -> int:
+    """Run ReActChat on a tool-use dataset (e.g. dbbench, mapeval)."""
+
+    # Load tool-use resource (starts DB containers, etc.)
+    if os.path.exists("mapeval/.env"):
+        load_dotenv("mapeval/.env")
+    tool_use_spec = load_resource(benchmark_name)
+
+    # Setup directories
+    run_id = f"{benchmark_name}_chain"
+    result_dir = config.setup_directories(run_id)
+    checkpoint_dir = os.path.join(result_dir, "checkpoints")
+    os.makedirs(checkpoint_dir, exist_ok=True)
+
+    # Save config for reproducibility (after agent creation, since
+    # create_tool_use_agent also writes a ReactChatConfig to result_dir)
+    config.dataset = benchmark_name
+    if dataset_kwargs:
+        config.dataset_kwargs = dataset_kwargs
+
+    # Setup logging
+    run_logger = setup_logging(
+        run_id="execution",
+        result_dir=result_dir,
+        add_console_handler=True,
+        verbose=True,
+        override=override
+    )
+    run_logger.info(f"Loaded {len(full_dataset)} examples from {benchmark_name} dataset")
+
+    # Create agent via factory (handles model loading, policy, transition)
+    agent = create_tool_use_agent(
+        tools=tool_use_spec["tools"],
+        tool_context=tool_use_spec.get("tool_context", ""),
+        task_name=benchmark_name,
+        model_name=config.policy_model_name,
+        root_dir=result_dir,
+        override_logger=override,
+    )
+
+    # Save experiment config (supplements ReactChatConfig saved by create_tool_use_agent
+    # with experiment metadata: dataset, import_modules, dataset_kwargs, eval_model, root_dir)
+    config.save_config(result_dir)
+
+    # Run agent on dataset
+    selected_examples = _slice_dataset(full_dataset, offset, limit)
+    run_logger.info(f"Running on {len(selected_examples)} examples (offset={offset}, limit={limit})")
+
+    try:
+        for example_idx, example in enumerate(selected_examples, start=offset):
+            run_logger.info(f"Processing example {example_idx}")
+            query = example["question"]
+            agent.run(
+                query=query,
+                query_idx=example_idx,
+                checkpoint_dir=checkpoint_dir,
+                override=override,
+            )
+    except Exception as e:
+        run_logger.error(f"Error during ReAct execution: {e}")
+        traceback.print_exc()
+        return 1
+
+    run_logger.info(f"ReAct chain complete. Checkpoints saved to {checkpoint_dir}")
+    run_logger.info(f"Run evaluation: lits-eval --result_dir {result_dir} "
+                    f"--dataset_name {benchmark_name} --include {' '.join(config.import_modules or [])}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Env-grounded path (EnvChain) — unchanged logic, extracted to helper
+# ---------------------------------------------------------------------------
+
+def _run_env_grounded(config, benchmark_name, full_dataset, dataset_kwargs,
+                      offset, limit, override) -> int:
+    """Run EnvChain on an env_grounded dataset (e.g. blocksworld, crosswords)."""
+
+    # Get Transition class from registry
+    transition_key = getattr(config, 'transition', None) or benchmark_name
+    try:
+        TransitionCls = ComponentRegistry.get_transition(transition_key)
+    except KeyError:
+        available = ComponentRegistry.list_by_task_type("env_grounded")
+        print(f"Error: Transition '{transition_key}' not found in registry.", file=sys.stderr)
+        print(f"Available env_grounded benchmarks: {available}", file=sys.stderr)
+        print(f"Did you forget to use --include to load the module containing "
+              f"@register_transition('{transition_key}')?", file=sys.stderr)
+        return 1
+
+    if not hasattr(TransitionCls, 'goal_check'):
+        print(f"Error: Transition class '{TransitionCls.__name__}' does not have "
+              f"a 'goal_check' static method.", file=sys.stderr)
+        return 1
+
+    goal_check = TransitionCls.goal_check
+    generate_all_actions = getattr(TransitionCls, 'generate_actions', None)
+    validate_action = getattr(TransitionCls, 'validate_action', None)
 
     # Setup directories
     run_id = f"{benchmark_name}_chain"
@@ -169,8 +270,6 @@ def main() -> int:
     # Store dataset_kwargs in config for reproducibility
     if dataset_kwargs:
         config.dataset_kwargs = dataset_kwargs
-
-    # Save config
     config.save_config(result_dir)
 
     # Setup logging
@@ -181,7 +280,6 @@ def main() -> int:
         verbose=True,
         override=override
     )
-
     run_logger.info(f"Loaded {len(full_dataset)} examples from {benchmark_name} dataset")
 
     # Load model
@@ -195,18 +293,16 @@ def main() -> int:
 
     # Setup inference logging
     from lits.lm import setup_inference_logging
-    setup_inference_logging(
-        base_model, root_dir=result_dir, override=override
-    )
+    setup_inference_logging(base_model, root_dir=result_dir, override=override)
 
-    # Create transition model using the registry-looked-up Transition class
+    # Create transition model
     world_model = TransitionCls(
         base_model=base_model,
         goal_check=goal_check,
         max_steps=config.max_steps
     )
 
-    # Create agent using factory function
+    # Create agent
     agent = create_env_chain_agent(
         base_model=base_model,
         generate_all_actions=generate_all_actions,
@@ -240,7 +336,6 @@ def main() -> int:
 
     run_logger.info(f"Chain agent complete. Checkpoints saved to {checkpoint_dir}")
     run_logger.info(f"Run evaluation: lits-eval-chain --result_dir {result_dir}")
-
     return 0
 
 
