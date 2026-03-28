@@ -18,6 +18,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Fixed
 - `eval/general_eval.py`: re-raise auth/credential errors instead of silently returning `out_of_context`
 - `bedrock_chat.py`: skip `top_p` for Sonnet 4.6/4.5 (`ValidationException`)
+- `cli/args.py`: `--var` now uses `_AppendList` so repeated flags accumulate (was silently overwriting)
 
 ### Changed
 - `cli/eval_search.py`: evaluation priority now includes LLM judge for tool-use verbose answers

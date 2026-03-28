@@ -228,6 +228,7 @@ Common Options:
         dest="var_args",
         type=str,
         nargs="+",
+        action=_AppendList,
         metavar="KEY=VALUE",
         help="Set script variables (e.g., --var offset=10 limit=5)"
     )
