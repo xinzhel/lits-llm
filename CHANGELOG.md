@@ -12,6 +12,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Added
 - `cli/chain.py`: tool-use support via `ReActChat` (auto-detected by `has_resource()`)
 - `agents/base.py`: `root_dir` and `eval_model_name` fields on `BaseConfig`
+- `cli/eval_search.py`: chain checkpoint fallback — reads `checkpoints/` as `ToolUseState` when `terminal_nodes/` absent
 
 ### Fixed
 - `agents/main.py`: removed stale `reasoning_method` kwarg from `ReactChatConfig` construction

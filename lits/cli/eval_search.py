@@ -208,19 +208,28 @@ def evaluate_from_checkpoints(
     else:
         retrieve_answer = get_fn_retrieve_answer(base_model)
     
-    # Find all terminal node files in terminal_nodes subdirectory
+    # Find result files: terminal_nodes/ (tree search) or checkpoints/ (chain)
     terminal_nodes_dir = result_dir / "terminal_nodes"
-    if not terminal_nodes_dir.exists():
-        eval_logger.error(f"Terminal nodes directory not found: {terminal_nodes_dir}")
+    checkpoints_dir = result_dir / "checkpoints"
+    use_chain_checkpoints = False
+
+    if terminal_nodes_dir.exists():
+        terminal_node_files = sorted(terminal_nodes_dir.glob("terminal_nodes_*.json"))
+        if not terminal_node_files:
+            eval_logger.error(f"No terminal node files found in {terminal_nodes_dir}")
+            return
+        eval_logger.info(f"Found {len(terminal_node_files)} terminal node files")
+    elif checkpoints_dir.exists():
+        # Chain agent checkpoints: {idx}.json containing serialized TrajectoryState
+        terminal_node_files = sorted(checkpoints_dir.glob("*.json"))
+        if not terminal_node_files:
+            eval_logger.error(f"No checkpoint files found in {checkpoints_dir}")
+            return
+        use_chain_checkpoints = True
+        eval_logger.info(f"Found {len(terminal_node_files)} chain checkpoint files")
+    else:
+        eval_logger.error(f"Neither terminal_nodes/ nor checkpoints/ found in {result_dir}")
         return
-    
-    terminal_node_files = sorted(terminal_nodes_dir.glob("terminal_nodes_*.json"))
-    
-    if not terminal_node_files:
-        eval_logger.error(f"No terminal node files found in {result_dir}")
-        return
-    
-    eval_logger.info(f"Found {len(terminal_node_files)} terminal node files")
     
     # Filter terminal node files by offset and limit based on query_idx
     # The query_idx in terminal node files corresponds to the original dataset index
@@ -228,10 +237,12 @@ def evaluate_from_checkpoints(
     
     def should_include_file(filepath):
         """Check if file's query_idx falls within [offset, offset+limit) range."""
-        # Extract query_idx from filename: terminal_nodes_{query_idx}.json
-        filename = filepath.stem  # terminal_nodes_0, terminal_nodes_10, etc.
+        # Extract query_idx from filename:
+        #   terminal_nodes_{query_idx}.json  (tree search)
+        #   {query_idx}.json                 (chain checkpoints)
+        filename = filepath.stem
         try:
-            idx = int(filename.split('_')[-1])
+            idx = int(filename.split('_')[-1]) if '_' in filename else int(filename)
             if idx < offset:
                 return False
             if end_idx is not None and idx >= end_idx:
@@ -251,7 +262,19 @@ def evaluate_from_checkpoints(
     # Use tqdm progress bar for console feedback
     for filepath in tqdm(filtered_files, desc="Evaluating", unit="file"):
         try:
-            # Load terminal nodes
+            # --- Chain checkpoint path: load ToolUseState directly ---
+            if use_chain_checkpoints:
+                from lits.structures.tool_use import ToolUseState
+                query, state = ToolUseState.load(str(filepath))
+                query_idx = int(filepath.stem)
+                ground_truth = str(full_dataset[query_idx]['answer'])
+                answer_pred = state.get_final_answer() or ""
+                predictions.append(answer_pred)
+                ground_truths.append(ground_truth)
+                eval_logger.debug(f"Query {query_idx}: Pred='{answer_pred}', Truth='{ground_truth}'")
+                continue
+
+            # --- Tree search path: load terminal nodes ---
             data = load_terminal_nodes_from_file(filepath)
             terminal_nodes = data['terminal_nodes']
             query = data['query']
