@@ -7,6 +7,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-03-28 Unreleased (`0312-major-context-augmentation`, Task 5/8)
+
+### Added
+- `lm/base.py`: `InferenceLogger.get_last_record()`, `cached` field on `update_usage()`
+- `reward/tool_use.py`: cache hit logging with original token counts and `cached=True`
+- `eval/general_eval.py`: `GeneralEvaluator.check_correct()` convenience method
+- `cli/eval_search.py`: LLM-based evaluation fallback for tool-use tasks via `GeneralEvaluator`
+
+### Fixed
+- `eval/general_eval.py`: re-raise auth/credential errors instead of silently returning `out_of_context`
+- `bedrock_chat.py`: skip `top_p` for Sonnet 4.6/4.5 (`ValidationException`)
+
+### Changed
+- `cli/eval_search.py`: evaluation priority now includes LLM judge for tool-use verbose answers
+
 ## 2026-03-27 Unreleased (`0327-minor-semantic-diversity`)
 
 ### Added

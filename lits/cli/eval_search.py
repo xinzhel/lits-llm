@@ -325,12 +325,34 @@ def evaluate_from_checkpoints(
     # Accuracy comparison priority:
     # 1. env_grounded: exact string match (goal_check already applied during answer extraction above)
     # 2. registered evaluator: dataset-specific comparison (e.g., dbbench float tolerance + set match)
-    # 3. eval_output: generic number comparison (math QA tasks)
+    # 3. LLM-based evaluation: for tool-use tasks where answers may be verbose
+    # 4. eval_output: generic number comparison (math QA tasks)
+    #
+    # LLM usage in evaluation (--eval-model):
+    #   - Language-grounded tasks: LLM extracts/formats the answer from verbose model
+    #     output (e.g., extracting "18" from a reasoning trace) via retrieve_answer.
+    #   - Tool-use tasks: GeneralEvaluator uses LLM as a judge to compare predicted
+    #     vs ground-truth answers, handling verbose/reformatted predictions that fail
+    #     exact string matching (e.g., "Women +60kg Bronze" vs full-sentence answer).
     from lits.components.utils import eval_output
     
     custom_evaluator = get_evaluator(dataset_name) if has_evaluator(dataset_name) else None
     if custom_evaluator:
         eval_logger.info(f"Using registered evaluator for '{dataset_name}'")
+    
+    # Setup LLM-based evaluator for tool-use tasks (verbose answers)
+    llm_evaluator = None
+    if is_tool_use:
+        from lits.eval.general_eval import GeneralEvaluator
+        llm_evaluator = GeneralEvaluator(
+            base_model=base_model,
+            eval_perspectives=[{
+                "eval_id": "correct",
+                "description": "Does the predicted answer contain the correct value? Ignore formatting differences, extra explanation, or markdown. Focus only on whether the core answer value matches.",
+                "options": ["yes", "no"],
+            }],
+        )
+        eval_logger.info("LLM-based evaluator enabled for tool-use answer comparison")
     
     correct_count = 0
     eval_logger.info("=" * 40)
@@ -346,6 +368,14 @@ def evaluate_from_checkpoints(
             except Exception as e:
                 correct = False
                 eval_logger.debug(f"  [{i}] custom evaluator failed: {e}")
+            # Fallback to LLM evaluation if exact match fails for tool-use
+            if not correct and llm_evaluator:
+                correct = llm_evaluator.check_correct(pred, truth)
+                eval_logger.debug(f"  [{i}] LLM evaluator: {correct}")
+        elif llm_evaluator:
+            # Tool-use without custom evaluator: use LLM directly
+            correct = llm_evaluator.check_correct(pred, truth)
+            eval_logger.debug(f"  [{i}] LLM evaluator: {correct}")
         else:
             # Use eval_output for number comparison in QA tasks
             try:

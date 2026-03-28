@@ -285,8 +285,18 @@ class GeneralEvaluator:
                     max_new_tokens=generation_max_tokens,
                 )
             except Exception as e:
-                # Log error (verbose output already handled at source)
-                logger.warning(f"Evaluation API call failed: {type(e).__name__}: {e}")
+                # Re-raise authentication/credential errors immediately — these
+                # won't resolve on retry and should surface to the user.
+                error_name = type(e).__name__
+                error_str = str(e)
+                if any(keyword in error_name + error_str for keyword in [
+                    "SSO", "Unauthorized", "Credential", "AuthError",
+                    "ExpiredToken", "InvalidIdentityToken",
+                ]):
+                    raise
+
+                # Log non-auth errors and return gracefully
+                logger.warning(f"Evaluation API call failed: {error_name}: {e}")
                 
                 eval_result['out_of_context'] = "yes"
                 eval_result['error'] = str(e)
@@ -553,3 +563,20 @@ class GeneralEvaluator:
         )
         
         return new_results
+
+    def check_correct(self, pred: str, truth: str, eval_id: str = "correct") -> bool:
+        """Convenience method: evaluate and return bool for a single pred/truth pair.
+
+        Calls :meth:`evaluate` and checks whether the specified ``eval_id``
+        returned ``"yes"``.  Auth/credential errors propagate immediately.
+
+        Args:
+            pred: Predicted answer (may be verbose).
+            truth: Ground-truth answer.
+            eval_id: The perspective key to check (default ``"correct"``).
+
+        Returns:
+            ``True`` if the LLM judge says the answer is correct.
+        """
+        result = self.evaluate(solution=pred, truth=str(truth), include_input=False)
+        return result.get(eval_id) == "yes"
