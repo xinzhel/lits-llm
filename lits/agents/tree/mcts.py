@@ -785,16 +785,19 @@ class MCTSSearch(BaseTreeSearch):
 
             # ====== Terminate on First Solution ======
             if config.terminate_on_first_solution and path[-1].is_terminal:
-                log_event(logger, "MCTS", "Terminates due to first solution found", level="debug")
-                if config.backprop_mode == 'decay':
-                    _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)
-                else:
-                    _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
-                # Trigger per-trajectory augmentors
-                if on_trajectory_complete is not None:
-                    on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="simulate")
-                trace_in_each_iter.append(deepcopy(path))
-                break
+                reward = path[-1].fast_reward if hasattr(path[-1], 'fast_reward') else 0.0
+                meets_threshold = config.early_stop_reward is None or reward >= config.early_stop_reward
+                if meets_threshold:
+                    log_event(logger, "MCTS", f"Terminates due to first solution found (reward={reward:.3f})", level="debug")
+                    if config.backprop_mode == 'decay':
+                        _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)
+                    else:
+                        _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
+                    # Trigger per-trajectory augmentors
+                    if on_trajectory_complete is not None:
+                        on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="simulate")
+                    trace_in_each_iter.append(deepcopy(path))
+                    break
 
             if config.backprop_mode == 'decay':
                 _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)

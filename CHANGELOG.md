@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-03-29 Unreleased (`0312-major-context-augmentation`)
+
+### Added
+- `agents/tree/base.py`: `early_stop_reward` field on `BaseSearchConfig`
+- `agents/tree/mcts.py`: reward threshold check in `terminate_on_first_solution` block
+
+### Fixed
+- `cli/eval_search.py`: checkpoint/terminal_node files now sorted numerically (was lexicographic, causing `10.json` before `2.json`)
+- `cli/eval_search.py`: `[X]` in eval log now shows dataset query index (was sequential enumerate index)
+
 ## 2026-03-28 Unreleased (`0328-minor-react-dbbench`)
 
 ### Added

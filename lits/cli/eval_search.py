@@ -214,14 +214,16 @@ def evaluate_from_checkpoints(
     use_chain_checkpoints = False
 
     if terminal_nodes_dir.exists():
-        terminal_node_files = sorted(terminal_nodes_dir.glob("terminal_nodes_*.json"))
+        terminal_node_files = sorted(terminal_nodes_dir.glob("terminal_nodes_*.json"),
+                                     key=lambda f: int(f.stem.split('_')[-1]))
         if not terminal_node_files:
             eval_logger.error(f"No terminal node files found in {terminal_nodes_dir}")
             return
         eval_logger.info(f"Found {len(terminal_node_files)} terminal node files")
     elif checkpoints_dir.exists():
         # Chain agent checkpoints: {idx}.json containing serialized TrajectoryState
-        terminal_node_files = sorted(checkpoints_dir.glob("*.json"))
+        terminal_node_files = sorted(checkpoints_dir.glob("*.json"),
+                                     key=lambda f: int(f.stem) if f.stem.isdigit() else float('inf'))
         if not terminal_node_files:
             eval_logger.error(f"No checkpoint files found in {checkpoints_dir}")
             return
@@ -257,6 +259,7 @@ def evaluate_from_checkpoints(
     # Process each file and extract answers
     predictions = []
     ground_truths = []
+    query_indices = []  # Track dataset query indices for correct log output
     soft_scores = []  # For env_grounded tasks: word-level accuracy scores
     
     # Use tqdm progress bar for console feedback
@@ -271,6 +274,7 @@ def evaluate_from_checkpoints(
                 answer_pred = state.get_final_answer() or ""
                 predictions.append(answer_pred)
                 ground_truths.append(ground_truth)
+                query_indices.append(query_idx)
                 eval_logger.debug(f"Query {query_idx}: Pred='{answer_pred}', Truth='{ground_truth}'")
                 continue
 
@@ -335,6 +339,7 @@ def evaluate_from_checkpoints(
             
             predictions.append(answer_pred)
             ground_truths.append(ground_truth)
+            query_indices.append(query_idx)
             
             # Log to file only
             eval_logger.debug(f"Query {query_idx}: Pred='{answer_pred}', Truth='{ground_truth}'")
@@ -380,7 +385,7 @@ def evaluate_from_checkpoints(
     correct_count = 0
     eval_logger.info("=" * 40)
     eval_logger.info("Detailed comparison:")
-    for i, (pred, truth) in enumerate(zip(predictions, ground_truths)):
+    for qidx, pred, truth in zip(query_indices, predictions, ground_truths):
         if is_env_grounded:
             # Exact string match for env_grounded tasks
             correct = (pred == truth)
@@ -390,15 +395,15 @@ def evaluate_from_checkpoints(
                 correct = custom_evaluator(pred, truth)
             except Exception as e:
                 correct = False
-                eval_logger.debug(f"  [{i}] custom evaluator failed: {e}")
+                eval_logger.debug(f"  [{qidx}] custom evaluator failed: {e}")
             # Fallback to LLM evaluation if exact match fails for tool-use
             if not correct and llm_evaluator:
                 correct = llm_evaluator.check_correct(pred, truth)
-                eval_logger.debug(f"  [{i}] LLM evaluator: {correct}")
+                eval_logger.debug(f"  [{qidx}] LLM evaluator: {correct}")
         elif llm_evaluator:
             # Tool-use without custom evaluator: use LLM directly
             correct = llm_evaluator.check_correct(pred, truth)
-            eval_logger.debug(f"  [{i}] LLM evaluator: {correct}")
+            eval_logger.debug(f"  [{qidx}] LLM evaluator: {correct}")
         else:
             # Use eval_output for number comparison in QA tasks
             try:
@@ -406,8 +411,8 @@ def evaluate_from_checkpoints(
             except (AssertionError, ValueError) as e:
                 # Fallback to exact match if eval_output fails
                 correct = (pred == truth)
-                eval_logger.debug(f"  [{i}] eval_output failed: {e}")
-        eval_logger.info(f"  [{i}] Pred='{pred}', Truth='{truth}', Correct={correct}")
+                eval_logger.debug(f"  [{qidx}] eval_output failed: {e}")
+        eval_logger.info(f"  [{qidx}] Pred='{pred}', Truth='{truth}', Correct={correct}")
         if correct:
             correct_count += 1
     eval_logger.info("=" * 40)

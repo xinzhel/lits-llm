@@ -43,6 +43,7 @@ _DEFAULT_SEARCH_ARGS: Dict[str, Any] = {
     "force_terminating_on_depth_limit": False,
     "terminate_on_terminal_node": True,
     "terminate_on_first_solution": False,
+    "early_stop_reward": None,
     # Continuation
     "add_continuation": False,
     "bn_method": None,

@@ -18,6 +18,7 @@ class BaseSearchConfig(BaseConfig):
         force_terminating_on_depth_limit: Force termination when max_steps reached (default: True)
         terminate_on_terminal_node: Stop search when terminal node found (default: True)
         terminate_on_first_solution: Stop when first solution found, useful for feasibility checking (default: False)
+        early_stop_reward: Minimum reward for early termination; only used with terminate_on_first_solution (default: None = accept any terminal)
         r_terminating: Reward threshold for termination, if set (default: None)
         add_continuation: Enable continuation phase for sequential reasoning (default: False)
         reward_alpha: Exponent for fast reward transformation (default: None)
@@ -45,6 +46,7 @@ class BaseSearchConfig(BaseConfig):
     force_terminating_on_depth_limit: bool = True
     terminate_on_terminal_node: bool = True
     terminate_on_first_solution: bool = False  # if True, terminate MCTS when first terminal node is found (useful for feasibility checking)
+    early_stop_reward: Optional[float] = None  # if set with terminate_on_first_solution, only stop when terminal reward >= this threshold
 
     # Continuation parameters
     bn_model_name: str = None
