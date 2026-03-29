@@ -17,6 +17,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Fixed
 - `agents/main.py`: removed stale `reasoning_method` kwarg from `ReactChatConfig` construction
 - `agents/main.py`: fixed `task_type` → `task_name` kwarg in `ReActChat` construction
+- `components/transition/tool_use.py`: no-action/no-answer steps appended to wrong state object (old vs copy)
+- `cli/eval_search.py`: tool-use evaluation now passes `dataset_kwargs` to `load_dataset()`
 
 ## 2026-03-28 Unreleased (`0312-major-context-augmentation`, Task 5/8)
 

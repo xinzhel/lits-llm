@@ -84,7 +84,7 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseAction]):
                 "Assistant output did not provide an action or answer, or it did not follow the required "
                 "format and could not be parsed. Please STRICTLY follow the format required in the system prompt."
             ) 
-            state.append(step)  
+            new_state.append(step)  
             return new_state, {"confidence": 0.0}
         
         # Case 3: Step has an action - execute it

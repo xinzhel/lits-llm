@@ -158,7 +158,7 @@ def evaluate_from_checkpoints(
         eval_logger.info(f"Evaluating {dataset_name} results (goal checking via registry)")
     elif is_tool_use:
         # Tool-use datasets are registered via @register_dataset, same as other task types
-        full_dataset = load_dataset(dataset_name)
+        full_dataset = load_dataset(dataset_name, **(dataset_kwargs or {}))
         # NOTE: Do NOT slice the dataset here. The query_idx in terminal node files
         # refers to the original dataset index, not the sliced index.
     else:
