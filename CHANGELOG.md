@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-03-31 Unreleased (`0302-agentbench-integration`)
+
+### Added
+- `demos/lits_benchmark/kgqa.py`: `@register_dataset("kgqa")` loader for AgentBench KG (150 GrailQA examples)
+- `demos/lits_benchmark/kgqa.py`: `@register_evaluator("kgqa")` returning set-based F1 (float 0.0–1.0)
+- `demos/lits_benchmark/kgqa.py`: `KGQA_SYSTEM_PROMPT`, `build_one_shot_steps()`, `ONE_SHOT_QUESTION`
+- `cli/eval_search.py`: continuous score support — evaluators returning float tracked in `eval_scores`, reports Mean Score
+
 ## 2026-03-29 Unreleased (`0312-major-context-augmentation`)
 
 ### Added

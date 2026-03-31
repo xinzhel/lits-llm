@@ -383,6 +383,7 @@ def evaluate_from_checkpoints(
         eval_logger.info("LLM-based evaluator enabled for tool-use answer comparison")
     
     correct_count = 0
+    eval_scores = []  # Track continuous scores from evaluators that return float
     eval_logger.info("=" * 40)
     eval_logger.info("Detailed comparison:")
     for qidx, pred, truth in zip(query_indices, predictions, ground_truths):
@@ -390,9 +391,15 @@ def evaluate_from_checkpoints(
             # Exact string match for env_grounded tasks
             correct = (pred == truth)
         elif custom_evaluator:
-            # Use dataset-specific evaluator (e.g., dbbench float tolerance + set comparison)
+            # Use dataset-specific evaluator (e.g., dbbench bool, kgqa F1 float)
             try:
-                correct = custom_evaluator(pred, truth)
+                result = custom_evaluator(pred, truth)
+                # Support both bool and float returns
+                if isinstance(result, float):
+                    eval_scores.append(result)
+                    correct = (result == 1.0)
+                else:
+                    correct = bool(result)
             except Exception as e:
                 correct = False
                 eval_logger.debug(f"  [{qidx}] custom evaluator failed: {e}")
@@ -425,6 +432,11 @@ def evaluate_from_checkpoints(
     if is_env_grounded and soft_scores:
         soft_accuracy = sum(soft_scores) / len(soft_scores)
     
+    # Calculate mean score for evaluators returning float (e.g., F1)
+    mean_score = None
+    if eval_scores:
+        mean_score = sum(eval_scores) / len(eval_scores)
+    
     # Log detailed results to file
     eval_logger.info("=" * 80)
     eval_logger.info(f"Evaluation Results for {result_dir.name}")
@@ -432,6 +444,8 @@ def evaluate_from_checkpoints(
     eval_logger.info(f"Total Examples: {total_count}")
     eval_logger.info(f"Correct: {correct_count}")
     eval_logger.info(f"Accuracy (exact match): {accuracy:.4f} ({accuracy*100:.2f}%)")
+    if mean_score is not None:
+        eval_logger.info(f"Mean Score: {mean_score:.4f} ({mean_score*100:.2f}%)")
     if soft_accuracy is not None:
         eval_logger.info(f"Soft Accuracy (word-level): {soft_accuracy:.4f} ({soft_accuracy*100:.2f}%)")
     eval_logger.info("=" * 80)
@@ -455,6 +469,8 @@ def evaluate_from_checkpoints(
     print(f"  Examples:   {total_count}")
     print(f"  Correct:    {correct_count}")
     print(f"  Accuracy:   {accuracy:.4f} ({accuracy*100:.2f}%)")
+    if mean_score is not None:
+        print(f"  Mean Score: {mean_score:.4f} ({mean_score*100:.2f}%)")
     if soft_accuracy is not None:
         print(f"  Soft Acc:   {soft_accuracy:.4f} ({soft_accuracy*100:.2f}%)")
     print("=" * 60)
