@@ -76,6 +76,12 @@ def get_lm(model_name:str, **kwargs):
             kwargs.setdefault("base_url", "https://api.groq.com/openai/v1")
             kwargs.setdefault("api_key", os.environ.get("GROQ_API_KEY"))
         base_model = OpenAIChatModel(actual_model_name, **kwargs)
+    elif model_name.startswith("ollama"):
+        # Local Ollama server via OpenAI-compatible API (e.g., "ollama/qwen3:235b-a22b")
+        actual_model_name = model_name.split("/", 1)[1]
+        kwargs.setdefault("base_url", "http://localhost:11434/v1")
+        kwargs.setdefault("api_key", "ollama")
+        base_model = OpenAIChatModel(actual_model_name, **kwargs)
     elif model_name.startswith("bedrock"):
         from .bedrock_chat import BedrockChatModel
         base_model = BedrockChatModel(model_name.split("/", 1)[1], **kwargs) # e.g., bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0
@@ -135,8 +141,8 @@ def infer_chat_model(model_name: str):
             "reason": "TGI model without explicit model name, assuming completion model."
         }
     
-    # Non-HF models (Bedrock, OpenAI, etc.) are always chat models
-    if model_name.startswith(("bedrock/", "openai/", "azure_openai/", "moonshot/", "groq/")):
+    # Non-HF models (Bedrock, OpenAI, Ollama, etc.) are always chat models
+    if model_name.startswith(("bedrock/", "openai/", "azure_openai/", "moonshot/", "groq/", "ollama/")):
         return {
             "is_chat_model": True,
             "reason": f"Non-HF API models are chat models by default."
