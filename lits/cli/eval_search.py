@@ -122,7 +122,8 @@ def evaluate_from_checkpoints(
     dataset_kwargs: dict = None,
     input_price_per_m: float = None,
     output_price_per_m: float = None,
-    verbose: bool = False
+    verbose: bool = False,
+    use_llm_f1: bool = False,
 ):
     """
     Evaluate tree search results from checkpoint files.
@@ -372,16 +373,43 @@ def evaluate_from_checkpoints(
     llm_evaluator = None
     if is_tool_use:
         from lits.eval.general_eval import GeneralEvaluator
-        llm_evaluator = GeneralEvaluator(
-            base_model=base_model,
-            eval_perspectives=[{
-                "eval_id": "correct",
-                "description": "Does the predicted answer contain the correct value? Ignore formatting differences, extra explanation, or markdown. Focus only on whether the core answer value matches.",
-                "options": ["yes", "no"],
-            }],
-        )
-        eval_logger.info("LLM-based evaluator enabled for tool-use answer comparison")
+        if use_llm_f1:
+            llm_evaluator = GeneralEvaluator(
+                base_model=base_model,
+                eval_perspectives=[{
+                    "eval_id": "score",
+                    "output_type": "float",
+                    "description": (
+                        "Compute the F1 score between the predicted and ground truth answer sets. "
+                        "F1 = 2 * precision * recall / (precision + recall), where "
+                        "precision = (correct predictions) / (total predictions), "
+                        "recall = (correct predictions) / (total ground truth elements). "
+                        "Output 0.0 if no overlap, 1.0 if exact match. "
+                        "Penalize both missing elements (low recall) and extra wrong elements (low precision)."
+                    ),
+                }],
+            )
+            eval_logger.info("LLM-based F1 score evaluator enabled (--llm-score)")
+        else:
+            llm_evaluator = GeneralEvaluator(
+                base_model=base_model,
+                eval_perspectives=[{
+                    "eval_id": "correct",
+                    "description": "Does the predicted answer contain the correct value? Ignore formatting differences, extra explanation, or markdown. Focus only on whether the core answer value matches.",
+                    "options": ["yes", "no"],
+                }],
+            )
+            eval_logger.info("LLM-based binary evaluator enabled")
     
+    def _llm_fallback(pred, truth, prior_score=None):
+        """Run LLM evaluator fallback. Returns (correct: bool, score: float|None)."""
+        if use_llm_f1:
+            llm_score = llm_evaluator.check_score(pred, truth)
+            final = max(prior_score, llm_score) if prior_score is not None else llm_score
+            return (final == 1.0), final
+        else:
+            return llm_evaluator.check_correct(pred, truth), prior_score
+
     correct_count = 0
     eval_scores = []  # Track continuous scores from evaluators that return float
     eval_logger.info("=" * 40)
@@ -392,25 +420,28 @@ def evaluate_from_checkpoints(
             correct = (pred == truth)
         elif custom_evaluator:
             # Use dataset-specific evaluator (e.g., dbbench bool, kgqa F1 float)
+            score = None
             try:
                 result = custom_evaluator(pred, truth)
-                # Support both bool and float returns
                 if isinstance(result, float):
-                    eval_scores.append(result)
-                    correct = (result == 1.0)
+                    score = result
+                    correct = (score == 1.0)
                 else:
                     correct = bool(result)
             except Exception as e:
                 correct = False
                 eval_logger.debug(f"  [{qidx}] custom evaluator failed: {e}")
-            # Fallback to LLM evaluation if exact match fails for tool-use
             if not correct and llm_evaluator:
-                correct = llm_evaluator.check_correct(pred, truth)
-                eval_logger.debug(f"  [{qidx}] LLM evaluator: {correct}")
+                correct, score = _llm_fallback(pred, truth, score)
+                eval_logger.debug(f"  [{qidx}] LLM fallback: correct={correct}, score={score}")
+            if score is not None:
+                eval_scores.append(score)
         elif llm_evaluator:
             # Tool-use without custom evaluator: use LLM directly
-            correct = llm_evaluator.check_correct(pred, truth)
-            eval_logger.debug(f"  [{qidx}] LLM evaluator: {correct}")
+            correct, score = _llm_fallback(pred, truth)
+            eval_logger.debug(f"  [{qidx}] LLM evaluator: correct={correct}, score={score}")
+            if score is not None:
+                eval_scores.append(score)
         else:
             # Use eval_output for number comparison in QA tasks
             try:
@@ -542,6 +573,7 @@ Examples:
     parser.add_argument("--input-price", type=float, default=None, help="Price per 1M input tokens (for cost estimation)")
     parser.add_argument("--output-price", type=float, default=None, help="Price per 1M output tokens (for cost estimation)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print detailed output to console (default: progress bar + summary only)")
+    parser.add_argument("--llm-f1", action="store_true", help="Use LLM F1 score evaluator instead of binary yes/no for fallback when custom evaluator returns float < 1.0")
     
     args = parser.parse_args()
     
@@ -601,7 +633,8 @@ Examples:
             dataset_kwargs=dataset_kwargs,
             input_price_per_m=args.input_price,
             output_price_per_m=args.output_price,
-            verbose=args.verbose
+            verbose=args.verbose,
+            use_llm_f1=args.llm_f1,
         )
     except Exception as e:
         print(f"Error during evaluation: {e}", file=sys.stderr)

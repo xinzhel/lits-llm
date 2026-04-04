@@ -30,6 +30,7 @@ class EvalPerspective:
     description: str
     options: Sequence[str] = None
     examples: Sequence[str] = None
+    output_type: str = "str"  # "str" (default) or "float" (0.0–1.0)
 
     def __post_init__(self) -> None:
         normalized_id = str(self.eval_id).strip()
@@ -38,6 +39,10 @@ class EvalPerspective:
         normalized_description = str(self.description).strip()
         if not normalized_description:
             raise ValueError("description cannot be empty.")
+        if self.output_type not in ("str", "float"):
+            raise ValueError(f"output_type must be 'str' or 'float', got '{self.output_type}'.")
+        if self.output_type == "float" and self.options is not None:
+            raise ValueError("Float perspectives must not have options (LLM outputs a number).")
         if self.options:
             normalized_options = tuple(
                 str(option).strip() for option in self.options if str(option).strip()
@@ -45,7 +50,7 @@ class EvalPerspective:
             if not normalized_options:
                 raise ValueError("options must contain at least one non-empty string.")
         else:
-            normalized_options =  None
+            normalized_options = None
 
         object.__setattr__(self, "eval_id", normalized_id)
         object.__setattr__(self, "description", normalized_description)
@@ -53,6 +58,9 @@ class EvalPerspective:
 
     def to_prompt_bullet(self) -> str:
         """Render this perspective as a bullet block for the evaluator prompt."""
+        if self.output_type == "float":
+            return (f"- **{self.eval_id}**: {self.description}\n"
+                    f"  Output: a single number between 0.0 and 1.0 (e.g., 0.0, 0.5, 1.0)")
         if self.options:
             allowed = ", ".join(self.options)
             return f"- **{self.eval_id}**: {self.description}\n  Options: {allowed}"
@@ -61,6 +69,8 @@ class EvalPerspective:
 
     def example_value(self) -> str:
         """Return the canonical example value (the first option)."""
+        if self.output_type == "float":
+            return "0.75"
         if self.options:
             return self.options[0]
         else:
@@ -333,7 +343,7 @@ class GeneralEvaluator:
                     exc,
                 )
 
-        error_msg = "Evaluator failed to return valid JSON after multiple attempts."
+        error_msg = f"Evaluator failed to return valid JSON after {attempts} attempts. Last raw output: {raw_text!r}"
         raise RuntimeError(error_msg) from last_error
 
     def build_prompt(
@@ -377,9 +387,10 @@ class GeneralEvaluator:
                     raise ValueError(
                         f"Missing keys {missing_keys} in eval_perspective configuration."
                     )
-                if (perspective.get("options", None) is None) and (perspective.get("examples", None) is None):
+                if (perspective.get("options", None) is None) and (perspective.get("examples", None) is None) and perspective.get("output_type") != "float":
                     raise ValueError(
-                        f"Either key (options or examples) is required in eval_perspective configuration."
+                        f"Either key (options or examples) is required in eval_perspective configuration "
+                        f"(unless output_type='float')."
                     )
                 
                     
@@ -387,7 +398,8 @@ class GeneralEvaluator:
                     eval_id=perspective["eval_id"],
                     description=perspective["description"],
                     options=perspective.get("options", None),
-                    examples=perspective.get("examples", None)
+                    examples=perspective.get("examples", None),
+                    output_type=perspective.get("output_type", "str"),
                 )
             else:
                 raise TypeError(
@@ -432,14 +444,24 @@ class GeneralEvaluator:
             if eval_id not in result:
                 raise ValueError(f"Missing eval_id '{eval_id}' in evaluator output.")
             raw_value = result[eval_id]
-            value = str(raw_value).strip()
-            if perspective.options is not None:
-                if value not in perspective.options:
+            if perspective.output_type == "float":
+                try:
+                    float_val = float(raw_value)
+                    float_val = max(0.0, min(1.0, float_val))  # clamp to [0, 1]
+                    normalized[eval_id] = str(float_val)
+                except (ValueError, TypeError):
                     raise ValueError(
-                        f"Invalid option '{value}' for eval_id '{eval_id}'."
-                        f" Allowed values: {perspective.options}"
+                        f"Expected float for eval_id '{eval_id}', got '{raw_value}'."
                     )
-            normalized[eval_id] = value
+            else:
+                value = str(raw_value).strip()
+                if perspective.options is not None:
+                    if value not in perspective.options:
+                        raise ValueError(
+                            f"Invalid option '{value}' for eval_id '{eval_id}'."
+                            f" Allowed values: {perspective.options}"
+                        )
+                normalized[eval_id] = value
         return normalized
     
     def evaluate_incremental(
@@ -580,3 +602,26 @@ class GeneralEvaluator:
         """
         result = self.evaluate(solution=pred, truth=str(truth), include_input=False)
         return result.get(eval_id) == "yes"
+
+    def check_score(self, pred: str, truth: str, eval_id: str = "score") -> float:
+        """Convenience method: evaluate and return float score for a single pred/truth pair.
+
+        Requires the specified ``eval_id`` to have ``output_type="float"``.
+
+        Args:
+            pred: Predicted answer.
+            truth: Ground-truth answer.
+            eval_id: The perspective key to read (default ``"score"``).
+
+        Returns:
+            Float score in [0.0, 1.0]. Returns 0.0 on parse failure.
+        """
+        try:
+            result = self.evaluate(solution=pred, truth=str(truth), include_input=False)
+        except RuntimeError as e:
+            # Log the pred/truth that caused the failure for debugging
+            logger.error(
+                f"check_score failed: pred={pred!r}, truth={truth!r}, error={e}"
+            )
+            raise
+        return float(result.get(eval_id, 0.0))
