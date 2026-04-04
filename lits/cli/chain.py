@@ -69,7 +69,7 @@ def main() -> int:
     # ReactChatConfig for tool-use after detection.
     config = EnvChainConfig(
         dataset="blocksworld",
-        policy_model_name="bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0",
+        policy_model_name="bedrock/us.anthropic.claude-sonnet-4-6",
         max_steps=30,
         goal_reached_reward=100.0,
         goal_reward_default=0.0,
@@ -215,6 +215,12 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
         for example_idx, example in enumerate(selected_examples, start=offset):
             run_logger.info(f"Processing example {example_idx}")
             query = example["question"]
+
+            # Per-example tool state setup (e.g., KG entity injection)
+            prepare_example = tool_use_spec.get("prepare_example")
+            if prepare_example is not None:
+                prepare_example(example)
+
             agent.run(
                 query=query,
                 query_idx=example_idx,

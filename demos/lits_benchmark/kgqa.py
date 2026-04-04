@@ -141,8 +141,11 @@ def load_kgqa(data_file: Optional[str] = None, **kwargs) -> List[Dict]:
             else:
                 answer_strings.append(a.get("answer_argument", ""))
 
+        entity_names = list(entry.get("entities", {}).keys())
+        formatted_question = f"Question: {entry['question']}\nEntities: [{', '.join(entity_names)}]"
+
         examples.append({
-            "question": entry["question"],
+            "question": formatted_question,
             "answer": answer_strings,
             "entities": entry.get("entities", {}),
             "gold_answers_raw": entry.get("answer", []),
@@ -223,3 +226,71 @@ def evaluate_kgqa(predicted_answer, ground_truth) -> float:
         gold_list = [str(ground_truth)]
 
     return _calculate_f1(pred_list, gold_list)
+
+
+
+# ---------------------------------------------------------------------------
+# Resource registration (tools + tool_context)
+# ---------------------------------------------------------------------------
+
+from lits.benchmarks.registry import register_resource
+
+
+@register_resource("kgqa")
+def load_kgqa_resource(**kwargs) -> dict:
+    """Load KGQA tool-use resource: SPARQL client + KG tools.
+
+    Returns tools, tool_context, and a ``prepare_example`` callback.
+    The callback resets per-example state on the shared ``KGState``
+    (entity map, variable tracker, API caches). Query formatting is
+    handled by the dataset loader, not here.
+
+    Kwargs:
+        sparql_url: SPARQL endpoint URL. Reads from ``FREEBASE_SPARQL_URL``
+            env var if not provided.
+        max_round: Maximum rounds for the system prompt. Default: 15.
+        entities: Dict mapping entity names to Freebase IDs (optional;
+            overridden per-example by ``prepare_example``).
+
+    Returns:
+        Dict with:
+        - ``"tools"``: list of 7 BaseTool instances
+        - ``"tool_context"``: formatted system prompt string
+        - ``"prepare_example"``: callback ``(example) -> None`` that resets
+          tool state for the next example
+    """
+    from .kgqa_tools import create_kg_tools
+
+    sparql_url = kwargs.get("sparql_url", None)
+    max_round = int(kwargs.get("max_round", 15))
+    entities = kwargs.get("entities", {})
+
+    tools = create_kg_tools(sparql_url=sparql_url, entities=entities)
+
+    # All 7 tools share the same KGState — grab it from any tool
+    kg_state = tools[0].kg_state
+
+    def prepare_example(example: dict) -> None:
+        """Per-example tool state reset.
+
+        Updates ``KGState.entities`` so ``resolve_arg()`` maps entity
+        names to Freebase IDs for this example. Clears variable tracker
+        and AgentBench API caches to avoid cross-example leakage.
+
+        Args:
+            example: Dataset example dict with ``entities`` key.
+        """
+        kg_state.entities = example.get("entities", {})
+        kg_state.variables.clear()
+        # Clear AgentBench API caches (global dicts keyed by task_id)
+        from knowledgegraph.api import variable_relations_cache, variable_attributes_cache, relation_cache, attribute_cache
+        variable_relations_cache.clear()
+        variable_attributes_cache.clear()
+        relation_cache.clear()
+        attribute_cache.clear()
+
+    return {
+        "tools": tools,
+        "tool_context": KGQA_SYSTEM_PROMPT.format(max_round=max_round),
+        "prepare_example": prepare_example,
+    }

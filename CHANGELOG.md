@@ -7,13 +7,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
-## 2026-03-31 Unreleased (`0302-agentbench-integration`)
+## 2026-04-04 Unreleased (`0302-agentbench-integration`)
+
+### Added
+- `demos/lits_benchmark/kgqa_tools.py`: `KGState`, 7 BaseTool wrappers, `create_kg_tools()` factory
+- `demos/lits_benchmark/kgqa.py`: `prepare_example` callback in `@register_resource("kgqa")` for per-example tool state reset
+- `docs/cli/protocol.md`: CLI–Registry protocol doc (dataset, resource, evaluator contracts + stateful tools)
+- `unit_test/tools/test_kgqa_tools.py`: KG tool wrappers test against live SPARQL endpoint
+
+### Changed
+- `demos/lits_benchmark/kgqa.py`: dataset loader now formats complete query string (`Question: ...\nEntities: [...]`)
+- `cli/chain.py`: `_run_tool_use` calls `prepare_example(example)` per-example if provided by resource
+- `cli/search.py`: per-example `prepare_example` support in main loop
+- `cli/chain.py`, `cli/search.py`: default model updated to `bedrock/us.anthropic.claude-sonnet-4-6`
+
+## 2026-03-31 Unreleased (`0302-agentbench-integration`, `x-0331-minor-transition-pre-step-hook`)
 
 ### Added
 - `demos/lits_benchmark/kgqa.py`: `@register_dataset("kgqa")` loader for AgentBench KG (150 GrailQA examples)
 - `demos/lits_benchmark/kgqa.py`: `@register_evaluator("kgqa")` returning set-based F1 (float 0.0–1.0)
 - `demos/lits_benchmark/kgqa.py`: `KGQA_SYSTEM_PROMPT`, `build_one_shot_steps()`, `ONE_SHOT_QUESTION`
+- `demos/lits_benchmark/kgqa.py`: `@register_resource("kgqa")` skeleton (tools placeholder)
 - `cli/eval_search.py`: continuous score support — evaluators returning float tracked in `eval_scores`, reports Mean Score
+- `tools/base.py`: `BaseTool.pre_step(state)` optional hook called before each tool execution
+- `components/transition/tool_use.py`: `pre_step` wiring — calls `tool.pre_step(state)` on all tools before `execute_tool_action()`
 
 ## 2026-03-29 Unreleased (`0312-major-context-augmentation`)
 

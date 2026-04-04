@@ -172,7 +172,7 @@ def _create_local_backend(memory_kwargs: Dict, run_logger):
     from lits.memory.backends import LocalMemoryBackend
 
     model_name = memory_kwargs.get(
-        "model", "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0"
+        "model", "bedrock/us.anthropic.claude-sonnet-4-6"
     )
     llm = get_lm(model_name)
     embedding_model = memory_kwargs.get("embedding_model", "multi-qa-mpnet-base-cos-v1")
@@ -336,8 +336,8 @@ def main() -> int:
     # Default config — CLI flags override these values
     config = ExperimentConfig(
         dataset="math500",
-        policy_model_name="bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0",
-        eval_model_name="bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0",
+        policy_model_name="bedrock/us.anthropic.claude-sonnet-4-6",
+        eval_model_name="bedrock/us.anthropic.claude-sonnet-4-6",
         search_framework="rest",
         search_algorithm="mcts",
         search_args={"n_actions": 3},
@@ -590,6 +590,9 @@ def main() -> int:
     # Run experiments
     begin_time = time.time()
 
+    # Per-example tool state setup callback (e.g., KG entity injection)
+    prepare_example = tool_use_spec.get("prepare_example") if tool_use_spec else None
+
     for query_idx, example in tqdm(enumerate(full_dataset, start=config.offset)):
         if config.eval_idx and query_idx not in config.eval_idx:
             run_logger.debug(f"Skipping example {query_idx}")
@@ -599,6 +602,9 @@ def main() -> int:
             query_or_goals = example.get("query_or_goals", example.get("question", ""))
         else:
             query_or_goals = example["question"]
+
+        if prepare_example is not None:
+            prepare_example(example)
 
         run_tree_search(
             query_or_goals=query_or_goals,
