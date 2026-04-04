@@ -325,11 +325,17 @@ def load_kgqa_resource(**kwargs) -> dict:
 
         Args:
             raw_answer: The agent's raw answer string (e.g., ``"#3"``).
-            state: The ToolUseState (trajectory of steps).
+            state: The ToolUseState (trajectory of steps). Must be a
+                deserialized TrajectoryState, not a list of dicts.
 
         Returns:
             Comma-separated entity names, or the raw answer if resolution fails.
         """
+        from lits.structures.base import TrajectoryState
+        assert isinstance(state, TrajectoryState), (
+            f"resolve_answer expects TrajectoryState, got {type(state).__name__}. "
+            "CLI should deserialize dicts before calling."
+        )
         import re
         match = re.search(r'#(\d+)', raw_answer)
         if not match:

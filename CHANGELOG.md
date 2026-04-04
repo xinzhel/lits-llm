@@ -20,8 +20,10 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `demos/lits_benchmark/kgqa.py`: dataset loader now formats complete query string (`Question: ...\nEntities: [...]`)
 - `demos/lits_benchmark/kgqa.py`: `KGQA_SYSTEM_PROMPT` uses `<answer>` tags instead of `Final Answer:` format
 - `demos/lits_benchmark/kgqa.py`: gold answer includes both entity names and Freebase IDs for F1 matching
+- `demos/lits_benchmark/kgqa.py`: `resolve_answer` asserts `TrajectoryState` type for consistent contract
 - `cli/chain.py`: `_run_tool_use` calls `prepare_tool_state` and `resolve_answer` per-example if provided by resource
-- `cli/search.py`: per-example `prepare_tool_state` and `resolve_answer` support in main loop
+- `cli/chain.py`: `max_steps` config now wired to `create_tool_use_agent(max_iter=...)`
+- `cli/search.py`: per-example `prepare_tool_state` and `resolve_answer` support; deserializes dicts to `ToolUseState` before calling `resolve_answer`
 - `cli/chain.py`, `cli/search.py`: default model updated to `bedrock/us.anthropic.claude-sonnet-4-6`
 
 ### Fixed

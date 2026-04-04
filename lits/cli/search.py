@@ -637,7 +637,11 @@ def main() -> int:
                         last_step = state_steps[-1]
                         raw = last_step.get("answer")
                         if raw:
-                            resolved = resolve_answer(raw, state_steps)
+                            # Deserialize to ToolUseState so resolve_answer
+                            # always receives the same type as chain.py
+                            from lits.structures.tool_use import ToolUseState
+                            tool_state = ToolUseState.from_dict({"steps": state_steps})
+                            resolved = resolve_answer(raw, tool_state)
                             if resolved != raw:
                                 last_step["answer"] = resolved
                                 modified = True

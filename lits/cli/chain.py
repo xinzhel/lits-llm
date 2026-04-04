@@ -199,6 +199,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
         tool_context=tool_use_spec.get("tool_context", ""),
         task_name=benchmark_name,
         model_name=config.policy_model_name,
+        max_iter=config.max_steps,
         root_dir=result_dir,
         override_logger=override,
     )

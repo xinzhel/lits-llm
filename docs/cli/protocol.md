@@ -99,6 +99,7 @@ def resolve_answer(raw_answer: str, state: TrajectoryState) -> str:
 ```
 
 - Called after `agent.run()` if the state has a final answer.
+- `state` is always a deserialized `TrajectoryState` object (both chain and search CLIs ensure this).
 - Replays the trajectory to reconstruct internal state, then resolves the answer.
 - The resolved answer overwrites the checkpoint so `lits-eval` sees concrete values.
 - If absent, the CLI uses the raw answer as-is.
