@@ -591,7 +591,8 @@ def main() -> int:
     begin_time = time.time()
 
     # Per-example tool state setup callback (e.g., KG entity injection)
-    prepare_example = tool_use_spec.get("prepare_example") if tool_use_spec else None
+    prepare_tool_state = tool_use_spec.get("prepare_tool_state") if tool_use_spec else None
+    resolve_answer = tool_use_spec.get("resolve_answer") if tool_use_spec else None
 
     for query_idx, example in tqdm(enumerate(full_dataset, start=config.offset)):
         if config.eval_idx and query_idx not in config.eval_idx:
@@ -603,8 +604,8 @@ def main() -> int:
         else:
             query_or_goals = example["question"]
 
-        if prepare_example is not None:
-            prepare_example(example)
+        if prepare_tool_state is not None:
+            prepare_tool_state(example)
 
         run_tree_search(
             query_or_goals=query_or_goals,
@@ -622,6 +623,28 @@ def main() -> int:
             search_algorithm=config.search_algorithm,
             run_logger=run_logger,
         )
+
+        # Post-run answer resolution on saved terminal nodes (e.g., KG #N → entity names)
+        if resolve_answer is not None:
+            tn_file = Path(result_dir) / "terminal_nodes" / f"terminal_nodes_{query_idx}.json"
+            if tn_file.exists():
+                with open(tn_file) as f:
+                    tn_data = json.load(f)
+                modified = False
+                for node in tn_data.get("terminal_nodes", []):
+                    state_steps = node.get("state", [])
+                    if state_steps:
+                        last_step = state_steps[-1]
+                        raw = last_step.get("answer")
+                        if raw:
+                            resolved = resolve_answer(raw, state_steps)
+                            if resolved != raw:
+                                last_step["answer"] = resolved
+                                modified = True
+                if modified:
+                    with open(tn_file, "w") as f:
+                        json.dump(tn_data, f, indent=2)
+                    run_logger.info(f"[{query_idx}] Resolved answers in terminal nodes")
 
     end_time = time.time()
     run_logger.info(f"Total time: {end_time - begin_time}")

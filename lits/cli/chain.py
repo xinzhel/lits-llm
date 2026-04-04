@@ -211,22 +211,36 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
     selected_examples = _slice_dataset(full_dataset, offset, limit)
     run_logger.info(f"Running on {len(selected_examples)} examples (offset={offset}, limit={limit})")
 
+    # Per-example callbacks from resource (e.g., KG entity injection, answer resolution)
+    prepare_tool_state = tool_use_spec.get("prepare_tool_state")
+    resolve_answer = tool_use_spec.get("resolve_answer")
+
     try:
         for example_idx, example in enumerate(selected_examples, start=offset):
             run_logger.info(f"Processing example {example_idx}")
             query = example["question"]
 
-            # Per-example tool state setup (e.g., KG entity injection)
-            prepare_example = tool_use_spec.get("prepare_example")
-            if prepare_example is not None:
-                prepare_example(example)
+            if prepare_tool_state is not None:
+                prepare_tool_state(example)
 
-            agent.run(
+            state = agent.run(
                 query=query,
                 query_idx=example_idx,
                 checkpoint_dir=checkpoint_dir,
                 override=override,
             )
+
+            # Post-run answer resolution (e.g., KG variable → entity names via SPARQL)
+            if resolve_answer is not None and state is not None:
+                raw_answer = state.get_final_answer()
+                if raw_answer:
+                    resolved = resolve_answer(raw_answer, state)
+                    if resolved != raw_answer:
+                        state[-1].answer = resolved
+                        checkpoint_path = os.path.join(checkpoint_dir, f"{example_idx}.json")
+                        state.save(checkpoint_path, query)
+                        run_logger.info(f"Resolved answer: '{raw_answer}' → '{resolved}'")
+
     except Exception as e:
         run_logger.error(f"Error during ReAct execution: {e}")
         traceback.print_exc()

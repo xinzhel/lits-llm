@@ -93,6 +93,10 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseAction]):
         # Execute the tool action to get observation
         observation = None
         if action:
+            # Call pre_step hook on all tools (e.g., KG tools rebuild variable tracker)
+            for tool in self.tools:
+                if hasattr(tool, 'pre_step'):
+                    tool.pre_step(new_state)
             try:
                 observation = execute_tool_action(str(action), self.tools)
             except Exception as exc:

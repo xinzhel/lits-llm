@@ -11,7 +11,7 @@ Returns `List[Dict]`. Each dict must have `question` (str). Other keys are bench
 | `question` | str | yes | chain, search | Complete query string ready for the LLM |
 | `answer` | str \| list | yes (for eval) | `lits-eval` | Gold answer for evaluator |
 
-Benchmark-specific keys (e.g., `entities`, `db_id`) are opaque to the CLI — they're only accessed by `prepare_example` or the evaluator.
+Benchmark-specific keys (e.g., `entities`, `db_id`) are opaque to the CLI — they're only accessed by `prepare_tool_state` or the evaluator.
 
 ## Resource (`@register_resource`)
 
@@ -21,7 +21,8 @@ Returns `Dict`. Consumed by `create_tool_use_agent` (chain) and `create_componen
 |-----|------|----------|-------------|-------|
 | `tools` | list[BaseTool] | yes | chain, search | Tool instances for the agent |
 | `tool_context` | str | yes | chain, search | Prepended to system prompt via `{tool_context}` placeholder |
-| `prepare_example` | Callable[[dict], None] | no | chain, search | Per-example tool state reset (see below) |
+| `prepare_tool_state` | Callable[[dict], None] | no | chain, search | Per-example tool state reset (see below) |
+| `resolve_answer` | Callable[[str, State], str] | no | chain, search | Post-run answer resolution (see below) |
 
 ## Evaluator (`@register_evaluator`)
 
@@ -38,7 +39,7 @@ def evaluate(predicted_answer, ground_truth) -> bool | float
 |-----------|-------------|-----------------|----------------|
 | dbbench | `question`, `answer`, `db_id` | — | bool |
 | mapeval-sql | `question`, `answer` | — | bool |
-| kgqa | `question`, `answer`, `entities` | `prepare_example` | float (F1) |
+| kgqa | `question`, `answer`, `entities` | `prepare_tool_state` | float (F1) |
 
 ---
 
@@ -46,19 +47,19 @@ def evaluate(predicted_answer, ground_truth) -> bool | float
 
 Some benchmarks require tools whose internal state changes per-example. For instance, KGQA tools share a `KGState` that maps entity names to Freebase IDs — and each question has different entities. The CLI itself should not know about these internals.
 
-The `prepare_example` callback solves this cleanly:
+The `prepare_tool_state` callback solves this cleanly:
 
 - The **dataset loader** produces a self-contained `question` string (the CLI never needs to reformat it).
-- The **resource** returns a `prepare_example(example) -> None` callback that mutates shared tool state before each example.
-- The **CLI** calls `prepare_example(example)` in the per-example loop, then uses `example["question"]` as the query — no conditional branching.
+- The **resource** returns a `prepare_tool_state(example) -> None` callback that mutates shared tool state before each example.
+- The **CLI** calls `prepare_tool_state(example)` in the per-example loop, then uses `example["question"]` as the query — no conditional branching.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  CLI per-example loop                                   │
 │                                                         │
 │  for example in dataset:                                │
-│      if prepare_example:        # optional callback     │
-│          prepare_example(example)   # side effect only  │
+│      if prepare_tool_state:        # optional callback     │
+│          prepare_tool_state(example)   # side effect only  │
 │      query = example["question"]    # always from here  │
 │      agent.run(query, ...)                              │
 └─────────────────────────────────────────────────────────┘
@@ -75,13 +76,29 @@ formatted_question = f"Question: {entry['question']}\nEntities: [{', '.join(enti
 examples.append({"question": formatted_question, "entities": entry["entities"], ...})
 ```
 
-**Resource** (`kgqa.py::load_kgqa_resource`): returns a `prepare_example` that resets `KGState`.
+**Resource** (`kgqa.py::load_kgqa_resource`): returns a `prepare_tool_state` that resets `KGState`.
 
 ```python
-def prepare_example(example: dict) -> None:
+def prepare_tool_state(example: dict) -> None:
     kg_state.entities = example["entities"]   # update entity→ID map
     kg_state.variables.clear()                # reset variable tracker
     # clear AgentBench API caches to avoid cross-example leakage
 ```
 
 The CLI doesn't know about `KGState`, entities, or Freebase IDs. It just calls the callback and uses the question string.
+
+### `resolve_answer` — post-run answer resolution
+
+Some benchmarks produce symbolic answers that need resolution against an external service. For example, KGQA agents output variable references (`#3`) that must be executed as SPARQL queries to get actual entity names.
+
+The `resolve_answer` callback handles this:
+
+```python
+def resolve_answer(raw_answer: str, state: TrajectoryState) -> str:
+    """Resolve symbolic answer to concrete value. Return raw_answer if no resolution needed."""
+```
+
+- Called after `agent.run()` if the state has a final answer.
+- Replays the trajectory to reconstruct internal state, then resolves the answer.
+- The resolved answer overwrites the checkpoint so `lits-eval` sees concrete values.
+- If absent, the CLI uses the raw answer as-is.

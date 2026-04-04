@@ -174,7 +174,10 @@ class ToolUseStep(Step):
                 error=payload.get("error"),
             )
         step.observation = payload.get("observation")
-        
+        # Override answer with saved value if present (e.g., resolve_answer
+        # may have replaced "#3" with resolved entity names post-run)
+        if "answer" in payload and payload["answer"] is not None:
+            step.answer = payload["answer"]
         return step
 
     @classmethod

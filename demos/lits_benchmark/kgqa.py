@@ -36,7 +36,7 @@ Remember:
 - A variable can be an entity or a set of entities as results from previous queries.
 - You should always ensure the tool used is appropriate for the question's demands and follow the logical order where necessary (e.g., fetch relations before finding neighbors).
 - After a variable is produced along the process, you need to judge whether a variable is the final answer to the question. Each variable is represented as an id starting from 0. For example, #0 is the first variable, #1 is the second variable, and so on.
-- Once you identify the final answer to the question, respond with 'Final Answer: #id' where id is the identifier of the variable you determine to be the final answer. For example, if you think #3 is the final answer, you MUST respond with 'Final Answer: #3'. Do not call tools regarding the commission of final answer!!!
+- Once you identify the final answer to the question, respond with your answer wrapped in <answer> tags. For example, if you think #3 is the final answer, you MUST respond with '<answer>#3</answer>'. Do not call tools regarding the commission of final answer!!!
 - You need to execute one action at a time and can perform a maximum of {max_round} actions to find the answer.
 - You should use the supplied tools unless the final answer is identified.
 
@@ -94,7 +94,7 @@ def build_one_shot_steps() -> list:
             observation="variable #3, which are instances of spaceflight.rocket_engine_designer",
         ),
         ToolUseStep(
-            think="#3 is the final answer to the question, which represents the target rocket engine designer. Final Answer: #3",
+            think="#3 is the final answer to the question, which represents the target rocket engine designer.",
             answer="#3",
         ),
     ]
@@ -144,9 +144,24 @@ def load_kgqa(data_file: Optional[str] = None, **kwargs) -> List[Dict]:
         entity_names = list(entry.get("entities", {}).keys())
         formatted_question = f"Question: {entry['question']}\nEntities: [{', '.join(entity_names)}]"
 
+        # Build separate name and ID answer lists for evaluation
+        # resolve_answer returns Freebase IDs; gold uses entity names
+        answer_names = []
+        answer_ids = []
+        for a in entry.get("answer", []):
+            name = a.get("entity_name", "")
+            arg = a.get("answer_argument", "")
+            if name:
+                answer_names.append(name)
+            if arg:
+                answer_ids.append(arg)
+            # Fallback: if neither, use whatever is available
+            if not name and not arg:
+                answer_names.append("")
+
         examples.append({
             "question": formatted_question,
-            "answer": answer_strings,
+            "answer": {"names": answer_strings, "ids": answer_ids},
             "entities": entry.get("entities", {}),
             "gold_answers_raw": entry.get("answer", []),
             "qid": entry.get("qid", ""),
@@ -194,18 +209,18 @@ def _calculate_f1(predicted: List[str], gold: List[str]) -> float:
 def evaluate_kgqa(predicted_answer, ground_truth) -> float:
     """Evaluate KGQA prediction against ground truth.
 
-    Returns F1 score (float 0.0–1.0) for compatibility with
-    lits-eval's continuous score support.
+    Returns F1 score (float 0.0–1.0). Computes F1 against both entity
+    names and Freebase IDs (since ``resolve_answer`` returns IDs), and
+    takes the max.
 
     Args:
-        predicted_answer: Predicted answer string (may contain multiple
-            answers separated by commas or newlines).
-        ground_truth: Ground truth — either a list of answer strings
-            or a string representation of a list.
+        predicted_answer: Predicted answer string (comma-separated entity
+            names or Freebase IDs from ``resolve_answer``).
+        ground_truth: Ground truth — a dict ``{"names": [...], "ids": [...]}``
+            (from dataset loader), or its string representation, or a plain list.
     """
     # Parse predicted answers from string
     if isinstance(predicted_answer, str):
-        # Split on common delimiters
         pred_list = [
             a.strip()
             for a in predicted_answer.replace("\n", ",").split(",")
@@ -214,18 +229,29 @@ def evaluate_kgqa(predicted_answer, ground_truth) -> float:
     else:
         pred_list = list(predicted_answer)
 
-    # Parse gold answers
-    if isinstance(ground_truth, str):
+    # Parse gold answers — support dict, list, and string formats
+    gold_names = []
+    gold_ids = []
+    if isinstance(ground_truth, dict):
+        gold_names = ground_truth.get("names", [])
+        gold_ids = ground_truth.get("ids", [])
+    elif isinstance(ground_truth, str):
         try:
-            gold_list = json.loads(ground_truth)
+            parsed = json.loads(ground_truth.replace("'", '"'))
+            if isinstance(parsed, dict):
+                gold_names = parsed.get("names", [])
+                gold_ids = parsed.get("ids", [])
+            elif isinstance(parsed, list):
+                gold_names = parsed
         except (json.JSONDecodeError, TypeError):
-            gold_list = [ground_truth]
+            gold_names = [ground_truth]
     elif isinstance(ground_truth, list):
-        gold_list = ground_truth
-    else:
-        gold_list = [str(ground_truth)]
+        gold_names = ground_truth
 
-    return _calculate_f1(pred_list, gold_list)
+    # Compute F1 against both representations, take max
+    f1_names = _calculate_f1(pred_list, gold_names) if gold_names else 0.0
+    f1_ids = _calculate_f1(pred_list, gold_ids) if gold_ids else 0.0
+    return max(f1_names, f1_ids)
 
 
 
@@ -240,7 +266,7 @@ from lits.benchmarks.registry import register_resource
 def load_kgqa_resource(**kwargs) -> dict:
     """Load KGQA tool-use resource: SPARQL client + KG tools.
 
-    Returns tools, tool_context, and a ``prepare_example`` callback.
+    Returns tools, tool_context, and a ``prepare_tool_state`` callback.
     The callback resets per-example state on the shared ``KGState``
     (entity map, variable tracker, API caches). Query formatting is
     handled by the dataset loader, not here.
@@ -250,13 +276,13 @@ def load_kgqa_resource(**kwargs) -> dict:
             env var if not provided.
         max_round: Maximum rounds for the system prompt. Default: 15.
         entities: Dict mapping entity names to Freebase IDs (optional;
-            overridden per-example by ``prepare_example``).
+            overridden per-example by ``prepare_tool_state``).
 
     Returns:
         Dict with:
         - ``"tools"``: list of 7 BaseTool instances
         - ``"tool_context"``: formatted system prompt string
-        - ``"prepare_example"``: callback ``(example) -> None`` that resets
+        - ``"prepare_tool_state"``: callback ``(example) -> None`` that resets
           tool state for the next example
     """
     from .kgqa_tools import create_kg_tools
@@ -270,7 +296,7 @@ def load_kgqa_resource(**kwargs) -> dict:
     # All 7 tools share the same KGState — grab it from any tool
     kg_state = tools[0].kg_state
 
-    def prepare_example(example: dict) -> None:
+    def prepare_tool_state(example: dict) -> None:
         """Per-example tool state reset.
 
         Updates ``KGState.entities`` so ``resolve_arg()`` maps entity
@@ -289,8 +315,48 @@ def load_kgqa_resource(**kwargs) -> dict:
         relation_cache.clear()
         attribute_cache.clear()
 
+    def resolve_answer(raw_answer: str, state) -> str:
+        """Resolve a variable reference (#N) to actual entity names via SPARQL.
+
+        The agent outputs symbolic variable references (e.g., ``#3``).
+        This function replays the trajectory to rebuild the variable
+        tracker, then executes the symbolic program against the SPARQL
+        endpoint to get concrete entity names.
+
+        Args:
+            raw_answer: The agent's raw answer string (e.g., ``"#3"``).
+            state: The ToolUseState (trajectory of steps).
+
+        Returns:
+            Comma-separated entity names, or the raw answer if resolution fails.
+        """
+        import re
+        match = re.search(r'#(\d+)', raw_answer)
+        if not match:
+            return raw_answer
+
+        var_idx = int(match.group(1))
+
+        # Rebuild variables from trajectory
+        kg_state.rebuild(state)
+
+        if var_idx >= len(kg_state.variables):
+            logger.warning(f"resolve_answer: variable #{var_idx} not found "
+                           f"(only {len(kg_state.variables)} variables)")
+            return raw_answer
+
+        try:
+            results = kg_state.api.final_execute(kg_state.variables[var_idx])
+            if results:
+                return ", ".join(results)
+            return raw_answer
+        except Exception as e:
+            logger.warning(f"resolve_answer: final_execute failed: {e}")
+            return raw_answer
+
     return {
         "tools": tools,
         "tool_context": KGQA_SYSTEM_PROMPT.format(max_round=max_round),
-        "prepare_example": prepare_example,
+        "prepare_tool_state": prepare_tool_state,
+        "resolve_answer": resolve_answer,
     }

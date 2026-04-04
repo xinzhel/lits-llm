@@ -11,15 +11,21 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Added
 - `demos/lits_benchmark/kgqa_tools.py`: `KGState`, 7 BaseTool wrappers, `create_kg_tools()` factory
-- `demos/lits_benchmark/kgqa.py`: `prepare_example` callback in `@register_resource("kgqa")` for per-example tool state reset
+- `demos/lits_benchmark/kgqa.py`: `prepare_tool_state` callback in `@register_resource("kgqa")` for per-example tool state reset
+- `demos/lits_benchmark/kgqa.py`: `resolve_answer` callback for post-run variable→entity resolution via SPARQL
 - `docs/cli/protocol.md`: CLI–Registry protocol doc (dataset, resource, evaluator contracts + stateful tools)
 - `unit_test/tools/test_kgqa_tools.py`: KG tool wrappers test against live SPARQL endpoint
 
 ### Changed
 - `demos/lits_benchmark/kgqa.py`: dataset loader now formats complete query string (`Question: ...\nEntities: [...]`)
-- `cli/chain.py`: `_run_tool_use` calls `prepare_example(example)` per-example if provided by resource
-- `cli/search.py`: per-example `prepare_example` support in main loop
+- `demos/lits_benchmark/kgqa.py`: `KGQA_SYSTEM_PROMPT` uses `<answer>` tags instead of `Final Answer:` format
+- `demos/lits_benchmark/kgqa.py`: gold answer includes both entity names and Freebase IDs for F1 matching
+- `cli/chain.py`: `_run_tool_use` calls `prepare_tool_state` and `resolve_answer` per-example if provided by resource
+- `cli/search.py`: per-example `prepare_tool_state` and `resolve_answer` support in main loop
 - `cli/chain.py`, `cli/search.py`: default model updated to `bedrock/us.anthropic.claude-sonnet-4-6`
+
+### Fixed
+- `structures/tool_use.py`: `from_dict` now respects saved `answer` field over re-extracted value from `assistant_message`
 
 ## 2026-03-31 Unreleased (`0302-agentbench-integration`, `x-0331-minor-transition-pre-step-hook`)
 
