@@ -123,7 +123,7 @@ def evaluate_from_checkpoints(
     input_price_per_m: float = None,
     output_price_per_m: float = None,
     verbose: bool = False,
-    use_llm_f1: bool = False,
+    llm_eval_mode: str = "binary",
 ):
     """
     Evaluate tree search results from checkpoint files.
@@ -371,9 +371,9 @@ def evaluate_from_checkpoints(
     
     # Setup LLM-based evaluator for tool-use tasks (verbose answers)
     llm_evaluator = None
-    if is_tool_use:
+    if is_tool_use and llm_eval_mode != "none":
         from lits.eval.general_eval import GeneralEvaluator
-        if use_llm_f1:
+        if llm_eval_mode == "f1":
             llm_evaluator = GeneralEvaluator(
                 base_model=base_model,
                 eval_perspectives=[{
@@ -403,7 +403,7 @@ def evaluate_from_checkpoints(
     
     def _llm_fallback(pred, truth, prior_score=None):
         """Run LLM evaluator fallback. Returns (correct: bool, score: float|None)."""
-        if use_llm_f1:
+        if llm_eval_mode == "f1":
             llm_score = llm_evaluator.check_score(pred, truth)
             final = max(prior_score, llm_score) if prior_score is not None else llm_score
             return (final == 1.0), final
@@ -573,7 +573,8 @@ Examples:
     parser.add_argument("--input-price", type=float, default=None, help="Price per 1M input tokens (for cost estimation)")
     parser.add_argument("--output-price", type=float, default=None, help="Price per 1M output tokens (for cost estimation)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print detailed output to console (default: progress bar + summary only)")
-    parser.add_argument("--llm-f1", action="store_true", help="Use LLM F1 score evaluator instead of binary yes/no for fallback when custom evaluator returns float < 1.0")
+    parser.add_argument("--llm-eval", choices=["binary", "f1", "none"], default="binary",
+                        help="LLM fallback evaluator mode: 'binary' (default, yes/no), 'f1' (float F1 score), 'none' (disable LLM fallback)")
     
     args = parser.parse_args()
     
@@ -634,7 +635,7 @@ Examples:
             input_price_per_m=args.input_price,
             output_price_per_m=args.output_price,
             verbose=args.verbose,
-            use_llm_f1=args.llm_f1,
+            llm_eval_mode=args.llm_eval,
         )
     except Exception as e:
         print(f"Error during evaluation: {e}", file=sys.stderr)

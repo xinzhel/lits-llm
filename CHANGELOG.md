@@ -7,15 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
-## 2026-04-04 Unreleased (`0302-agentbench-integration`, `0404-minor-general-evaluator-float-score`)
+## 2026-04-05 Unreleased (`x-0404-0405-minor-general-evaluator-float-score`)
+
+### Added
+- `eval/general_eval.py`: `output_type="float"` on `EvalPerspective` for 0.0–1.0 LLM scoring
+- `eval/general_eval.py`: `check_score(pred, truth) -> float` convenience method
+- `cli/eval_search.py`: `--llm-eval` unified CLI flag (`binary`/`f1`/`none`) for LLM fallback evaluator mode
+
+### Changed
+- `cli/eval_search.py`: modularized LLM fallback into `_llm_fallback()` helper
+- `eval/general_eval.py`: better error messages — raw LLM output included in RuntimeError
+
+## 2026-04-04 Unreleased (`0302-agentbench-integration`)
 
 ### Added
 - `demos/lits_benchmark/kgqa_tools.py`: `KGState`, 7 BaseTool wrappers, `create_kg_tools()` factory
 - `demos/lits_benchmark/kgqa.py`: `prepare_tool_state` callback in `@register_resource("kgqa")` for per-example tool state reset
 - `demos/lits_benchmark/kgqa.py`: `resolve_answer` callback for post-run variable→entity resolution via SPARQL
-- `eval/general_eval.py`: `output_type="float"` on `EvalPerspective` for 0.0–1.0 LLM scoring
-- `eval/general_eval.py`: `check_score(pred, truth) -> float` convenience method
-- `cli/eval_search.py`: `--llm-f1` CLI flag for F1-based LLM fallback evaluator
 - `docs/cli/protocol.md`: CLI–Registry protocol doc (dataset, resource, evaluator contracts + stateful tools)
 - `unit_test/tools/test_kgqa_tools.py`: KG tool wrappers test against live SPARQL endpoint
 
