@@ -22,6 +22,7 @@ from .continuation import _continuation
 from .augmentor_setup import setup_augmentors
 from ..registry import register_search
 from ...log import log_phase, log_event, log_metric
+from ...visualize import visualize_tree
 
 logger = logging.getLogger(__name__)
 
@@ -694,6 +695,9 @@ class MCTSSearch(BaseTreeSearch):
                 trace_in_each_iter.append(deepcopy(path))
                 if config.terminate_on_terminal_node:
                     log_event(logger, "MCTS", "Terminates due to terminal node (after select)", level="debug")
+                    n_terminals = len(self.collect_terminal_nodes())
+                    tree_str = visualize_tree(self.root)
+                    logger.info(f"[MCTS] Iteration {idx_iter}/{config.n_iters} (example={query_idx}) | terminals={n_terminals} | early_stop=select\n{tree_str}")
                     break
                 else:
                     log_event(logger, "MCTS", "Continues to next iteration due to terminal node (after select)", level="debug")
@@ -726,6 +730,9 @@ class MCTSSearch(BaseTreeSearch):
                         on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="continuation")
                     if config.terminate_on_terminal_node:
                         log_event(logger, "MCTS", "Terminates due to terminal node (after continuation)", level="debug")
+                        n_terminals = len(self.collect_terminal_nodes())
+                        tree_str = visualize_tree(self.root)
+                        logger.info(f"[MCTS] Iteration {idx_iter}/{config.n_iters} (example={query_idx}) | terminals={n_terminals} | early_stop=continuation\n{tree_str}")
                         break
                     else:
                         log_event(logger, "MCTS", "Continues to next iteration due to terminal node (after continuation)", level="debug")
@@ -742,6 +749,9 @@ class MCTSSearch(BaseTreeSearch):
                     on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="expand")
                 if config.terminate_on_terminal_node:
                     log_event(logger, "MCTS", "Terminates due to terminal node (after world modeling)", level="debug")
+                    n_terminals = len(self.collect_terminal_nodes())
+                    tree_str = visualize_tree(self.root)
+                    logger.info(f"[MCTS] Iteration {idx_iter}/{config.n_iters} (example={query_idx}) | terminals={n_terminals} | early_stop=world_model\n{tree_str}")
                     break
                 else:
                     log_event(logger, "MCTS", "Continues to next iteration due to terminal node (after world modeling)", level="debug")
@@ -769,6 +779,9 @@ class MCTSSearch(BaseTreeSearch):
                     on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="expand")
                 if config.terminate_on_terminal_node:
                     log_event(logger, "MCTS", "Terminates due to terminal node (before simulate)", level="debug")
+                    n_terminals = len(self.collect_terminal_nodes())
+                    tree_str = visualize_tree(self.root)
+                    logger.info(f"[MCTS] Iteration {idx_iter}/{config.n_iters} (example={query_idx}) | terminals={n_terminals} | early_stop=pre_simulate\n{tree_str}")
                     break
                 else:
                     log_event(logger, "MCTS", "Continues to next iteration due to terminal node (before simulate)", level="debug")
@@ -796,6 +809,9 @@ class MCTSSearch(BaseTreeSearch):
                     # Trigger per-trajectory augmentors
                     if on_trajectory_complete is not None:
                         on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="simulate")
+                    n_terminals = len(self.collect_terminal_nodes())
+                    tree_str = visualize_tree(self.root)
+                    logger.info(f"[MCTS] Iteration {idx_iter}/{config.n_iters} (example={query_idx}) | terminals={n_terminals} | early_stop=first_solution\n{tree_str}")
                     trace_in_each_iter.append(deepcopy(path))
                     break
 
@@ -807,6 +823,11 @@ class MCTSSearch(BaseTreeSearch):
             # Trigger per-trajectory augmentors
             if on_trajectory_complete is not None:
                 on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="simulate")
+
+            # Log tree snapshot
+            n_terminals = len(self.collect_terminal_nodes())
+            tree_str = visualize_tree(self.root)
+            logger.info(f"[MCTS] Iteration {idx_iter}/{config.n_iters} (example={query_idx}) | terminals={n_terminals}\n{tree_str}")
 
             trace_in_each_iter.append(deepcopy(path))
             unselected_terminal_paths_during_simulate.extend(unselected_terminal_paths)

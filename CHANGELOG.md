@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-05 Unreleased (`x-0405-minor-mcts-tree-log`)
+
+### Added
+- `lits/visualize.py`: runtime ASCII tree renderer (`visualize_tree`, `_format_action`)
+
+### Changed
+- `lits/agents/tree/mcts.py`: tree snapshot at INFO level after each iteration and early termination
+- `lits/agents/tree/bfs.py`: tree snapshot at INFO level after each depth layer
+
 ## 2026-04-05 Unreleased (`x-0405-major-bn-evaluator-refactor`)
 
 ### Added

@@ -10,6 +10,7 @@ from .continuation import _continuation
 from .common import _world_modeling, _is_terminal_with_depth_limit, _sample_actions_with_existing, create_child_node
 from ..registry import register_search
 from ...log import log_phase, log_event
+from ...visualize import visualize_tree
 
 logger = logging.getLogger(__name__)
 
@@ -318,6 +319,10 @@ class BFSSearch(BaseTreeSearch):
                 log_event(logger, "BFS", f"Terminal nodes: {len(terminal_nodes)}, breaking (end of depth)", level="debug")
                 break
             log_phase(logger, "BFS", f"Depth {depth} End")
+
+            # Log tree snapshot after this layer
+            tree_str = visualize_tree(self.root)
+            logger.info(f"[BFS] Depth {depth}/{config.max_steps} (example={query_idx}) | terminals={len(terminal_nodes)}\n{tree_str}")
 
             # Save level-wise checkpoint
             if self._checkpoint_path:
