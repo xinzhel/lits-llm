@@ -3,6 +3,7 @@
 from typing import List, Tuple, Optional, Union
 from collections import Counter
 
+from .base import BNEvaluatorBase, StateVerbalizer
 from ...structures.env_grounded import EnvAction
 from ...structures import Action, EnvState
 from ..utils import create_role
@@ -69,7 +70,7 @@ def aggregate_actions(actions: List[str]) -> Tuple[float, str]:
     return bn_score, most_common_action
 
 
-class BNEvaluatorEnv:
+class BNEvaluatorEnv(BNEvaluatorBase):
     """Branching Necessity Evaluator for Environment-Grounded Tasks.
     
     Two evaluation methods:
@@ -81,6 +82,7 @@ class BNEvaluatorEnv:
         self, 
         base_model: HfChatModel, 
         eval_method: str = "direct",
+        state_verbalizer: Optional[StateVerbalizer] = None,
         max_length: int = DEFAULT_MAX_LENGTH, 
         max_new_tokens_for_bn_eval: Optional[int] = None, 
         max_try_for_bn_eval: int = 3
@@ -89,13 +91,14 @@ class BNEvaluatorEnv:
         Args:
             base_model: LLM model for direct evaluation
             eval_method: "direct" for LLM-based, "sc" for frequency-based
+            state_verbalizer: Optional callable for state rendering
             max_length: Maximum context length
             max_new_tokens_for_bn_eval: Max new tokens for BN evaluation
             max_try_for_bn_eval: Number of retries for direct evaluation
         """
         assert eval_method in ["direct", "sc"]
+        super().__init__(eval_method=eval_method, state_verbalizer=state_verbalizer)
         self.base_model = base_model
-        self.eval_method = eval_method
         self.enable_thinking = False
         self.max_length = max_length
         self.max_new_tokens_for_bn_eval = max_new_tokens_for_bn_eval

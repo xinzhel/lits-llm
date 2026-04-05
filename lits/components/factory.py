@@ -12,7 +12,7 @@ Note on Decoupling:
 """
 
 from typing import Optional, Tuple, Dict, Any
-from .bn_evaluator import BNEvaluator
+from .bn_evaluator import BNEvaluatorBase
 from .reward.rlhflow import RLHFlowPRM
 from .reward.tool_use import ToolUsePRM
 from .transition.tool_use import ToolUseTransition
@@ -316,12 +316,17 @@ def create_bn_evaluator(
     model_verbose: bool,
     inference_logger,
     task_type: str = "math_qa"
-) -> Optional[BNEvaluator]:
+) -> Optional[BNEvaluatorBase]:
     """Create BN evaluator if bn_method is specified."""
     bn_method = search_args.get("bn_method")
     if not bn_method:
         return None
     
+    # ExactMatchSC: no LLM needed — return immediately
+    if bn_method == "sc_exact":
+        from .bn_evaluator import ExactMatchSC
+        return ExactMatchSC()
+
     bn_model_name = search_args.get("bn_model_name")
     max_length = search_args.get("max_length", 32768)
     max_new_tokens_for_bn_eval = search_args.get("max_new_tokens_for_bn_eval")
@@ -347,11 +352,28 @@ def create_bn_evaluator(
     if bn_method_for_prompt == "tot_bfs":
         bn_method_for_prompt = "bfs"
     
-    return BNEvaluator(
-        base_model=bn_model, method=bn_method_for_prompt, max_length=max_length,
-        max_new_tokens_for_bn_eval=max_new_tokens_for_bn_eval, max_try_for_bn_eval=max_try_for_bn_eval,
-        eval_method=bn_method
-    )
+    if bn_method == "direct":
+        from .bn_evaluator import DirectLLM
+        return DirectLLM(
+            base_model=bn_model, method=bn_method_for_prompt, max_length=max_length,
+            max_new_tokens_for_bn_eval=max_new_tokens_for_bn_eval,
+            max_try_for_bn_eval=max_try_for_bn_eval,
+        )
+    elif bn_method == "sc":
+        from .bn_evaluator import LLMSemanticSC
+        return LLMSemanticSC(
+            base_model=bn_model, search_method=bn_method_for_prompt, max_length=max_length,
+            max_new_tokens_for_bn_eval=max_new_tokens_for_bn_eval,
+        )
+    elif bn_method == "entropy":
+        from .bn_evaluator import EntropySC
+        return EntropySC(
+            base_model=bn_model, search_method=bn_method_for_prompt, max_length=max_length,
+            max_new_tokens_for_bn_eval=max_new_tokens_for_bn_eval,
+            max_try_for_bn_eval=max_try_for_bn_eval,
+        )
+    else:
+        raise ValueError(f"Unknown bn_method: {bn_method}")
 
 
 def resolve_component_names(task_type: str, config) -> Dict[str, str]:

@@ -38,7 +38,7 @@ from lits.config import ExperimentConfig
 from lits.lm import configure_hf_model_logging, setup_inference_logging, load_models
 from lits.components.factory import create_components, create_bn_evaluator
 from lits.components.base import Transition, Policy, RewardModel
-from lits.components.bn_evaluator import BNEvaluator
+from lits.components.bn_evaluator import BNEvaluatorBase
 from lits.memory.manager import LiTSMemoryManager
 from lits.memory.backends import Mem0MemoryBackend
 from lits.memory.config import LiTSMemoryConfig
@@ -263,7 +263,7 @@ def save_terminal_nodes(algo_output, query_or_goals, query_idx, result_dir, run_
 
 def run_tree_search(
     query_or_goals: str, query_idx: int, search_config, world_model: Transition, policy: Policy,
-    evaluator: RewardModel, bn_evaluator: BNEvaluator, result_saver: TreeToJsonl, result_dir: str,
+    evaluator: RewardModel, bn_evaluator: BNEvaluatorBase, result_saver: TreeToJsonl, result_dir: str,
     result_saver_unselected=None, init_state_kwargs: dict = None,
     augmentors: list = None,
     search_algorithm: str = "mcts",

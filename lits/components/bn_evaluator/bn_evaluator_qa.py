@@ -1,16 +1,39 @@
+"""BN evaluator implementations for language-grounded (QA) tasks.
+
+Contains three ``BNEvaluatorBase`` subclasses migrated from the original
+monolithic ``BNEvaluator`` class:
+
+- ``LLMSemanticSC``  — paper BN-SC2: pairwise LLM semantic overlap
+- ``EntropySC``      — paper BN-SC1: LLM clustering + Shannon entropy
+- ``DirectLLM``      — single-action LLM necessity scoring (1–4 scale)
+
+Plus a backward-compatible ``BNEvaluator`` wrapper that delegates to the
+appropriate subclass based on ``eval_method``.
+
+Helper functions (``check_overlap``, ``cluster_entropy``, etc.) remain as
+module-level utilities used by the LLM-based evaluators.
+"""
+
 import re
 import ast
+import math
+import itertools
+import logging
 from typing import Optional, List, Dict, Tuple, Any
+
+from .base import BNEvaluatorBase, StateVerbalizer
 from ...structures import Action, TrajectoryState
+from ...structures.base import State
 from ..utils import verbalize_concat_state, extract_existing_steps, create_role
 from ...lm.base import DETERMINISTIC_TEMPERATURE, HfChatModel, DEFAULT_MAX_LENGTH
 from ...prompts.prompt import PromptTemplate
-import itertools
-import logging
-    
+
 logger = logging.getLogger(__name__)
-    
-# ===== Branching Necessity (BN) Evaluator (BEGIN) =====
+
+# =====================================================================
+# Prompt templates
+# =====================================================================
+
 sys_prompt_rap = """You are an expert at deciding whether a single reasoning
 step is *logically compulsory* given the task and the partial solution path.
 
@@ -51,38 +74,39 @@ Scale
 1 - **Optional**: the step is not logically required at this point.
 
 Think silently, then output the single line - nothing else.
-""" # 1/4=> 0.25, 2/4=> 0.5, 3/4=> 0.75, 4/4=> 1.0
+"""
 
 usr_prompt_template = PromptTemplate("""(A) {task}
 (B) {partial_path}
 (C) {candidate_step}""")
 
-import math
-from typing import List, Dict
+rap_action_desc = """Each action is a single sub-question."""
+
+# =====================================================================
+# Helper functions (shared by LLM-based evaluators)
+# =====================================================================
+
+
 def extract_bne_output(text):
+    """Extract a JSON-like list of cluster dicts from LLM output."""
     pattern = r"(\[\s*(?:\{.*?\}\s*,?\s*)+\])"
     match = re.search(pattern, text, re.DOTALL)
-
     if match:
-        extracted = match.group(1)
-        return extracted
+        return match.group(1)
     return ''
 
-def truncate_clusters(clusters: List[Dict[str, any]], n_candidates: int):
-    """
-    Select clusters with top counts so that the total count equals n_candidates.
-    If adding a cluster would exceed n_candidates, use only the remaining needed count.
-    
+
+def truncate_clusters(clusters: List[Dict[str, Any]], n_candidates: int):
+    """Select clusters with top counts so that the total count equals n_candidates.
+
     Args:
         clusters: list of dicts with {"canonical_action": str, "count": int}
         n_candidates: the number of original candidates (target total)
-    
+
     Returns:
-        List[Dict[str, int]]: truncated clusters whose counts sum to n_candidates
+        Truncated clusters whose counts sum to n_candidates.
     """
-    # sort by count descending
     clusters_sorted = sorted(clusters, key=lambda c: c["count"], reverse=True)
-    
     result = []
     remaining = n_candidates
     for c in clusters_sorted:
@@ -90,39 +114,30 @@ def truncate_clusters(clusters: List[Dict[str, any]], n_candidates: int):
             break
         take = min(c["count"], remaining)
         if take > 0:
-            result.append({
-                "canonical_action": c["canonical_action"],
-                "count": take
-            })
+            result.append({"canonical_action": c["canonical_action"], "count": take})
             remaining -= take
-    
     return result
 
-rap_action_desc = """Each action is a single sub-question."""
+
 def cluster_entropy(
     clusters: List[Dict[str, Any]],
     base: float = 2.0,
     normalize: bool = True,
-    norm_by: str = "k",  # "k" (recommended) or "N" (only if you truly want that behavior)
+    norm_by: str = "k",
 ) -> Tuple[float, Optional[str]]:
-    """
-    Compute Shannon entropy over clusters from their counts.
+    """Compute Shannon entropy over clusters from their counts.
+
     If normalize=True and norm_by="k", returns Pielou-style normalized entropy in [0,1].
 
     Returns:
         (entropy_value, best_canonical_action)
     """
-    # sanitize counts
     counts = [int(c.get("count", 0)) for c in clusters if int(c.get("count", 0)) > 0]
     total = sum(counts)
-
     if total == 0:
         return 0.0, None
 
-    # probabilities
     probs = [c / total for c in counts]
-
-    # Shannon entropy
     H = -sum(p * math.log(p, base) for p in probs)
 
     if not normalize:
@@ -131,34 +146,29 @@ def cluster_entropy(
 
     if norm_by == "k":
         k = len(counts)
-        if k <= 1:
-            H_norm = 0.0  # by convention: zero diversity
-        else:
-            H_norm = H / math.log(k, base)
+        H_norm = 0.0 if k <= 1 else H / math.log(k, base)
     elif norm_by == "N":
-        # Not recommended: only equals 1 when k == N
-        if total <= 1:
-            H_norm = 0.0
-        else:
-            H_norm = H / math.log(total, base)
+        H_norm = 0.0 if total <= 1 else H / math.log(total, base)
     else:
         raise ValueError("norm_by must be 'k' or 'N'")
 
     best = max(clusters, key=lambda c: c.get("count", 0)).get("canonical_action")
     return H_norm, best
 
-def check_overlap_with_context(clusters, base_model, context, query_idx='', is_subquestion=False, max_length=None, max_new_tokens=None):
+
+def check_overlap_with_context(clusters, base_model, context, query_idx='',
+                               is_subquestion=False, max_length=None, max_new_tokens=None):
+    """Pairwise LLM semantic overlap check with context (used by LLMSemanticSC)."""
     n = len(clusters)
     root = list(range(n))
 
-    # --- Step 1: pairwise merge among candidate clusters ---
     for i, j in itertools.combinations(range(n), 2):
         ci, cj = clusters[i], clusters[j]
         if is_subquestion:
             base_model.sys_prompt = f"""You are a strict semantic comparator.
 Given two sub-questions {" ("+rap_action_desc+")" if is_subquestion else ""}, decide if they are semantically overlapping given the context."""
         else:
-            base_model.sys_prompt = f"""You are a strict semantic comparator.
+            base_model.sys_prompt = """You are a strict semantic comparator.
 Given two action descriptions, decide if they are semantically overlapping given the context.
 
 Definition:
@@ -178,51 +188,42 @@ New Step B: {cj['canonical_action']}
 Do these steps express the same underlying operation given the context?
 """
         answer_samples = base_model.sample_binary_output(
-            user_message,
-            sample_size=3, target="yes", contrast="no", role=create_role("bn_entropy_agg", query_idx),
-            max_length=max_length, max_new_tokens=max_new_tokens
+            user_message, sample_size=3, target="yes", contrast="no",
+            role=create_role("bn_entropy_agg", query_idx),
+            max_length=max_length, max_new_tokens=max_new_tokens,
         )
-
         if answer_samples["yes"] > 1:
-            # Merge cluster j into cluster i
             ri, rj = root[i], root[j]
             for k in range(n):
                 if root[k] == rj:
                     root[k] = ri
 
-    # --- Step 2: aggregate by root ---
     merged = {}
     for idx, cluster in enumerate(clusters):
         r = root[idx]
         if r not in merged:
-            merged[r] = {
-                "canonical_action": clusters[r]["canonical_action"],
-                "count": 0
-            }
+            merged[r] = {"canonical_action": clusters[r]["canonical_action"], "count": 0}
         merged[r]["count"] += cluster["count"]
+    return list(merged.values())
 
-    aggregated_clusters = list(merged.values())
-    return aggregated_clusters
 
 def check_overlap(clusters, base_model, existing_steps=None, query_idx='', is_subquestion=False):
-    """
-    Given a list of clusters [{canonical_action, count}], 
+    """Pairwise LLM semantic overlap check + existing-step dedup (used by EntropySC).
+
+    Given a list of clusters [{canonical_action, count}],
     call an LLM to check pairwise semantic overlap.
     Merge overlapping clusters and drop those overlapping with existing steps.
-    Returns a merged list of clusters with aggregated counts.
     """
-
     n = len(clusters)
     root = list(range(n))
 
-    # --- Step 1: pairwise merge among candidate clusters ---
     for i, j in itertools.combinations(range(n), 2):
         ci, cj = clusters[i], clusters[j]
         if is_subquestion:
             base_model.sys_prompt = f"""You are a strict semantic comparator.
 Given two canonical action descriptions {" ("+rap_action_desc+")" if is_subquestion else ""}, decide if they are semantically overlapping."""
         else:
-            base_model.sys_prompt = f"""You are a strict semantic comparator.
+            base_model.sys_prompt = """You are a strict semantic comparator.
 Given two canonical action descriptions, decide if they are semantically overlapping.
 
 Definition:
@@ -238,43 +239,35 @@ Action B: {cj['canonical_action']}
 Do these overlap semantically?
 """
         answer_samples = base_model.sample_binary_output(
-            user_message,
-            sample_size=3, target="yes", contrast="no", role=create_role("bn_entropy_agg", query_idx)
+            user_message, sample_size=3, target="yes", contrast="no",
+            role=create_role("bn_entropy_agg", query_idx),
         )
-
         if answer_samples["yes"] > 1:
-            # Merge cluster j into cluster i
             ri, rj = root[i], root[j]
             for k in range(n):
                 if root[k] == rj:
                     root[k] = ri
 
-    # --- Step 2: aggregate by root ---
     merged = {}
     for idx, cluster in enumerate(clusters):
         r = root[idx]
         if r not in merged:
-            merged[r] = {
-                "canonical_action": clusters[r]["canonical_action"],
-                "count": 0
-            }
+            merged[r] = {"canonical_action": clusters[r]["canonical_action"], "count": 0}
         merged[r]["count"] += cluster["count"]
-
     aggregated_clusters = list(merged.values())
 
-    # --- Step 3: remove clusters overlapping with existing steps ---
     if existing_steps:
         filtered = []
         for cluster in aggregated_clusters:
             keep = True
             for step in existing_steps:
                 if is_subquestion:
-                    base_model.sys_prompt = f"""You are a strict semantic comparator to answer whether the subquestion has been asked before?**
+                    base_model.sys_prompt = """You are a strict semantic comparator to answer whether the subquestion has been asked before?**
 
 Answer format: return only `YES` or `NO` with no punctuation, no explanation.
 """
                 else:
-                    base_model.sys_prompt = f"""You are a strict semantic comparator to answer whether the Candidate Action have identical operations and results as the Existing Step, without introducing any extra operations or results?**
+                    base_model.sys_prompt = """You are a strict semantic comparator to answer whether the Candidate Action have identical operations and results as the Existing Step, without introducing any extra operations or results?**
 
 Answer format: return only `YES` or `NO` with no punctuation, no explanation.
 """
@@ -284,8 +277,8 @@ Candidate Action: {cluster['canonical_action']}
 Do these overlap semantically?
 """
                 answer_samples = base_model.sample_binary_output(
-                    user_message,
-                    sample_size=3, target="yes", contrast="no", role=create_role("bn_entropy_remove", query_idx)
+                    user_message, sample_size=3, target="yes", contrast="no",
+                    role=create_role("bn_entropy_remove", query_idx),
                 )
                 if answer_samples["yes"] > 1:
                     keep = False
@@ -296,108 +289,248 @@ Do these overlap semantically?
     return aggregated_clusters
 
 
-class BNEvaluator:
-    "Branching N?"
-    def __init__(self, base_model: HfChatModel, method, eval_method="direct", max_length=DEFAULT_MAX_LENGTH, max_new_tokens_for_bn_eval=None, max_try_for_bn_eval=3):
-        assert eval_method in ["direct", "entropy", "sc"]
+
+# =====================================================================
+# BNEvaluatorBase subclasses
+# =====================================================================
+
+class DirectLLM(BNEvaluatorBase):
+    """Single-action LLM necessity scoring (1–4 scale).
+
+    Prompts an LLM to rate how "logically compulsory" a single candidate
+    action is, given the task and partial trajectory.  Returns the rating
+    normalized to [0, 1].
+
+    Args:
+        base_model: LLM model instance (``HfChatModel``).
+        method: Search framework identifier — ``"rap"`` or ``"rest"``/``"bfs"``.
+            Selects the system prompt variant.
+        state_verbalizer: Callable to render ``(query, state)`` into a
+            prompt string.  Defaults to a generic renderer.
+        max_length: Maximum context length for the LLM call.
+        max_new_tokens_for_bn_eval: Max new tokens for BN evaluation.
+        max_try_for_bn_eval: Number of retries on parse failure.
+    """
+
+    def __init__(
+        self,
+        base_model: HfChatModel,
+        method: str,
+        state_verbalizer: Optional[StateVerbalizer] = None,
+        max_length: int = DEFAULT_MAX_LENGTH,
+        max_new_tokens_for_bn_eval: Optional[int] = None,
+        max_try_for_bn_eval: int = 3,
+    ) -> None:
+        super().__init__(eval_method="direct", state_verbalizer=state_verbalizer)
         if method == "rap":
-            self._sys_prompt_direct = sys_prompt_rap
-        elif method == "rest" or method == "bfs":
-            self._sys_prompt_direct = sys_prompt_rest
+            self._sys_prompt = sys_prompt_rap
+        elif method in ("rest", "bfs"):
+            self._sys_prompt = sys_prompt_rest
         else:
             raise ValueError(f"Unknown method: {method}")
         self.base_model = base_model
-        self.enable_thinking=False
+        self.enable_thinking = False
         self.max_length = max_length
-        self.eval_method = eval_method
-        self.search_method = method
-
         self.max_new_tokens_for_bn_eval = max_new_tokens_for_bn_eval
         self.max_try_for_bn_eval = max_try_for_bn_eval
+        self.search_method = method
 
-    def _generate_prompt(self, example, state: TrajectoryState, action: Action):
+    def _generate_prompt(self, example: str, state: TrajectoryState, action: str) -> str:
         partial_path = "\n".join([f"{step.get_action()}" for step in state])
         partial_path = "<No Existing Steps>" if partial_path.strip() == "" else partial_path
-        candidate_step = action
-        model_input = usr_prompt_template.format(task=example, partial_path=partial_path, candidate_step=candidate_step)
-        return model_input
+        return usr_prompt_template.format(task=example, partial_path=partial_path, candidate_step=action)
 
-    def evaluate(self, example, state: TrajectoryState, actions: list[Action], query_idx: int=None) -> int:
-        logger.debug(f">>>>>>>>> BN Evaluation (Begin)  <<<<<<<<<")
-        if self.eval_method == "direct":
-            assert len(actions) == 1, "direct eval only supports single action"
-            bn_score = self.direct_eval(example, state, actions[0], query_idx) # action
-        elif self.eval_method == "entropy":
-            bn_score = self.entropy_eval(example, state, actions, query_idx) # actions
-        elif self.eval_method == "sc":
-            bn_score = self.sc_eval(example, state, actions, query_idx) # actions
-        else:
-            raise ValueError(f"Unknown eval method: {self.eval_method}")
-        logger.debug(f"\n Output from BN evaluator: {bn_score}")
-        logger.debug(f">>>>>>>>> BN Evaluation (End) <<<<<<<<<")
-        return bn_score
+    def evaluate(
+        self,
+        query: str,
+        state: State,
+        actions: List[str],
+        query_idx: Optional[int] = None,
+    ) -> float:
+        """Score a single action's necessity via LLM (1–4 → normalized to [0,1]).
 
-    def direct_eval(self, example, state: TrajectoryState, action: Action, query_idx: int=None) -> int:
-        model_input = self._generate_prompt(example, state, action)
-        self.base_model.sys_prompt = self._sys_prompt_direct
-        success_try = False
-        for i_try in range(self.max_try_for_bn_eval):
-            output = self.base_model(model_input, role=create_role("bn_eval", query_idx), max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval, temperature=0.3, enable_thinking=self.enable_thinking).text.strip()
+        Args:
+            query: Task description.
+            state: Current trajectory state.
+            actions: Must contain exactly one action string.
+            query_idx: Optional query index for role tagging.
+
+        Returns:
+            ``float`` bn_score in [0, 1].  Returns 0 on repeated parse failure.
+        """
+        logger.debug(">>>>>>>>> BN Evaluation DirectLLM (Begin) <<<<<<<<<")
+        assert len(actions) == 1, "direct eval only supports single action"
+        model_input = self._generate_prompt(query, state, actions[0])
+        self.base_model.sys_prompt = self._sys_prompt
+        for _ in range(self.max_try_for_bn_eval):
+            output = self.base_model(
+                model_input, role=create_role("bn_eval", query_idx),
+                max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval,
+                temperature=0.3, enable_thinking=self.enable_thinking,
+            ).text.strip()
             try:
-                output = int(output)
+                score = int(output)
             except ValueError:
                 continue
-            if output < 0 or output > 4:
-                continue
-            success_try = True
-            break
-        if not success_try:
-            return 0
-        return output/4
+            if 0 <= score <= 4:
+                bn_score = score / 4
+                logger.debug(f"DirectLLM bn_score={bn_score}")
+                logger.debug(">>>>>>>>> BN Evaluation DirectLLM (End) <<<<<<<<<")
+                return bn_score
+        logger.debug("DirectLLM: all retries failed, returning 0")
+        logger.debug(">>>>>>>>> BN Evaluation DirectLLM (End) <<<<<<<<<")
+        return 0
 
-    def sc_eval(self, example, state, actions, query_idx=None, is_subquestion=False):
-        # remove empty actions
-        actions = [action for action in actions if action.strip() != ""]
+
+class LLMSemanticSC(BNEvaluatorBase):
+    """LLM-based pairwise semantic overlap self-consistency (paper BN-SC2).
+
+    For each pair of candidate actions, asks an LLM whether they are
+    semantically overlapping.  Overlapping actions are merged into clusters
+    via union-find.  The score is ``majority_count / total_actions``.
+
+    Args:
+        base_model: LLM model instance.
+        search_method: ``"rap"`` or ``"rest"``/``"bfs"`` — controls
+            whether the verbalizer uses sub-question or step format.
+        state_verbalizer: Callable to render ``(query, state)`` into context.
+            Defaults to ``verbalize_concat_state`` for rest/bfs.
+        max_length: Maximum context length.
+        max_new_tokens_for_bn_eval: Max new tokens for BN evaluation.
+    """
+
+    def __init__(
+        self,
+        base_model: HfChatModel,
+        search_method: str,
+        state_verbalizer: Optional[StateVerbalizer] = None,
+        max_length: int = DEFAULT_MAX_LENGTH,
+        max_new_tokens_for_bn_eval: Optional[int] = None,
+    ) -> None:
+        super().__init__(eval_method="sc", state_verbalizer=state_verbalizer)
+        self.base_model = base_model
+        self.search_method = search_method
+        self.max_length = max_length
+        self.max_new_tokens_for_bn_eval = max_new_tokens_for_bn_eval
+
+    def evaluate(
+        self,
+        query: str,
+        state: State,
+        actions: List[str],
+        query_idx: Optional[int] = None,
+        is_subquestion: bool = False,
+    ) -> Tuple[float, Optional[str]]:
+        """Score branching necessity via LLM pairwise semantic overlap.
+
+        Args:
+            query: Task description.
+            state: Current trajectory state.
+            actions: Candidate action strings.
+            query_idx: Optional query index.
+            is_subquestion: If True, use sub-question prompt variant.
+
+        Returns:
+            ``(bn_score, canonical_action)`` — proportion of majority
+            cluster and its representative action.
+        """
+        logger.debug(">>>>>>>>> BN Evaluation LLMSemanticSC (Begin) <<<<<<<<<")
+        actions = [str(a) for a in actions]
+        actions = [a for a in actions if a.strip() != ""]
         if len(actions) == 1:
             return 1, actions[0]
-            
-        if self.search_method in ["rest", "bfs"]:
-            context = verbalize_concat_state(example, state) 
+
+        # Build context via verbalizer
+        if self.state_verbalizer is not None:
+            context = self.state_verbalizer(query, state)
+        elif self.search_method in ("rest", "bfs"):
+            context = verbalize_concat_state(query, state)
         else:
-            # RAP method - try to import verbalize_rap_state from external formulation
             try:
                 from lits_benchmark.formulations.rap.utils import verbalize_rap_state
-                context = verbalize_rap_state(example, state)
+                context = verbalize_rap_state(query, state)
             except ImportError:
                 raise ImportError(
                     "RAP formulation not available. Install with: "
                     "import lits_benchmark.formulations.rap"
                 )
-        
-        clusters = [ {"canonical_action": action, "count": 1} for action in actions]
-        logger.debug(f"\n Input clusters: {clusters}")
-        clusters = check_overlap_with_context(clusters, self.base_model, context, query_idx, is_subquestion,  max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval)
-        logger.debug(f"\n Output clusters: {clusters}")
-        # select the action with the highest count and its proportion
-        selected_dict = max(clusters, key=lambda x: x["count"])
-        bn_score = selected_dict["count"] / len(actions)
-        logger.debug(f"canonical_action: {selected_dict['canonical_action']}")
-        return bn_score, selected_dict["canonical_action"]
-        
 
-    def entropy_eval(self, example, state, actions, query_idx=None, is_subquestion=False):
-        """
+        clusters = [{"canonical_action": a, "count": 1} for a in actions]
+        logger.debug(f"Input clusters: {clusters}")
+        clusters = check_overlap_with_context(
+            clusters, self.base_model, context, query_idx, is_subquestion,
+            max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval,
+        )
+        logger.debug(f"Output clusters: {clusters}")
+        selected = max(clusters, key=lambda x: x["count"])
+        bn_score = selected["count"] / len(actions)
+        logger.debug(f"canonical_action: {selected['canonical_action']}")
+        logger.debug(">>>>>>>>> BN Evaluation LLMSemanticSC (End) <<<<<<<<<")
+        return bn_score, selected["canonical_action"]
+
+
+class EntropySC(BNEvaluatorBase):
+    """LLM clustering + Shannon entropy BN evaluator (paper BN-SC1).
+
+    Asks an LLM to cluster candidate actions into semantically equivalent
+    groups, then computes normalized Shannon entropy over the cluster
+    counts.  Score = ``1 - entropy`` (high when actions converge).
+
+    Args:
+        base_model: LLM model instance.
+        search_method: ``"rap"`` or ``"rest"``/``"bfs"``.
+        state_verbalizer: Callable to render ``(query, state)`` into context.
+        max_length: Maximum context length.
+        max_new_tokens_for_bn_eval: Max new tokens for BN evaluation.
+        max_try_for_bn_eval: Number of retries on LLM parse failure.
+    """
+
+    def __init__(
+        self,
+        base_model: HfChatModel,
+        search_method: str,
+        state_verbalizer: Optional[StateVerbalizer] = None,
+        max_length: int = DEFAULT_MAX_LENGTH,
+        max_new_tokens_for_bn_eval: Optional[int] = None,
+        max_try_for_bn_eval: int = 3,
+    ) -> None:
+        super().__init__(eval_method="entropy", state_verbalizer=state_verbalizer)
+        self.base_model = base_model
+        self.search_method = search_method
+        self.enable_thinking = False
+        self.max_length = max_length
+        self.max_new_tokens_for_bn_eval = max_new_tokens_for_bn_eval
+        self.max_try_for_bn_eval = max_try_for_bn_eval
+
+    def evaluate(
+        self,
+        query: str,
+        state: State,
+        actions: List[str],
+        query_idx: Optional[int] = None,
+        is_subquestion: bool = False,
+    ) -> Tuple[float, Optional[str]]:
+        """Score branching necessity via LLM clustering + entropy.
+
         Args:
-        actions (list[str]): 
-            Example: ["Since 196 is a composite number, we can factor it into its prime factors: 196 = 2^2 × 7 × 7.",
-                      "To find the number of positive whole-number divisors of 196, we can start by factoring 196 into its prime factors. We can do this by dividing 196 by the smallest prime number, 2, until it is no longer divisible.",
-                      "Since 196 is an even number, it can be expressed as 2 times a smaller number, which is 98. We can factor 98 into 7 times 14, and then further factor 14 into 2 times 7. Therefore, the prime factorization of 196 is 2^2 times 7^2."]
+            query: Task description.
+            state: Current trajectory state.
+            actions: Candidate action strings.
+            query_idx: Optional query index.
+            is_subquestion: If True, use sub-question prompt variant.
+
+        Returns:
+            ``(bn_score, canonical_action)`` where ``bn_score = 1 - normalized_entropy``.
+            Returns ``(0, None)`` on failure.
         """
+        logger.debug(">>>>>>>>> BN Evaluation EntropySC (Begin) <<<<<<<<<")
+        actions = [str(a) for a in actions]
         if len(actions) == 1:
             return 1, actions[0]
-            
-        if self.search_method in ["rest", "bfs"]:
-            self.base_model.sys_prompt =  """You are given a QUESTION and its partial solution (Existing Steps).  
+
+        # Build clustering prompt
+        if self.search_method in ("rest", "bfs"):
+            self.base_model.sys_prompt = """You are given a QUESTION and its partial solution (Existing Steps).  
 Your task is to group the provided list of candidate next steps (After "List of Candidates for the following step") into clusters.
 
 - Steps that are semantically equivalent must be grouped together.  
@@ -414,14 +547,12 @@ Rules:
 - No text outside the list.
 - The total number of generated words should be no more than 450 words.
 """
-            msg = verbalize_concat_state(example, state) + f"""
-            List of Candidates for the following step:
-            """
-            for idx, action in enumerate(actions):
-                msg += f"Candidate {idx + 1}: {action}\n" 
+            if self.state_verbalizer is not None:
+                msg = self.state_verbalizer(query, state)
+            else:
+                msg = verbalize_concat_state(query, state)
         else:
             assert self.search_method == "rap", f"Unknown search method: {self.search_method}"
-            # RAP method - try to import verbalize_rap_state from external formulation
             try:
                 from lits_benchmark.formulations.rap.utils import verbalize_rap_state
             except ImportError:
@@ -429,7 +560,7 @@ Rules:
                     "RAP formulation not available. Install with: "
                     "import lits_benchmark.formulations.rap"
                 )
-            self.base_model.sys_prompt =  """You are given a QUESTION and its partial solution (Subquestions which have been answered).  
+            self.base_model.sys_prompt = """You are given a QUESTION and its partial solution (Subquestions which have been answered).  
 Your task is to group the provided list of candidate next subquestions (After "List of Candidates for the following step") into clusters.
 
 - Steps that are semantically equivalent must be grouped together.  
@@ -446,17 +577,25 @@ Rules:
 - No text outside the list.
 - The total number of generated words should be NO more than 450 words.
 """
-            msg = verbalize_rap_state(example, state) + f"""
-            List of Candidates for the following step:
-            """
-            for idx, action in enumerate(actions):
-                msg += f"Candidate {idx + 1}: {action}\n" 
-        success = 0
-        lst_actions_with_counts = []
-        for i_try in range(self.max_try_for_bn_eval):
-            output = self.base_model(msg, role=create_role("bn_entropy", query_idx), max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval, temperature=DETERMINISTIC_TEMPERATURE, enable_thinking=self.enable_thinking).text
-            output = extract_bne_output(output)
+            if self.state_verbalizer is not None:
+                msg = self.state_verbalizer(query, state)
+            else:
+                msg = verbalize_rap_state(query, state)
 
+        msg += "\n            List of Candidates for the following step:\n            "
+        for idx, action in enumerate(actions):
+            msg += f"Candidate {idx + 1}: {action}\n"
+
+        # LLM clustering with retries
+        success = False
+        lst_actions_with_counts = []
+        for _ in range(self.max_try_for_bn_eval):
+            output = self.base_model(
+                msg, role=create_role("bn_entropy", query_idx),
+                max_length=self.max_length, max_new_tokens=self.max_new_tokens_for_bn_eval,
+                temperature=DETERMINISTIC_TEMPERATURE, enable_thinking=self.enable_thinking,
+            ).text
+            output = extract_bne_output(output)
             try:
                 lst_actions_with_counts = ast.literal_eval(output)
                 for d in lst_actions_with_counts:
@@ -465,54 +604,29 @@ Rules:
             except (SyntaxError, ValueError) as e:
                 logger.debug("Invalid JSON:", e)
                 continue
-            success = 1
-        if len(lst_actions_with_counts) == 0 or not success:
-            logger.debug(f"No valid output from BN evaluator")
+            success = True
+
+        if not lst_actions_with_counts or not success:
+            logger.debug("No valid output from BN evaluator")
             return 0, None
 
         existing_steps = extract_existing_steps(state)
-        lst_actions_with_counts = check_overlap(lst_actions_with_counts, self.base_model, existing_steps, query_idx=query_idx, is_subquestion=is_subquestion)
+        lst_actions_with_counts = check_overlap(
+            lst_actions_with_counts, self.base_model, existing_steps,
+            query_idx=query_idx, is_subquestion=is_subquestion,
+        )
         logger.debug(f"clusters after check overlap: {lst_actions_with_counts}")
-        lst_actions_with_counts= truncate_clusters(lst_actions_with_counts, len(actions))
+        lst_actions_with_counts = truncate_clusters(lst_actions_with_counts, len(actions))
         logger.debug(f"clusters after truncate: {lst_actions_with_counts}")
+
         if lst_actions_with_counts:
-            entropy, canonical_action = cluster_entropy(lst_actions_with_counts, base=2, normalize=True, norm_by="k")
-            logger.debug(f"entropy: {entropy}")
-            logger.debug(f"canonical_action: {canonical_action}")
-            return 1-entropy, canonical_action
+            entropy, canonical_action = cluster_entropy(
+                lst_actions_with_counts, base=2, normalize=True, norm_by="k",
+            )
+            logger.debug(f"entropy: {entropy}, canonical_action: {canonical_action}")
+            logger.debug(">>>>>>>>> BN Evaluation EntropySC (End) <<<<<<<<<")
+            return 1 - entropy, canonical_action
         else:
             logger.debug("no clusters after filtering")
+            logger.debug(">>>>>>>>> BN Evaluation EntropySC (End) <<<<<<<<<")
             return 0, None
-# ===== Branching Necessity (BN) Evaluator (END) =====
-
-
-def test_bn_evaluator():
-    """Test function for BNEvaluator with RAP formulation.
-    
-    Requires RAP formulation to be installed:
-        import lits_benchmark.formulations.rap
-    """
-    try:
-        from lits_benchmark.formulations.rap.structures import SubQAStep
-    except ImportError:
-        raise ImportError(
-            "RAP formulation required for this test. Install with: "
-            "import lits_benchmark.formulations.rap"
-        )
-    
-    evaluator = BNEvaluator(model_name="Qwen/Qwen3-14B", device="cuda")
-    evaluator.example = """Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?"""
-    
-    state = []
-    action1 = "How many eggs are left after Janet eats three for breakfast?"
-    rap_step1 = SubQAStep(action1, "", 0)
-    state.append(rap_step1)
-
-    # action2 = "How many eggs are left after Janet bakes muffins for her friends?"
-    # rap_step2 = SubQAStep(action2, "", 0)
-    # state.append(rap_step2)
-
-    # action = "How many eggs Janet eats tomorrow?"
-    action = "How many eggs are left after Janet bakes muffins for her friends?"
-    print(evaluator._generate_prompt(state, action))
-    print(evaluator.evaluate(state, action))

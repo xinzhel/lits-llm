@@ -7,6 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-05 Unreleased (`x-0405-major-bn-evaluator-refactor`)
+
+### Added
+- `components/bn_evaluator/base.py`: `BNEvaluatorBase` ABC with `evaluate()` and `state_verbalizer`
+- `components/bn_evaluator/exact_match_sc.py`: `ExactMatchSC` — no-LLM majority vote evaluator
+- `components/bn_evaluator/bn_evaluator_qa.py`: `DirectLLM`, `LLMSemanticSC`, `EntropySC` subclasses
+- `docs/components/bn_evaluator/BN_EVALUATOR.md`
+- `unit_test/cit/test_bn_evaluator.py`
+
+### Changed
+- `components/bn_evaluator/bn_evaluator_env.py`: `BNEvaluatorEnv` inherits `BNEvaluatorBase`
+- `components/factory.py`: `create_bn_evaluator` dispatches directly to new classes, supports `bn_method=sc_exact`
+- `cli/search.py`: `BNEvaluator` type hint → `BNEvaluatorBase`
+
+### Removed
+- `components/bn_evaluator/bn_evaluator_qa.py`: monolithic `BNEvaluator` wrapper class
+
 ## 2026-04-05 Unreleased (`x-0404-0405-minor-general-evaluator-float-score`)
 
 ### Added
