@@ -13,6 +13,15 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `eval/general_eval.py`: `output_type="float"` on `EvalPerspective` for 0.0–1.0 LLM scoring
 - `eval/general_eval.py`: `check_score(pred, truth) -> float` convenience method
 - `cli/eval_search.py`: `--llm-eval` unified CLI flag (`binary`/`f1`/`none`) for LLM fallback evaluator mode
+- `cli/__init__.py`: `log_command(logger)` helper — logs `sys.argv` and `os.getcwd()` for reproducibility
+- `cli/chain.py`, `cli/search.py`, `cli/eval_search.py`: `log_command` wired into all CLI entry points
+
+### Changed
+- `cli/eval_search.py`: modularized LLM fallback into `_llm_fallback()` helper
+- `eval/general_eval.py`: better error messages — raw LLM output included in RuntimeError
+
+### Fixed
+- `cli/search.py`: `eval_idx` double-filter bug — dataset was filtered then loop re-filtered by index, skipping all examples
 
 ### Changed
 - `cli/eval_search.py`: modularized LLM fallback into `_llm_fallback()` helper

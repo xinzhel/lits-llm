@@ -47,7 +47,7 @@ from lits.registry import import_custom_modules
 from lits.cli import (
     parse_experiment_args, apply_config_overrides, parse_dataset_kwargs,
     parse_script_vars, parse_search_args, parse_component_args, print_config_help,
-    parse_memory_args,
+    parse_memory_args, log_command,
 )
 
 logger = logging.getLogger(__name__)
@@ -523,6 +523,7 @@ def main() -> int:
         add_console_handler=True, verbose=config.verbose,
         override=config.override_log_result
     )
+    log_command(run_logger)
 
     memory_manager = setup_memory_manager(config, run_logger, memory_kwargs)
     # Include memory_llm (via backend._llm) so its token usage is tracked
@@ -583,9 +584,11 @@ def main() -> int:
 
     # Slice dataset
     if config.eval_idx:
-        full_dataset = [full_dataset[i] for i in config.eval_idx]
+        # Pair each example with its original dataset index
+        indexed_dataset = [(i, full_dataset[i]) for i in config.eval_idx]
     else:
-        full_dataset = _slice_dataset(full_dataset, offset=config.offset, limit=config.limit)
+        sliced = _slice_dataset(full_dataset, offset=config.offset, limit=config.limit)
+        indexed_dataset = list(enumerate(sliced, start=config.offset))
 
     # Run experiments
     begin_time = time.time()
@@ -594,10 +597,7 @@ def main() -> int:
     prepare_tool_state = tool_use_spec.get("prepare_tool_state") if tool_use_spec else None
     resolve_answer = tool_use_spec.get("resolve_answer") if tool_use_spec else None
 
-    for query_idx, example in tqdm(enumerate(full_dataset, start=config.offset)):
-        if config.eval_idx and query_idx not in config.eval_idx:
-            run_logger.debug(f"Skipping example {query_idx}")
-            continue
+    for query_idx, example in tqdm(indexed_dataset):
 
         if task_type == "env_grounded":
             query_or_goals = example.get("query_or_goals", example.get("question", ""))

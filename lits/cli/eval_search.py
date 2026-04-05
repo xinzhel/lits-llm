@@ -147,6 +147,9 @@ def evaluate_from_checkpoints(
         verbose=True
     )
     
+    from lits.cli import log_command
+    log_command(eval_logger)
+    
     # Determine task type using registry
     is_env_grounded = is_env_grounded_task(dataset_name)
     is_tool_use = has_resource(dataset_name)

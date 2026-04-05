@@ -41,4 +41,12 @@ __all__ = [
     "create_experiment_parser",
     "print_config_help",
     "CLIArgs",
+    "log_command",
 ]
+
+
+def log_command(logger):
+    """Log the CLI command and working directory for reproducibility."""
+    import sys, os
+    logger.info(f"Command: {' '.join(sys.argv)}")
+    logger.info(f"Working directory: {os.getcwd()}")

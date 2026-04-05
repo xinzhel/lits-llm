@@ -46,6 +46,7 @@ from lits.benchmarks.registry import load_dataset, has_resource, load_resource
 from lits.cli import (
     parse_experiment_args, apply_config_overrides,
     parse_dataset_kwargs, parse_script_vars,
+    log_command,
 )
 
 logger = logging.getLogger(__name__)
@@ -191,6 +192,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
         verbose=True,
         override=override
     )
+    log_command(run_logger)
     run_logger.info(f"Loaded {len(full_dataset)} examples from {benchmark_name} dataset")
 
     # Create agent via factory (handles model loading, policy, transition)
@@ -301,6 +303,7 @@ def _run_env_grounded(config, benchmark_name, full_dataset, dataset_kwargs,
         verbose=True,
         override=override
     )
+    log_command(run_logger)
     run_logger.info(f"Loaded {len(full_dataset)} examples from {benchmark_name} dataset")
 
     # Load model
