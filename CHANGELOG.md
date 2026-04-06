@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-06 Unreleased (`0302-agentbench-integration`)
+
+### Fixed
+- `cli/search.py`: `resolve_answer` crash on tree search terminal nodes — `node["state"]` is a dict with `"steps"` key, not a list
+
 ## 2026-04-05 Unreleased (`x-0405-minor-mcts-tree-log`)
 
 ### Added

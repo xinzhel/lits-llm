@@ -632,7 +632,12 @@ def main() -> int:
                     tn_data = json.load(f)
                 modified = False
                 for node in tn_data.get("terminal_nodes", []):
-                    state_steps = node.get("state", [])
+                    state_data = node.get("state", {})
+                    # state can be a dict {"__type__": ..., "steps": [...]} or a list
+                    if isinstance(state_data, dict):
+                        state_steps = state_data.get("steps", [])
+                    else:
+                        state_steps = state_data
                     if state_steps:
                         last_step = state_steps[-1]
                         raw = last_step.get("answer")
