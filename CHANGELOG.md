@@ -9,8 +9,12 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ## 2026-04-06 Unreleased (`0302-agentbench-integration`)
 
+### Added
+- `docs/log/EXECUTION_LOG.md`: execution log monitoring guide (tree viz, node flags, progress tracking)
+
 ### Fixed
 - `cli/search.py`: `resolve_answer` crash on tree search terminal nodes — `node["state"]` is a dict with `"steps"` key, not a list
+- `cli/search.py`: `resolve_answer` now also updates `node.step.answer` (eval reads this first, was returning unresolved `#N`)
 
 ## 2026-04-05 Unreleased (`x-0405-minor-mcts-tree-log`)
 

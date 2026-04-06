@@ -649,6 +649,10 @@ def main() -> int:
                             resolved = resolve_answer(raw, tool_state)
                             if resolved != raw:
                                 last_step["answer"] = resolved
+                                # Also update node.step.answer (eval reads this first)
+                                node_step = node.get("step")
+                                if isinstance(node_step, dict) and "answer" in node_step:
+                                    node_step["answer"] = resolved
                                 modified = True
                 if modified:
                     with open(tn_file, "w") as f:
