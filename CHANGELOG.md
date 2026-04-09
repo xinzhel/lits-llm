@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-09  Unreleased (`0316-major-interleaved-expand`)
+
+### Added
+- `existing_siblings` parameter to `Policy.get_actions()` / `_get_actions()` for sibling-aware expansion
+
 ## 2026-04-06 Unreleased (`0302-agentbench-integration`)
 
 ### Added

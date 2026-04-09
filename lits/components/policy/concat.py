@@ -309,6 +309,7 @@ class ConcatPolicy(Policy):
         at_depth_limit: bool,
         query_idx: int,
         from_phase: str = "",
+        existing_siblings: list[str] = None,
         **kwargs
     ) -> list[ThoughtStep]:
         """
@@ -322,6 +323,8 @@ class ConcatPolicy(Policy):
             at_depth_limit: Whether at maximum depth
             query_idx: Query index for logging
             from_phase: Phase identifier for logging
+            existing_siblings: Actions already chosen by other candidates.
+                When provided, appends a diversity prompt to avoid repeats.
         
         Returns:
             List of ThoughtStep objects containing generated actions
@@ -330,6 +333,15 @@ class ConcatPolicy(Policy):
         
         # Build prompt
         user_message = self._build_messages(query, state, at_depth_limit=at_depth_limit)
+
+        # Sibling-aware diversity prompt
+        if existing_siblings:
+            siblings_str = "\n".join(f"- {s}" for s in existing_siblings)
+            user_message += (
+                "\n\nThe following actions have already been chosen by other candidates. "
+                "Choose a DIFFERENT action:\n" + siblings_str
+            )
+
         if isinstance(self.base_model, HfChatModel):
             prompt = user_message
         else:
