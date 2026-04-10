@@ -653,12 +653,12 @@ class MCTSSearch(BaseTreeSearch):
     # Overridable phase dispatchers
     # ------------------------------------------------------------------
 
-    def _do_expand(self, query_or_goals, query_idx, node, policy, **kwargs):
+    def _do_expand(self, query_or_goals, query_idx, node, policy, n_actions, **kwargs):
         """Expand phase — override in subclasses for custom expansion.
 
         Default delegates to the module-level ``_expand()`` function.
         """
-        _expand(query_or_goals, query_idx, node, policy, **kwargs)
+        _expand(query_or_goals, query_idx, node, policy, n_actions, **kwargs)
 
     def _do_simulate(self, query_or_goals, query_idx, path, config, **kwargs):
         """Simulate phase — override in subclasses for custom rollout.

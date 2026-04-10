@@ -35,12 +35,12 @@ class SiblingAwareMCTSSearch(MCTSSearch):
     from ``MCTSSearch``.
     """
 
-    def _do_expand(self, query_or_goals, query_idx, node, policy, **kwargs):
+    def _do_expand(self, query_or_goals, query_idx, node, policy, n_actions, **kwargs):
         """Interleaved expand: sample → transition → repeat with sibling awareness."""
         _interleaved_expand(
             MCTSNode,
             query_or_goals, query_idx, node, policy,
-            n_actions=kwargs.pop("n_actions", policy.n_actions),
+            n_actions=n_actions,
             world_model=kwargs.pop("world_model", self.world_model),
             reward_model=kwargs.pop("reward_model", self.reward_model),
             **kwargs,
