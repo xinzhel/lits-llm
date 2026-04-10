@@ -610,6 +610,26 @@ class MCTSSearch(BaseTreeSearch):
     tracking, terminal collection, error handling, inference logger) are
     handled by ``BaseTreeSearch``.  This class implements the core
     select → continuation → expand → simulate → backpropagate loop.
+
+    Extension via subclassing
+    -------------------------
+    Each MCTS phase is dispatched through an overridable ``_do_*()``
+    method.  Subclasses can override these to customize behavior without
+    modifying the core search loop:
+
+    - ``_do_expand(...)``        → default calls module-level ``_expand()``
+    - ``_do_simulate(...)``      → default calls module-level ``_simulate()``
+    - ``_do_backpropagate(...)`` → default calls ``_back_propagate()`` or
+      ``_back_propagate_decay()`` based on config
+
+    ``_select`` is not wrapped because selection strategy is controlled
+    by config (``w_exp``, ``cross_rollout_q_func``).
+
+    ``_continuation`` receives ``self._do_expand`` as ``expand_func``,
+    so overriding ``_do_expand`` automatically applies to continuation.
+
+    See ``docs/agents/tree/mcts/MCTS_SEARCH_LOOP.md`` for the full
+    safeguard analysis and extension guide.
     """
 
     node_class = MCTSNode
@@ -628,6 +648,36 @@ class MCTSSearch(BaseTreeSearch):
                 "config.transition_before_evaluate=False. Auto-setting to True."
             )
             self.config.transition_before_evaluate = True
+
+    # ------------------------------------------------------------------
+    # Overridable phase dispatchers
+    # ------------------------------------------------------------------
+
+    def _do_expand(self, query_or_goals, query_idx, node, policy, **kwargs):
+        """Expand phase — override in subclasses for custom expansion.
+
+        Default delegates to the module-level ``_expand()`` function.
+        """
+        _expand(query_or_goals, query_idx, node, policy, **kwargs)
+
+    def _do_simulate(self, query_or_goals, query_idx, path, config, **kwargs):
+        """Simulate phase — override in subclasses for custom rollout.
+
+        Default delegates to the module-level ``_simulate()`` function.
+        """
+        return _simulate(query_or_goals, query_idx, path, config, **kwargs)
+
+    def _do_backpropagate(self, path):
+        """Backpropagate phase — override in subclasses for custom value updates.
+
+        Default uses ``_back_propagate()`` or ``_back_propagate_decay()``
+        based on ``self.config.backprop_mode``.
+        """
+        config = self.config
+        if config.backprop_mode == 'decay':
+            _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)
+        else:
+            _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
 
     def search(self, query, query_idx) -> MCTSResult:
         """Run MCTS iterations.  ``self.root`` is ready."""
@@ -708,7 +758,7 @@ class MCTSSearch(BaseTreeSearch):
                 continuous_trace = _continuation(
                     query, query_idx, path[-1],
                     self.world_model, self.policy, self.reward_model,
-                    expand_func=_expand, world_modeling_func=_world_modeling,
+                    expand_func=self._do_expand, world_modeling_func=_world_modeling,
                     bn_evaluator=self.bn_evaluator,
                     depth_limit=config.max_steps,
                     threshold_alpha=config.reward_alpha,
@@ -757,7 +807,7 @@ class MCTSSearch(BaseTreeSearch):
                     log_event(logger, "MCTS", "Continues to next iteration due to terminal node (after world modeling)", level="debug")
                     continue
 
-            _expand(
+            self._do_expand(
                 query, query_idx, path[-1], self.policy,
                 n_actions=self.policy.n_actions,
                 reward_model=self.reward_model, world_model=self.world_model,
@@ -787,7 +837,7 @@ class MCTSSearch(BaseTreeSearch):
                     log_event(logger, "MCTS", "Continues to next iteration due to terminal node (before simulate)", level="debug")
                     continue
 
-            is_terminal_for_repeat, unselected_terminal_paths = _simulate(
+            is_terminal_for_repeat, unselected_terminal_paths = self._do_simulate(
                 query, query_idx, path, config,
                 self.world_model, self.policy, self.reward_model,
                 roll_out_steps=config.roll_out_steps,
@@ -802,10 +852,7 @@ class MCTSSearch(BaseTreeSearch):
                 meets_threshold = config.early_stop_reward is None or reward >= config.early_stop_reward
                 if meets_threshold:
                     log_event(logger, "MCTS", f"Terminates due to first solution found (reward={reward:.3f})", level="debug")
-                    if config.backprop_mode == 'decay':
-                        _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)
-                    else:
-                        _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
+                    self._do_backpropagate(path)
                     # Trigger per-trajectory augmentors
                     if on_trajectory_complete is not None:
                         on_trajectory_complete(path, path[-1].reward, query_idx, from_phase="simulate")
@@ -815,10 +862,7 @@ class MCTSSearch(BaseTreeSearch):
                     trace_in_each_iter.append(deepcopy(path))
                     break
 
-            if config.backprop_mode == 'decay':
-                _back_propagate_decay(path, config.decay_gamma, config.backprop_broadcast_mode)
-            else:
-                _back_propagate(path, config.backprop_reward_func, config.backprop_broadcast_mode)
+            self._do_backpropagate(path)
 
             # Trigger per-trajectory augmentors
             if on_trajectory_complete is not None:

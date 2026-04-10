@@ -106,7 +106,7 @@ def _expand_with_existing(
     reward_model=None,
     world_model=None,
     assign_rewards=True,
-    from_phase=""
+    from_phase="",
 ):
     """ Expand the node with existing children. 
     This is designed for BFS with continuous phase but compatible for the original BFS. """
@@ -118,7 +118,7 @@ def _expand_with_existing(
         node,
         policy,
         n_actions,
-        from_phase=from_phase
+        from_phase=from_phase,
     )
 
     # Determine the starting index for new children (to handle existing children).
@@ -169,9 +169,25 @@ class BFSSearch(BaseTreeSearch):
     tracking, terminal collection, error handling, inference logger) are
     handled by ``BaseTreeSearch``.  This class implements the depth-bucketed
     frontier loop with beam pruning.
+
+    Extension via subclassing
+    -------------------------
+    Override ``_do_expand(...)`` to customize expansion behavior.
+    Default delegates to module-level ``_expand_with_existing()``.
+    ``_continuation`` receives ``self._do_expand`` as ``expand_func``.
+
+    See ``docs/agents/tree/mcts/MCTS_SEARCH_LOOP.md`` for the extension
+    pattern (same approach as MCTS).
     """
 
     node_class = SearchNode
+
+    def _do_expand(self, query_or_goals, query_idx, node, policy, n_actions, **kwargs):
+        """Expand phase — override in subclasses for custom expansion.
+
+        Default delegates to the module-level ``_expand_with_existing()``.
+        """
+        _expand_with_existing(query_or_goals, query_idx, node, policy, n_actions, **kwargs)
 
     def search(self, query, query_idx) -> BFSResult:
         """Run BFS iterations.  ``self.root`` is ready."""
@@ -255,7 +271,7 @@ class BFSSearch(BaseTreeSearch):
                         self.world_model,
                         self.policy,
                         self.reward_model,
-                        expand_func=_expand_with_existing,
+                        expand_func=self._do_expand,
                         bn_evaluator=self.bn_evaluator,
                         world_modeling_func=_world_modeling,
                         threshold_alpha=config.reward_alpha,
@@ -293,7 +309,7 @@ class BFSSearch(BaseTreeSearch):
                 # Continuation + PostProcessing (End)
 
                 assert node.state is not None
-                _expand_with_existing(
+                self._do_expand(
                     query,
                     query_idx,
                     node,

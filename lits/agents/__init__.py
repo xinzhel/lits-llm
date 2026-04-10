@@ -26,7 +26,9 @@ from lits.agents.tree.search_base import BaseTreeSearch, SearchResult
 
 # Import to trigger @register_search decorators for built-in algorithms
 from lits.agents.tree.mcts import MCTSSearch, MCTSConfig, MCTSResult
+from lits.agents.tree.mcts_sibling_aware import SiblingAwareMCTSSearch
 from lits.agents.tree.bfs import BFSSearch, BFSConfig, BFSResult
+from lits.agents.tree.bfs_sibling_aware import SiblingAwareBFSSearch
 
 __all__ = [
     # Registry

@@ -819,7 +819,7 @@ class Policy(ABC, Generic[StateT, StepT]):
         n_actions: Optional[int] = None,
         query_idx: Optional[int] = None,
         from_phase: str = "",
-        existing_siblings: Optional[List[str]] = None,
+        existing_siblings: Optional[List[Step]] = None,
         *args,
         **kwargs
     ) -> List[StepT]:
@@ -839,9 +839,10 @@ class Policy(ABC, Generic[StateT, StepT]):
                       or 1 if at depth limit.
             query_idx: Optional index for logging or batching.
             from_phase: Description of the current algorithm phase.
-            existing_siblings: Actions already chosen by other candidates during
-                interleaved expansion. When provided, the policy appends a
-                diversity prompt so the model avoids repeating these actions.
+            existing_siblings: Complete Step objects from siblings already expanded
+                during interleaved expansion. When provided, the policy formats
+                each step (via ``verb_step()``) and appends a diversity prompt
+                so the model avoids repeating these actions.
                 None (default) means no sibling awareness — prompt unchanged.
             *args, **kwargs: Additional arguments passed to _get_actions.
 
@@ -1006,7 +1007,7 @@ class Policy(ABC, Generic[StateT, StepT]):
         state: StateT,
         n_actions: int,
         temperature: float,
-        existing_siblings: Optional[List[str]] = None,
+        existing_siblings: Optional[List[Step]] = None,
         **kwargs 
     ) -> List[StepT]:
         raise NotImplementedError(

@@ -178,7 +178,138 @@ def _sample_actions_with_existing(
             allow_duplicates=allow_duplicates,
         )
     return steps
-    
+
+
+def _interleaved_expand(
+    node_class: Type[NodeT],
+    query_or_goals,
+    query_idx,
+    node,
+    policy,
+    n_actions: int,
+    from_phase: str,
+    world_model=None,
+    reward_model=None,
+    assign_rewards: bool = True,
+    transition_before_evaluate: bool = False,
+    on_step_complete=None,
+):
+    """Sibling-aware interleaved expansion: sample → transition → repeat.
+
+    For each of the *n_actions* candidates, this helper:
+    1. Samples 1 action from the policy, passing previously completed sibling
+       Steps (with observation) as ``existing_siblings``.
+    2. Creates a child node and runs transition (``_world_modeling``) so the
+       step's observation is populated.
+    3. Reads back the completed Step from the child's state and appends it to
+       the sibling list for the next iteration.
+
+    This is called from both MCTS ``_expand`` and BFS ``_expand_with_existing``
+    when ``interleaved=True``, keeping the interleaved logic in one place.
+
+    Args:
+        node_class: Node class to instantiate (MCTSNode or SearchNode).
+        query_or_goals: Query string or goal descriptions.
+        query_idx: Index of the current query.
+        node: Parent node to expand.
+        policy: Policy model for action generation.
+        n_actions: Total number of children desired (including existing).
+        from_phase: Algorithm phase (expand, simulate, continuation).
+        world_model: Transition model — required for interleaved mode.
+        reward_model: RewardModel for fast-reward scoring.
+        assign_rewards: Whether to assign fast rewards to children.
+        transition_before_evaluate: If True, run transition before reward
+            scoring (V(s') estimate).
+        on_step_complete: Optional per-child callback (same as ``_expand``).
+    """
+    assert world_model is not None, (
+        "interleaved=True requires world_model for transition after each action"
+    )
+
+    # Reuse existing-children logic from _sample_actions_with_existing
+    if node.is_terminal:
+        return
+    if node.children:
+        expand_children = [c for c in node.children if getattr(c, 'from_expand', False)]
+        other_children = [c for c in node.children if not getattr(c, 'from_expand', False)]
+        keep_others = other_children[:max(0, n_actions - len(expand_children))]
+        node.children = expand_children + keep_others
+
+    n_existing = len(node.children) if node.children else 0
+    n_needed = max(0, n_actions - n_existing)
+    if n_needed == 0:
+        return
+
+    allow_duplicates = (from_phase == "continuation")
+    existing_children_count = len(node.children)
+    sibling_steps = []  # completed Step objects (with observation)
+
+    for i in range(n_needed):
+        # 1. Sample one action, with sibling awareness
+        one_step_list = policy.get_actions(
+            node.state,
+            query=query_or_goals,
+            n_actions=1,
+            query_idx=query_idx,
+            from_phase=from_phase,
+            allow_duplicates=allow_duplicates,
+            existing_siblings=sibling_steps if sibling_steps else None,
+        )
+        if not one_step_list:
+            continue
+        step = one_step_list[0]
+        action = step.get_action()
+        child_idx = existing_children_count + i
+
+        # 2. Create child node
+        child = create_child_node(
+            node_class,
+            parent=node,
+            action=action,
+            step=step,
+            child_index=child_idx,
+        )
+        child.is_terminal_for_repeat = (
+            action == "ALWAY REPEAT. TERMINATE"
+        ) or getattr(step, 'terminate', False)
+
+        # 3. Transition to populate observation in the child's state
+        _world_modeling(
+            query_or_goals, query_idx, child,
+            transition_model=world_model,
+            reward_model=reward_model,
+            from_phase=from_phase,
+        )
+
+        # 4. Assign rewards (if not already done by _world_modeling)
+        if assign_rewards and child.fast_reward == -1:
+            _assign_fast_reward(child, reward_model, query_or_goals, query_idx, from_phase)
+
+        # 5. Tag phase
+        if from_phase == "simulate":
+            child.from_simulate = True
+        elif from_phase == "expand":
+            child.from_expand = True
+        elif from_phase == "continuation":
+            child.from_continuation = True
+
+        node.children.append(child)
+        logger.debug(visualize_node(child))
+
+        if on_step_complete is not None:
+            on_step_complete(step, child, query_idx, from_phase=from_phase)
+
+        # 6. Collect the completed step (with observation) for next sibling.
+        #    After transition, the last element of child.state is the step
+        #    with observation filled in.
+        completed_step = child.state[-1] if child.state else step
+        sibling_steps.append(completed_step)
+
+    logger.debug(
+        f"Interleaved expand: produced {len(sibling_steps)} children with sibling awareness"
+    )
+
+
 def _assign_fast_reward(node, reward_model, query_or_goals, query_idx, from_phase):
     """Helper function to assign fast_reward to a node.
     

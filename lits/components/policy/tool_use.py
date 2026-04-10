@@ -60,14 +60,14 @@ class ToolUsePolicy(Policy[ToolUseState, ActionT]):
         temperature,
         at_depth_limit,
         from_phase: str = "",
-        existing_siblings: list[str] = None,
+        existing_siblings: list = None,
         **kwargs
     ) -> list[ToolUseStep]:
         messages = self._build_messages(query, state)
 
         # Sibling-aware diversity prompt
         if existing_siblings:
-            siblings_str = "\n".join(f"- {s}" for s in existing_siblings)
+            siblings_str = "\n".join(f"- {s.verb_step()}" for s in existing_siblings)
             diversity_note = (
                 "The following actions have already been chosen by other candidates. "
                 "Choose a DIFFERENT action:\n" + siblings_str
