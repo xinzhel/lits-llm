@@ -41,7 +41,7 @@ class SiblingAwareMCTSSearch(MCTSSearch):
             MCTSNode,
             query_or_goals, query_idx, node, policy,
             n_actions=n_actions,
-            world_model=kwargs.pop("world_model", self.world_model),
-            reward_model=kwargs.pop("reward_model", self.reward_model),
+            world_model=kwargs.pop("world_model", None) or self.world_model,
+            reward_model=kwargs.pop("reward_model", None) or self.reward_model,
             **kwargs,
         )

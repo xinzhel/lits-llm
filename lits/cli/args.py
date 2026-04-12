@@ -63,12 +63,19 @@ class _AppendList(argparse.Action):
         default store action does setattr(namespace, dest, values) which is a
         full replacement, not an append.
     
-    Solution:
-        This action overrides __call__ to EXTEND the existing list instead of
-        replacing it. nargs="+" still handles the per-invocation parsing (greedy
-        consumption of consecutive values), but we accumulate across invocations.
+    Why not action="append"?
+        action="append" + nargs="+" produces nested lists, not a flat list:
+        
+            --cfg a=1 --cfg b=2  →  [["a=1"], ["b=2"]]   (nested)
+        
+        Downstream code does ``for arg in cfg_args: arg.split('=', 1)`` which
+        crashes on a list element: AttributeError: 'list' has no 'split'.
+        
+        _AppendList uses extend() instead of append(), producing a flat list:
+        
+            --cfg a=1 --cfg b=2  →  ["a=1", "b=2"]       (flat)  ✓
     
-    Supports both styles:
+    Supports all styles:
         --search-arg n_actions=5 n_iters=30                    (one flag, multiple values)
         --search-arg n_actions=5 --search-arg n_iters=30       (repeated flags)
         --search-arg n_actions=5 n_iters=30 --search-arg w=1.0 (mixed)
@@ -219,6 +226,7 @@ Common Options:
         dest="cfg_args",
         type=str,
         nargs="+",
+        action=_AppendList,
         metavar="KEY=VALUE",
         help="Set config fields (e.g., --cfg benchmark=crosswords policy_model_name=gpt-4)"
     )
@@ -245,6 +253,7 @@ Common Options:
         dest="dataset_args",
         type=str,
         nargs="+",
+        action=_AppendList,
         metavar="KEY=VALUE",
         help="Dataset loader kwargs (e.g., --dataset-arg data_file=path/to/data.json)"
     )

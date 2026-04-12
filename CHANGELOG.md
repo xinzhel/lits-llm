@@ -13,11 +13,14 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `existing_siblings` parameter to `Policy.get_actions()` / `_get_actions()` for sibling-aware expansion
 - `_interleaved_expand()` helper in `common.py` — sample → transition → repeat loop with full Step siblings
 - `_do_expand()`, `_do_simulate()`, `_do_backpropagate()` override methods in `MCTSSearch`
+- `_do_expand()` override method in `BFSSearch`
+- `SiblingAwareMCTSSearch` registered as `mcts_sibling_aware` search method
+- `SiblingAwareBFSSearch` registered as `bfs_sibling_aware` search method
 
 ### Fixed
 - `_do_simulate()` signature — positional args aligned with module-level `_simulate()`
-- `SiblingAwareMCTSSearch` registered as `mcts_sibling_aware` search method
-- `SiblingAwareBFSSearch` registered as `bfs_sibling_aware` search method
+- `--cfg` and `--dataset-arg` now use `_AppendList` — repeated flags accumulate instead of replacing
+- Sibling-aware `_do_expand` falls back to `self.reward_model` when continuation passes `reward_model=None`
 - `docs/agents/tree/mcts/MCTS_SEARCH_LOOP.md` — safeguard analysis, extension guide, memory coupling
 
 ## 2026-04-06 Unreleased (`0302-agentbench-integration`)
