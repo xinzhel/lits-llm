@@ -660,12 +660,14 @@ class MCTSSearch(BaseTreeSearch):
         """
         _expand(query_or_goals, query_idx, node, policy, n_actions, **kwargs)
 
-    def _do_simulate(self, query_or_goals, query_idx, path, config, **kwargs):
+    def _do_simulate(self, query_or_goals, query_idx, path, config,
+                     world_model, policy, reward_model, **kwargs):
         """Simulate phase — override in subclasses for custom rollout.
 
         Default delegates to the module-level ``_simulate()`` function.
         """
-        return _simulate(query_or_goals, query_idx, path, config, **kwargs)
+        return _simulate(query_or_goals, query_idx, path, config,
+                         world_model, policy, reward_model, **kwargs)
 
     def _do_backpropagate(self, path):
         """Backpropagate phase — override in subclasses for custom value updates.

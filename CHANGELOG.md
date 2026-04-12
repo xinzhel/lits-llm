@@ -7,12 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
-## 2026-04-10  Unreleased (`0316-major-interleaved-expand`)
+## 2026-04-10 - 04-12  Unreleased (`0316-major-interleaved-expand`)
 
 ### Added
 - `existing_siblings` parameter to `Policy.get_actions()` / `_get_actions()` for sibling-aware expansion
 - `_interleaved_expand()` helper in `common.py` — sample → transition → repeat loop with full Step siblings
 - `_do_expand()`, `_do_simulate()`, `_do_backpropagate()` override methods in `MCTSSearch`
+
+### Fixed
+- `_do_simulate()` signature — positional args aligned with module-level `_simulate()`
 - `SiblingAwareMCTSSearch` registered as `mcts_sibling_aware` search method
 - `SiblingAwareBFSSearch` registered as `bfs_sibling_aware` search method
 - `docs/agents/tree/mcts/MCTS_SEARCH_LOOP.md` — safeguard analysis, extension guide, memory coupling
