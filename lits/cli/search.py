@@ -298,6 +298,12 @@ def run_tree_search(
     """
     _logger = run_logger or logger
 
+    # Skip if terminal nodes already exist for this query (resume support)
+    tn_file = Path(result_dir) / "terminal_nodes" / f"terminal_nodes_{query_idx}.json"
+    if tn_file.exists():
+        _logger.info(f"[{query_idx}] terminal_nodes already exists, skipping")
+        return
+
     # Look up search function from registry (unified invocation)
     search_fn = AgentRegistry.get_search(search_algorithm)
 
