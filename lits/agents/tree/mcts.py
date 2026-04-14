@@ -401,6 +401,7 @@ def _simulate(
     on_step: callable=None,
     transition_before_evaluate: bool = False,
     on_step_complete: callable = None,
+    expand_func: callable = _expand,
 ):
     """Simulate phase of MCTS.
     
@@ -410,6 +411,10 @@ def _simulate(
         on_step_complete: Optional callback passed through to ``_expand()``.
                  Invoked after each new child node is fully created.
                  Signature: ``on_step_complete(step, node, query_idx, **kwargs)``.
+        expand_func: Expansion function to use per rollout step. Defaults to
+                 module-level ``_expand()``. Subclasses can pass a custom
+                 expand (e.g., ``_interleaved_expand`` via ``_do_expand``)
+                 to propagate sibling awareness through simulate.
     """
     assert path[-1].state is not None, "node.state should not be None for rollout"
 
@@ -419,7 +424,7 @@ def _simulate(
     for i in range(roll_out_steps):
         log_event(logger, "Simulate", f"Rollout step {i+1}", level="debug")
         
-        _expand(
+        expand_func(
             query_or_goals, 
             query_idx, 
             node, 
