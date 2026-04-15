@@ -592,6 +592,8 @@ def main() -> int:
     if config.eval_idx:
         # Pair each example with its original dataset index
         indexed_dataset = [(i, full_dataset[i]) for i in config.eval_idx]
+        # Apply offset/limit to eval_idx list if specified
+        indexed_dataset = _slice_dataset(indexed_dataset, config.offset, config.limit)
     else:
         sliced = _slice_dataset(full_dataset, offset=config.offset, limit=config.limit)
         indexed_dataset = list(enumerate(sliced, start=config.offset))

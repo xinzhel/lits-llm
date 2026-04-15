@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
-## 2026-04-10 - 04-12  Unreleased (`0316-major-interleaved-expand`)
+## 2026-04-10 - 04-15  Unreleased (`0316-major-interleaved-expand`)
 
 ### Added
 - `existing_siblings` parameter to `Policy.get_actions()` / `_get_actions()` for sibling-aware expansion
@@ -16,11 +16,15 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `_do_expand()` override method in `BFSSearch`
 - `SiblingAwareMCTSSearch` registered as `mcts_sibling_aware` search method
 - `SiblingAwareBFSSearch` registered as `bfs_sibling_aware` search method
+- Query-level resume in `run_tree_search()` — skip examples with existing `terminal_nodes`
+- `eval_idx` now respects `offset`/`limit` via `_slice_dataset`
+- `_simulate()` accepts `expand_func` param for custom expand during rollout
 
 ### Fixed
 - `_do_simulate()` signature — positional args aligned with module-level `_simulate()`
 - `--cfg` and `--dataset-arg` now use `_AppendList` — repeated flags accumulate instead of replacing
 - Sibling-aware `_do_expand` falls back to `self.reward_model` when continuation passes `reward_model=None`
+- Sibling-aware `_do_expand` skips interleaved for `from_phase="continuation"` (preserves BN-SC agreement)
 - `docs/agents/tree/mcts/MCTS_SEARCH_LOOP.md` — safeguard analysis, extension guide, memory coupling
 
 ## 2026-04-06 Unreleased (`0302-agentbench-integration`)
