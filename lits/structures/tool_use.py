@@ -38,15 +38,54 @@ class ToolUseAction(StringAction):
     """Action type for tool use - wraps a JSON string representing a tool call."""
     pass
 
+
 @register_type
 @dataclass
-class ToolUseStep(Step):
-    """Single ReAct step capturing thought, tool invocation, observation, and answer."""
+class BaseToolUseStep(Step):
+    """Base step for tool use — shared fields for both text-based and native tool use.
 
-    think: str = ""
+    Subclasses:
+    - ``ToolUseStep``: text-based (XML tag parsing, ``assistant_message: str``)
+    - ``NativeToolUseStep``: native tool use (structured dict, ``assistant_message_dict: dict``)
+    """
+
     action: Optional[ToolUseAction] = None
     observation: Optional[str] = None
     answer: Optional[str] = None
+
+    def get_action(self):
+        return self.action
+
+    def get_observation(self):
+        return self.observation
+
+    def get_answer(self):
+        return self.answer
+
+    def to_dict(self) -> dict:
+        """Serialize shared fields for checkpointing."""
+        data = {"__type__": self.__class__.__name__}
+        if self.action is not None:
+            data["action"] = str(self.action)
+        if self.observation is not None:
+            data["observation"] = self.observation
+        if self.answer is not None:
+            data["answer"] = self.answer
+        if self.error is not None:
+            data["error"] = self.error
+        return data
+
+
+@register_type
+@dataclass
+class ToolUseStep(BaseToolUseStep):
+    """Text-based ReAct step: thought, tool invocation via XML tags, observation, and answer.
+
+    Uses XML tag extractors to parse ``<think>``, ``<action>``, ``<answer>`` from
+    assistant text. This is the original text-based tool use implementation.
+    """
+
+    think: str = ""
     assistant_message: Optional[str] = None
 
     _think_extractor: ClassVar[Callable[[str], list]] = _DEFAULT_THINK_EXTRACTOR
@@ -69,15 +108,6 @@ class ToolUseStep(Step):
         if not isinstance(other, ToolUseStep):
             return NotImplemented
         return self._identity_key() == other._identity_key()
-
-    def get_action(self):
-        return self.action
-
-    def get_observation(self):
-        return self.observation
-
-    def get_answer(self):
-        return self.answer
 
     def _verb_assistant_content(self) -> str:
         """Return the assistant-generated portion (<think>, <action>, <answer>) for this step."""
@@ -123,21 +153,12 @@ class ToolUseStep(Step):
 
     def to_dict(self) -> dict:
         """Serialize the step for checkpointing."""
-        data = {"__type__": self.__class__.__name__}
-        if self.action is not None:
-            data["action"] = str(self.action)
-        if self.observation is not None:
-            data["observation"] = self.observation
-        if self.answer is not None:
-            data["answer"] = self.answer
-        
+        data = super().to_dict()
         # save either assistant_message or think, but not both, because assistant_message can be used to reconstruct think
         if self.assistant_message is not None:
             data["assistant_message"] = self.assistant_message
         elif self.think:
             data["think"] = self.think
-        if self.error is not None:
-            data["error"] = self.error
         return data
 
     @classmethod
@@ -216,5 +237,3 @@ class ToolUseState(TrajectoryState[ToolUseStep]):
             extractor = type(last)._answer_extractor 
             return _extract_first(extractor, last.assistant_message)
         return None
-
-

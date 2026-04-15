@@ -14,6 +14,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `ToolCall` dataclass and `ToolCallOutput(Output)` in `lits/lm/base.py`
 - `async-bedrock/` prefix in `get_lm()` factory
 - `format_tool_result()` method on `AsyncBedrockChatModel` for provider-specific tool result messages
+- `BaseToolUseStep` extracted from `ToolUseStep` (`lits/structures/tool_use.py`) — shared base for text-based and native tool use steps
 
 ## 2026-04-10 - 04-15  Unreleased (`0316-major-interleaved-expand`)
 
