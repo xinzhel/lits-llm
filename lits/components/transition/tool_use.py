@@ -4,6 +4,7 @@ from typing import Optional
 
 from ..base import Transition
 from ...structures import ToolUseState, ToolUseStep, ToolUseAction, log_state
+from ...structures.tool_use import BaseToolUseStep
 from ...tools.utils import execute_tool_action
 from ...log import log_event
 
@@ -57,9 +58,9 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseAction]):
         new_state = ToolUseState()
         new_state.extend(state)
         
-        # step_or_action should be a ToolUseStep from the policy
-        assert isinstance(step_or_action, ToolUseStep), \
-            f"Expected ToolUseStep, got {type(step_or_action)}"
+        # step_or_action should be a BaseToolUseStep (ToolUseStep or NativeToolUseStep)
+        assert isinstance(step_or_action, BaseToolUseStep), \
+            f"Expected BaseToolUseStep, got {type(step_or_action)}"
         
         step = step_or_action
         

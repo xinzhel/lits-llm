@@ -219,6 +219,82 @@ class ToolUseStep(BaseToolUseStep):
         )
 
 
+@register_type
+@dataclass
+class NativeToolUseStep(BaseToolUseStep):
+    """Step for native tool use API (structured dict, not text parsing).
+
+    Uses LLM's raw assistant message (``assistant_message_dict``) directly
+    instead of XML tag parsing. Supports multi-turn conversation via
+    ``user_message`` field.
+
+    Fields:
+        assistant_message_dict: LLM's raw assistant message as provider-specific dict.
+            Stored as-is from ``ToolCallOutput.raw_message`` and replayed directly
+            in ``_build_messages()`` — no manual reconstruction needed.
+        user_message: Pure user turn text for multi-turn conversation history.
+            A step with only ``user_message`` set represents a user message
+            (no tool call, no answer).
+    """
+
+    assistant_message_dict: Optional[dict] = None
+    user_message: Optional[str] = None
+    tool_use_id: Optional[str] = None  # Provider-agnostic tool call ID (from ToolCall.id)
+
+    def to_messages(self) -> list[dict]:
+        """Convert step to Converse API message list.
+
+        Returns 0-2 messages depending on step type:
+        - user_message step: 1 user message
+        - tool call step: 1 assistant message (from assistant_message_dict)
+          (tool result is built by Policy using base_model.format_tool_result)
+        - answer step: 1 assistant message with text
+        """
+        messages = []
+        if self.user_message:
+            messages.append({"role": "user", "content": [{"text": self.user_message}]})
+        if self.assistant_message_dict:
+            messages.append(self.assistant_message_dict)
+        elif self.answer:
+            messages.append({"role": "assistant", "content": [{"text": self.answer}]})
+        return messages
+
+    def verb_step(self) -> str:
+        """Verbalize for logging."""
+        if self.user_message:
+            return f"[USER] {self.user_message}"
+        if self.action:
+            return f"[TOOL_CALL] {self.action}"
+        if self.answer:
+            return f"[ANSWER] {self.answer[:100]}..."
+        return "[EMPTY STEP]"
+
+    def to_dict(self) -> dict:
+        """Serialize for checkpointing."""
+        data = super().to_dict()
+        if self.assistant_message_dict is not None:
+            data["assistant_message_dict"] = self.assistant_message_dict
+        if self.user_message is not None:
+            data["user_message"] = self.user_message
+        if self.tool_use_id is not None:
+            data["tool_use_id"] = self.tool_use_id
+        return data
+
+    @classmethod
+    def from_dict(cls, payload: dict) -> "NativeToolUseStep":
+        """Rebuild from serialized data."""
+        action_str = payload.get("action")
+        return cls(
+            action=ToolUseAction(action_str) if action_str else None,
+            observation=payload.get("observation"),
+            answer=payload.get("answer"),
+            error=payload.get("error"),
+            assistant_message_dict=payload.get("assistant_message_dict"),
+            user_message=payload.get("user_message"),
+            tool_use_id=payload.get("tool_use_id"),
+        )
+
+
 from ..type_registry import register_state
 
 @register_state

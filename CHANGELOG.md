@@ -15,6 +15,11 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `async-bedrock/` prefix in `get_lm()` factory
 - `format_tool_result()` method on `AsyncBedrockChatModel` for provider-specific tool result messages
 - `BaseToolUseStep` extracted from `ToolUseStep` (`lits/structures/tool_use.py`) — shared base for text-based and native tool use steps
+- `NativeToolUseStep(BaseToolUseStep)` (`lits/structures/tool_use.py`) — step for native tool use with `assistant_message_dict` and `user_message`
+
+### Changed
+- `ToolUseTransition.step()` assert updated: `isinstance(step, BaseToolUseStep)` (accepts both ToolUseStep and NativeToolUseStep)
+- `NativeToolUsePolicy` (`lits/components/policy/native_tool_use.py`) — policy using native tool use API with structured tool calls
 
 ## 2026-04-10 - 04-15  Unreleased (`0316-major-interleaved-expand`)
 
