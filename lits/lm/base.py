@@ -3,6 +3,7 @@ import json
 import time
 import os
 from contextlib import contextmanager
+from dataclasses import dataclass
 import warnings
 import logging
 from typing import Callable, Dict, Optional
@@ -488,6 +489,47 @@ class Output:
     def __init__(self, text, thinking_content=None): 
         self.text = text
         self.thinking_content = thinking_content
+
+
+@dataclass
+class ToolCall:
+    """A single tool call from native tool use API.
+    
+    Attributes:
+        id: Provider-assigned tool use ID (e.g., Bedrock's toolUseId).
+        name: Tool name (matches BaseTool.name).
+        input_args: Dict of arguments to pass to the tool.
+    """
+    id: str
+    name: str
+    input_args: dict
+
+    def to_action(self) -> "ToolUseAction":
+        """Convert to ToolUseAction for compatibility with existing ToolUseStep."""
+        import json
+        from ..structures.tool_use import ToolUseAction
+        action_str = json.dumps({"action": self.name, "action_input": self.input_args})
+        return ToolUseAction(action_str)
+
+
+class ToolCallOutput(Output):
+    """Output with structured tool calls from native tool use API.
+    
+    Returned by AsyncBedrockChatModel when tools are provided and the LLM
+    decides to call a tool (stop_reason="tool_use").
+    
+    Attributes:
+        text: Any text content before/alongside tool calls (may be empty).
+        tool_calls: List of structured tool calls.
+        stop_reason: "tool_use" or "end_turn".
+        raw_message: LLM's raw assistant message in provider-specific format.
+            Stored in ToolUseStep.assistant_raw for exact replay in _build_messages().
+    """
+    def __init__(self, text: str, tool_calls: list[ToolCall], stop_reason: str, raw_message: dict, thinking_content=None):
+        super().__init__(text, thinking_content)
+        self.tool_calls = tool_calls
+        self.stop_reason = stop_reason
+        self.raw_message = raw_message
 
 class LanguageModel:
     LOG_MODEL_INPUT = False

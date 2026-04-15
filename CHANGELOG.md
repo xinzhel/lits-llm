@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-15 Unreleased
+
+### Added
+- `AsyncBedrockChatModel` (`lits/lm/async_bedrock.py`) — async Bedrock client with native tool use and streaming via `converse_stream()`
+- `ToolCall` dataclass and `ToolCallOutput(Output)` in `lits/lm/base.py`
+- `async-bedrock/` prefix in `get_lm()` factory
+- `format_tool_result()` method on `AsyncBedrockChatModel` for provider-specific tool result messages
+
 ## 2026-04-10 - 04-15  Unreleased (`0316-major-interleaved-expand`)
 
 ### Added

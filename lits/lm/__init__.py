@@ -82,6 +82,9 @@ def get_lm(model_name:str, **kwargs):
         kwargs.setdefault("base_url", "http://localhost:11434/v1")
         kwargs.setdefault("api_key", "ollama")
         base_model = OpenAIChatModel(actual_model_name, **kwargs)
+    elif model_name.startswith("async-bedrock"):
+        from .async_bedrock import AsyncBedrockChatModel
+        base_model = AsyncBedrockChatModel(model_name.split("/", 1)[1], **kwargs)
     elif model_name.startswith("bedrock"):
         from .bedrock_chat import BedrockChatModel
         base_model = BedrockChatModel(model_name.split("/", 1)[1], **kwargs) # e.g., bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0
