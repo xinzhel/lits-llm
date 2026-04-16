@@ -316,7 +316,7 @@ class AsyncBedrockChatModel:
         - ``{"type": "tool_use", "tool_call": ToolCall, "raw_block": dict}`` — complete tool call
         - ``{"type": "stop", "stop_reason": "...", "input_tokens": N, "output_tokens": N}`` — end
 
-        The caller (NativeReAct) dispatches on ``type``:
+        The caller (AsyncNativeReAct) dispatches on ``type``:
         - ``text_delta``: yield to frontend as ``{"type": "token", ...}``
         - ``tool_use``: execute tool, append to state, continue loop
         - ``stop``: finalize

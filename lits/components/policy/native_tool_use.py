@@ -52,7 +52,7 @@ def _tools_to_schemas(tools) -> list[dict]:
     return schemas
 
 
-class NativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
+class AsyncNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
     """Policy using LLM's native tool use API (structured tool calls).
 
     Overrides from ``Policy``:
@@ -77,8 +77,24 @@ class NativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
     def _build_system_prompt(self) -> Optional[str]:
         return self.task_prompt_spec
 
+    def set_system_prompt(self) -> None:
+        """Set system prompt on AsyncBedrockChatModel.
+
+        Overrides base ``Policy.set_system_prompt()`` which only recognizes
+        sync model classes. ``AsyncBedrockChatModel`` has ``sys_prompt`` too.
+        """
+        if self.task_prompt_spec and hasattr(self.base_model, "sys_prompt"):
+            base_prompt = self._build_system_prompt()
+            dynamic_notes = self._get_dynamic_notes()
+            self.base_model.sys_prompt = base_prompt + dynamic_notes
+
     def _build_messages(self, query: str, state: ToolUseState) -> list[dict]:
         """Build Converse API message list from state.
+
+        Note: ``query`` parameter is unused — kept for interface compatibility
+        with ``ToolUsePolicy._build_messages(query, state)``. The user query
+        is already in state as a ``NativeToolUseStep(user_message=...)``,
+        appended by ``AsyncNativeReAct`` before entering the ReAct loop.
 
         Iterates over state steps:
         - ``NativeToolUseStep`` with ``user_message``: user text message
@@ -121,9 +137,6 @@ class NativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
                 # Fallback for text-based ToolUseStep (backward compat)
                 messages.extend(step.to_messages())
 
-        # Append current query as final user message
-        messages.append({"role": "user", "content": [{"text": query}]})
-
         return messages
 
     def _create_error_steps(self, n_actions: int, error_msg: str) -> list[NativeToolUseStep]:
@@ -132,6 +145,22 @@ class NativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
     async def _call_model(self, prompt, **kwargs):
         """Async call to base_model. Overrides sync ``Policy._call_model``."""
         return await self.base_model(prompt, **kwargs)
+
+    async def _get_actions_stream(self, query: str, state: ToolUseState, **kwargs):
+        """Streaming version of ``_get_actions``. Yields raw LM events.
+
+        Reuses ``_build_messages()`` and applies the same system prompt setup
+        as ``_get_actions()``, but uses ``base_model.astream()`` instead of
+        ``base_model.__call__()``.
+
+        Yields:
+            Event dicts from ``AsyncBedrockChatModel.astream()``:
+            ``text_delta``, ``tool_use``, ``stop``.
+        """
+        self.set_system_prompt()
+        messages = self._build_messages(query, state)
+        async for event in self.base_model.astream(messages, tools=self.tool_schemas, **kwargs):
+            yield event
 
     async def _get_actions(
         self,

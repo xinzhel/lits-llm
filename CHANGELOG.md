@@ -7,6 +7,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-16 Unreleased
+
+### Added
+- `AsyncNativeReAct` (`lits/agents/chain/native_react.py`) — async/streaming ReAct agent with `from_tools()` factory, `run_async()`, `stream()`
+- `_get_actions_stream()` on `AsyncNativeToolUsePolicy` — streaming version reusing `_build_messages()` + `set_system_prompt()`
+- `docs/agents/AsyncNativeReAct.md` — documentation for native tool use architecture
+
+### Changed
+- Renamed `NativeToolUsePolicy` → `AsyncNativeToolUsePolicy`, `NativeReAct` → `AsyncNativeReAct`
+- `AsyncNativeToolUsePolicy.set_system_prompt()` override to support `AsyncBedrockChatModel`
+
+### Fixed
+- `_build_messages()` no longer appends query at end (query is already in state as `NativeToolUseStep(user_message=...)`)
+- `stream()` text accumulation bug: text before tool calls no longer treated as final answer
+
 ## 2026-04-15 Unreleased
 
 ### Added
@@ -19,7 +34,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Changed
 - `ToolUseTransition.step()` assert updated: `isinstance(step, BaseToolUseStep)` (accepts both ToolUseStep and NativeToolUseStep)
-- `NativeToolUsePolicy` (`lits/components/policy/native_tool_use.py`) — policy using native tool use API with structured tool calls
+- `AsyncNativeToolUsePolicy` (`lits/components/policy/native_tool_use.py`) — policy using native tool use API with structured tool calls
 
 ## 2026-04-10 - 04-15  Unreleased (`0316-major-interleaved-expand`)
 

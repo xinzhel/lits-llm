@@ -40,7 +40,7 @@ WEATHER_TOOL = {
 async def test_text_generation():
     """Test 1: plain text generation, no tools."""
     print("\n=== Test 1: Text generation (no tools) ===")
-    model = get_lm("async-bedrock/us.anthropic.claude-opus-4-6-v1")
+    model = get_lm("async-bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
 
     output = await model("What is 2 + 2? Answer in one word.", temperature=0.0)
     print(f"Type: {type(output).__name__}")
@@ -51,7 +51,7 @@ async def test_text_generation():
 async def test_tool_use():
     """Test 2: native tool use — LLM should call get_weather."""
     print("\n=== Test 2: Tool use ===")
-    model = get_lm("async-bedrock/us.anthropic.claude-opus-4-6-v1")
+    model = get_lm("async-bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
 
     output = await model(
         "What's the weather in Melbourne?",
@@ -72,7 +72,7 @@ async def test_tool_use():
 async def test_stream_text():
     """Test 3: streaming text generation."""
     print("\n=== Test 3: Streaming text ===")
-    model = get_lm("async-bedrock/us.anthropic.claude-opus-4-6-v1")
+    model = get_lm("async-bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
 
     events = []
     async for event in model.astream("Say hello in 3 words.", temperature=0.0):
@@ -88,7 +88,7 @@ async def test_stream_text():
 async def test_stream_tool_use():
     """Test 4: streaming with tool use — should yield tool_use event."""
     print("\n=== Test 4: Streaming tool use ===")
-    model = get_lm("async-bedrock/us.anthropic.claude-opus-4-6-v1")
+    model = get_lm("async-bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
 
     events = []
     async for event in model.astream(

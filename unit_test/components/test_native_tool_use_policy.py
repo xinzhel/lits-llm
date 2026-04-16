@@ -1,5 +1,5 @@
 """
-Test NativeToolUsePolicy with real Bedrock LLM call.
+Test AsyncNativeToolUsePolicy with real Bedrock LLM call.
 
 Tests the full flow: policy builds messages → calls LLM with tools → returns NativeToolUseStep.
 
@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from lits.lm import get_lm
 from lits.lm.base import ToolCallOutput
 from lits.tools.base import BaseTool
-from lits.components.policy.native_tool_use import NativeToolUsePolicy
+from lits.components.policy.native_tool_use import AsyncNativeToolUsePolicy
 from lits.structures.tool_use import NativeToolUseStep, ToolUseState
 
 
@@ -38,8 +38,8 @@ class WeatherTool(BaseTool):
 async def test_policy_tool_call():
     """Test: LLM should call get_weather tool."""
     print("\n=== Test: Policy tool call ===")
-    model = get_lm("async-bedrock/us.anthropic.claude-opus-4-6-v1")
-    policy = NativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
+    model = get_lm("async-bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
+    policy = AsyncNativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
 
     state = ToolUseState()
     steps = await policy._get_actions(query="What's the weather in Melbourne?", state=state, n_actions=1, temperature=0.0)
@@ -57,8 +57,8 @@ async def test_policy_tool_call():
 async def test_policy_final_answer():
     """Test: LLM should give final answer (no tool call needed)."""
     print("\n=== Test: Policy final answer ===")
-    model = get_lm("async-bedrock/us.anthropic.claude-opus-4-6-v1")
-    policy = NativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
+    model = get_lm("async-bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
+    policy = AsyncNativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
 
     state = ToolUseState()
     steps = await policy._get_actions(query="What is 2 + 2?", state=state, n_actions=1, temperature=0.0)
@@ -74,8 +74,8 @@ async def test_policy_final_answer():
 async def test_policy_multi_turn():
     """Test: multi-turn — previous tool call in state, then follow-up question."""
     print("\n=== Test: Policy multi-turn ===")
-    model = get_lm("async-bedrock/us.anthropic.claude-opus-4-6-v1")
-    policy = NativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
+    model = get_lm("async-bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
+    policy = AsyncNativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
 
     # Simulate first turn: user asked weather, LLM called tool, got observation
     state = ToolUseState()
@@ -101,10 +101,31 @@ async def test_policy_multi_turn():
     breakpoint()  # inspect: msgs, steps
 
 
+async def test_get_actions_stream():
+    """Test: _get_actions_stream yields raw events."""
+    print("\n=== Test: _get_actions_stream ===")
+    model = get_lm("async-bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
+    policy = AsyncNativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
+
+    state = ToolUseState()
+    events = []
+    async for event in policy._get_actions_stream(query="What's the weather in Tokyo?", state=state):
+        events.append(event)
+        print(f"  {event['type']}", end="")
+        if event["type"] == "text_delta":
+            print(f" → '{event['content']}'", end="")
+        elif event["type"] == "tool_use":
+            print(f" → {event['tool_call'].name}({event['tool_call'].input_args})", end="")
+        print()
+    print(f"Total events: {len(events)}")
+    breakpoint()  # inspect: events
+
+
 async def main():
-    await test_policy_tool_call()
-    await test_policy_final_answer()
-    await test_policy_multi_turn()
+    # await test_policy_tool_call()
+    # await test_policy_final_answer()
+    # await test_policy_multi_turn()
+    await test_get_actions_stream()
     print("\n✓ All tests done")
 
 if __name__ == "__main__":
@@ -125,6 +146,15 @@ if __name__ == "__main__":
 #   assistant_message_dict: {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_ZoIRv7dcSvCq5qs3sXlwSR', 'name': 'get_weather', 'input': {'city': 'Melbourne'}}}]}
 #   tool_use_id: tooluse_ZoIRv7dcSvCq5qs3sXlwSR
 
+# === Test: Policy tool call ===
+# Policy.__init__: task_prompt_spec not found for task_name='None' or task_type='native_tool_use'
+# Steps: 1
+#   type: NativeToolUseStep
+#   action: {"action": "get_weather", "action_input": {"city": "Melbourne"}}
+#   answer: None
+#   assistant_message_dict: {'role': 'assistant', 'content': [{'text': 'Let me check the current weather in Melbourne for you.'}, {'toolUse': {'toolUseId': 'tooluse_JtjG6WCjfWWypR9cU29D5m', 'name': 'get_weather', 'input': {'city': 'Melbourne'}}}]}
+#   tool_use_id: tooluse_JtjG6WCjfWWypR9cU29D5m
+  
 # === Test: Policy final answer ===
 # Policy.__init__: task_prompt_spec not found for task_name='None' or task_type='native_tool_use'
 # Steps: 1
@@ -133,6 +163,7 @@ if __name__ == "__main__":
 #   answer: 2 + 2 = **4**.
 
 # This is a basic arithmetic question, so no tools were needed to answer it! Let me know if you have any other questions. 😊
+
 
 # === Test: Policy multi-turn ===
 # Policy.__init__: task_prompt_spec not found for task_name='None' or task_type='native_tool_use'
@@ -146,5 +177,15 @@ if __name__ == "__main__":
 # Steps: 1
 #   action: {"action": "get_weather", "action_input": {"city": "Sydney"}}
 #   answer: None
+
+# === Test: _get_actions_stream ===
+# Policy.__init__: task_prompt_spec not found for task_name='None' or task_type='native_tool_use'
+#   text_delta → 'Let'
+#   text_delta → ' me check the current'
+#   text_delta → ' weather in Tokyo for'
+#   text_delta → ' you.'
+#   tool_use → get_weather({'city': 'Tokyo'})
+#   stop
+# Total events: 6
 
 # ✓ All tests done
