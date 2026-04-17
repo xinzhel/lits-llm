@@ -267,25 +267,33 @@ class AsyncNativeReAct(ChainAgent[ToolUseState]):
 
             # Process results of this iteration
             if tool_calls_this_turn:
-                # Tool call(s) — execute each and append to state
-                # Text before tool call (e.g., "Let me check...") is part of assistant_message_dict
+                # Tool call(s) — one assistant message may contain multiple toolUse blocks.
+                # We store ONE step with the full assistant_message_dict, and execute all tools.
                 if text_this_turn:
                     raw_content_blocks.insert(0, {"text": text_this_turn})
                 raw_message = {"role": "assistant", "content": raw_content_blocks}
+
+                # Execute all tool calls and collect observations
+                observations = {}
                 for tc in tool_calls_this_turn:
                     action_str = json.dumps({"action": tc.name, "action_input": tc.input_args})
-                    step = NativeToolUseStep(
-                        action=ToolUseAction(action_str),
-                        assistant_message_dict=raw_message,
-                        tool_use_id=tc.id,
-                    )
-                    # Execute tool
                     observation = execute_tool_action(action_str, self.transition.tools, raise_on_error=False)
                     if not isinstance(observation, str):
                         observation = str(observation)
-                    step.observation = observation
-                    state.append(step)
+                    observations[tc.id] = observation
                     logger.debug(f"[AsyncNativeReAct.stream] Tool {tc.name} → {observation[:100]}")
+
+                # Append one step per tool call (each with same assistant_message_dict but own tool_use_id + observation)
+                # First step gets the assistant_message_dict, subsequent ones only have tool_use_id + observation
+                for i, tc in enumerate(tool_calls_this_turn):
+                    action_str = json.dumps({"action": tc.name, "action_input": tc.input_args})
+                    step = NativeToolUseStep(
+                        action=ToolUseAction(action_str),
+                        assistant_message_dict=raw_message if i == 0 else None,
+                        tool_use_id=tc.id,
+                        observation=observations[tc.id],
+                    )
+                    state.append(step)
                 # Continue loop — don't treat text before tool call as final answer
             elif text_this_turn:
                 # No tool calls this turn — this is the final answer

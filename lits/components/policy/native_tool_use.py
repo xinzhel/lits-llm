@@ -91,53 +91,87 @@ class AsyncNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
     def _build_messages(self, query: str, state: ToolUseState) -> list[dict]:
         """Build Converse API message list from state.
 
-        Note: ``query`` parameter is unused — kept for interface compatibility
-        with ``ToolUsePolicy._build_messages(query, state)``. The user query
-        is already in state as a ``NativeToolUseStep(user_message=...)``,
-        appended by ``AsyncNativeReAct`` before entering the ReAct loop.
+        Note: ``query`` parameter is unused — kept for interface compatibility.
+        The user query is already in state as ``NativeToolUseStep(user_message=...)``.
 
-        Iterates over state steps:
-        - ``NativeToolUseStep`` with ``user_message``: user text message
-        - ``NativeToolUseStep`` with ``assistant_message_dict``: raw assistant message (replayed as-is)
-        - ``NativeToolUseStep`` with ``observation``: tool result via ``base_model.format_tool_result()``
-        - ``NativeToolUseStep`` with ``answer``: assistant text message
-        - Falls back to ``step.to_messages()`` for any other step type
+        Handles parallel tool calls: one assistant message may contain multiple
+        toolUse blocks. The corresponding tool results are grouped into a single
+        user message (Bedrock Converse API requirement).
 
-        The current query is appended as the final user message.
+        State layout for parallel tool calls::
 
-        Args:
-            query: Current user query.
-            state: ``ToolUseState`` containing conversation history + current turn steps.
+            step[i]:   assistant_message_dict={2 toolUse blocks}, tool_use_id="a", observation="..."
+            step[i+1]: assistant_message_dict=None,                tool_use_id="b", observation="..."
 
-        Returns:
-            List of Converse API message dicts.
+        Produces::
+
+            messages[j]:   {"role": "assistant", "content": [{toolUse: a}, {toolUse: b}]}
+            messages[j+1]: {"role": "user", "content": [{toolResult: a}, {toolResult: b}]}
         """
         messages = []
+        state_list = list(state)
+        skip_indices: set[int] = set()
 
-        for step in state:
-            if isinstance(step, NativeToolUseStep):
-                # User message
-                if step.user_message:
-                    messages.append({"role": "user", "content": [{"text": step.user_message}]})
+        for idx, step in enumerate(state_list):
+            if idx in skip_indices:
+                continue
 
-                # Assistant message (raw dict from LLM)
-                if step.assistant_message_dict:
-                    messages.append(step.assistant_message_dict)
+            if not isinstance(step, NativeToolUseStep):
+                raise TypeError(
+                    f"AsyncNativeToolUsePolicy expects NativeToolUseStep, got {type(step).__name__} at index {idx}"
+                )
 
-                    # Tool result (if observation exists, build via LM layer)
-                    if step.observation is not None and step.tool_use_id:
-                        messages.append(
-                            self.base_model.format_tool_result(step.tool_use_id, step.observation)
-                        )
-
-                # Answer (no tool call)
-                elif step.answer and not step.assistant_message_dict:
-                    messages.append({"role": "assistant", "content": [{"text": step.answer}]})
-            else:
-                # Fallback for text-based ToolUseStep (backward compat)
-                messages.extend(step.to_messages())
+            if step.user_message:
+                messages.append({"role": "user", "content": [{"text": step.user_message}]})
+            elif step.assistant_message_dict:
+                messages.append(step.assistant_message_dict)
+                tool_results = self._collect_tool_results(state_list, idx, skip_indices)
+                if tool_results:
+                    messages.append({"role": "user", "content": tool_results})
+            elif step.answer:
+                messages.append({"role": "assistant", "content": [{"text": step.answer}]})
 
         return messages
+
+    def _collect_tool_results(
+        self, state_list: list, start_idx: int, skip_indices: set[int]
+    ) -> list[dict]:
+        """Collect tool results for a tool call group starting at ``start_idx``.
+
+        A tool call group = one assistant message with N toolUse blocks, stored as:
+        - step[start_idx]: has ``assistant_message_dict``, ``tool_use_id``, ``observation``
+        - step[start_idx+1..]: has ``tool_use_id`` + ``observation`` but NO ``assistant_message_dict``
+
+        Returns list of toolResult content blocks for a single user message.
+        """
+        results = []
+
+        # First step's tool result
+        step = state_list[start_idx]
+        if step.observation is not None and step.tool_use_id:
+            results.append(
+                self.base_model.format_tool_result(step.tool_use_id, step.observation)["content"][0]
+            )
+
+        # Subsequent steps in the same group (parallel tool calls)
+        for next_idx in range(start_idx + 1, len(state_list)):
+            next_step = state_list[next_idx]
+            if (isinstance(next_step, NativeToolUseStep)
+                    and next_step.tool_use_id
+                    and next_step.observation is not None
+                    and not next_step.assistant_message_dict
+                    and not next_step.user_message
+                    and not next_step.answer):
+                results.append(
+                    self.base_model.format_tool_result(
+                        next_step.tool_use_id, next_step.observation
+                    )["content"][0]
+                )
+                skip_indices.add(next_idx)
+            else:
+                break
+
+        return results
 
     def _create_error_steps(self, n_actions: int, error_msg: str) -> list[NativeToolUseStep]:
         return [NativeToolUseStep(error=error_msg) for _ in range(n_actions)]
