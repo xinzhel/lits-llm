@@ -1,6 +1,10 @@
-# AsyncNativeReAct
+# NativeReAct
 
 ReAct agent using LLM's **native tool use API**.
+
+Two variants:
+- `NativeReAct` — sync, uses `BedrockChatModel`, for `lits-chain` / `lits-search` / MCTS
+- `AsyncNativeReAct` — async, uses `AsyncBedrockChatModel`, for streaming chat endpoints
 
 ## Why "Native"?
 
@@ -13,8 +17,8 @@ LiTS has two tool use modes:
 | Tool result format | Text: `<observation>result</observation>` | Provider-specific dict via `model.format_tool_result()` |
 | Failure mode | Parsing errors if LLM doesn't follow XML format | Reliable — provider guarantees structured output |
 | Step class | `ToolUseStep` (stores `assistant_message: str`) | `NativeToolUseStep` (stores `assistant_message_dict: dict`) |
-| Policy class | `ToolUsePolicy` (sync) | `AsyncNativeToolUsePolicy` (async) |
-| Agent class | `ReActChat` (sync `run()`) | `AsyncNativeReAct` (async `run_async()`, `stream()`) |
+| Policy class | `ToolUsePolicy` (sync) | `NativeToolUsePolicy` (sync) / `AsyncNativeToolUsePolicy` (async) |
+| Agent class | `ReActChat` (sync `run()`) | `NativeReAct` (sync `run()`) / `AsyncNativeReAct` (async `run_async()`, `stream()`) |
 
 "Native" = the LLM provider's built-in tool use capability, not text conventions we impose on the LLM.
 
@@ -24,11 +28,11 @@ AsyncNativeReAct is not Bedrock-specific. The provider-specific details are isol
 
 | Provider-specific (LM layer) | Provider-agnostic (Policy/Agent layer) |
 |------------------------------|----------------------------------------|
-| `AsyncBedrockChatModel` | `ToolCall(id, name, input_args)` |
-| `converse_stream()` | `ToolCallOutput(tool_calls, raw_message)` |
+| `BedrockChatModel` / `AsyncBedrockChatModel` | `ToolCall(id, name, input_args)` |
+| `converse()` / `converse_stream()` | `ToolCallOutput(tool_calls, raw_message)` |
 | `toolUseId`, `toolResult` format | `NativeToolUseStep(tool_use_id, assistant_message_dict)` |
-| `format_tool_result()` | `AsyncNativeToolUsePolicy._build_messages()` |
-| | `AsyncNativeReAct.stream()` |
+| `format_tool_result()` | `_BaseNativeToolUsePolicy._build_messages()` |
+| | `NativeReAct` / `AsyncNativeReAct` |
 
 To switch from Bedrock to OpenAI:
 1. Implement `AsyncOpenAIChatModel` with same interface (`__call__`, `astream`, `format_tool_result`)
@@ -44,19 +48,21 @@ Key abstractions that enable this:
 ## Architecture
 
 ```
-AsyncNativeReAct (agent)
-  ├── AsyncNativeToolUsePolicy (policy)
-  │     ├── _build_messages(query, state)     → message list from state
-  │     ├── _get_actions(query, state)        → async, non-streaming
-  │     └── _get_actions_stream(query, state) → async generator, streaming
-  │
-  ├── ToolUseTransition (transition, shared with ReActChat)
-  │     └── step(state, step) → execute tool, append observation
-  │
-  └── AsyncBedrockChatModel (LM)
-        ├── __call__(prompt, tools) → Output | ToolCallOutput
-        ├── astream(prompt, tools)  → async generator of events
-        └── format_tool_result()    → provider-specific tool result dict
+NativeReAct (sync)                         AsyncNativeReAct (async)
+  ├── NativeToolUsePolicy                    ├── AsyncNativeToolUsePolicy
+  │     └── BedrockChatModel                 │     └── AsyncBedrockChatModel
+  ├── ToolUseTransition (shared)             ├── ToolUseTransition (shared)
+  └── NativeToolUseStep (shared)             └── NativeToolUseStep (shared)
+```
+
+Policy hierarchy:
+
+```
+Policy (ABC)
+  └── _BaseNativeToolUsePolicy       ← shared: __init__, _build_messages, _collect_tool_results,
+        │                               set_system_prompt, _build_system_prompt, _create_error_steps
+        ├── NativeToolUsePolicy      ← sync _get_actions (uses Policy._call_model)
+        └── AsyncNativeToolUsePolicy ← async _call_model, _get_actions, _get_actions_stream
 ```
 
 ## Class Hierarchy (structures)
@@ -72,6 +78,26 @@ Step
 - `NativeToolUseStep` doesn't inherit text-parsing fields (extractors, `think`, etc.)
 - `ToolUseTransition` accepts both via `isinstance(step, BaseToolUseStep)`
 - Existing `ToolUseStep` code is unchanged
+
+## Design Decisions
+
+### Why `_build_messages` ignores the `query` parameter
+
+`_build_messages(query, state)` accepts `query` for interface compatibility but does not use it. The user query is already in state as `NativeToolUseStep(user_message=query)`, placed there by the caller (`NativeReAct.run()`). `_build_messages` is a pure state→messages converter.
+
+Text-based `ToolUsePolicy` takes a different approach: `state.to_messages(query)` injects query as the first user message at call time, not stored in state. Native tool use can't reuse this pattern because:
+
+1. `NativeToolUseStep.to_messages()` can't build `toolResult` messages — that format is provider-specific and lives on the LM object (`format_tool_result()`). Only the policy has access to `self.base_model`.
+
+2. If `_build_messages` also appended query, it would duplicate the user message when query is already in state (which it must be for multi-turn conversations).
+
+### Why `format_tool_result()` lives on the LM class
+
+The tool result format is provider-specific (Bedrock: `toolResult` block, OpenAI: `tool` role message). Policy calls `self.base_model.format_tool_result()` so it stays provider-agnostic. This is why `_collect_tool_results` is in the policy (it has `self.base_model`), not in `NativeToolUseStep.to_messages()`.
+
+### Why `assistant_message_dict` is stored as raw dict
+
+The LLM's assistant response in native tool use contains provider-specific blocks (`toolUse` with `toolUseId`, `input`, etc.). Reconstructing this from parsed fields would be fragile and provider-coupled. Instead, `ToolCallOutput.raw_message` is stored as-is in `NativeToolUseStep.assistant_message_dict` and replayed directly in `_build_messages()`. No reconstruction needed.
 
 ## Usage
 
@@ -172,8 +198,9 @@ The sync `Policy.get_actions()` wrapper is NOT used — it cannot `await` the as
 
 | File | What |
 |------|------|
+| `lits/lm/bedrock_chat.py` | `BedrockChatModel` — sync LM with native tool use |
 | `lits/lm/async_bedrock.py` | `AsyncBedrockChatModel` — async LM with native tool use |
 | `lits/lm/base.py` | `ToolCall`, `ToolCallOutput` — provider-agnostic types |
 | `lits/structures/tool_use.py` | `BaseToolUseStep`, `NativeToolUseStep` |
-| `lits/components/policy/native_tool_use.py` | `AsyncNativeToolUsePolicy` |
-| `lits/agents/chain/native_react.py` | `AsyncNativeReAct` |
+| `lits/components/policy/native_tool_use.py` | `_BaseNativeToolUsePolicy`, `NativeToolUsePolicy`, `AsyncNativeToolUsePolicy` |
+| `lits/agents/chain/native_react.py` | `NativeReAct`, `AsyncNativeReAct` |

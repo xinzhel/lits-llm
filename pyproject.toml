@@ -60,6 +60,7 @@ dependencies = [
     "sentence_transformers",
     "litellm",
     "boto3",
+    "aioboto3",
 
     # --- for PDF tools ---
     "pypdf",

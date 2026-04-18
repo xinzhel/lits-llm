@@ -12,7 +12,16 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Added
 - Native tool use support for sync `BedrockChatModel`: `tools` param on `__call__`/`_converse_api`, `_build_tool_config()`, `format_tool_result()`
 - `ToolCallOutput.__repr__()` (`lits/lm/base.py`)
+- `NativeToolUsePolicy` (sync) via `_BaseNativeToolUsePolicy` shared base (`lits/components/policy/native_tool_use.py`)
 - `unit_test/models/test_bedrock_tool_use.py`
+- `unit_test/components/test_sync_native_tool_use_policy.py`
+
+### Changed
+- Refactored `AsyncNativeToolUsePolicy` to inherit from `_BaseNativeToolUsePolicy` (no behavior change)
+- Extracted `_response_to_steps()` shared helper
+- Renamed `docs/agents/AsyncNativeReAct.md` → `docs/agents/NativeReAct.md`, added design decisions
+- `aioboto3` added to `pyproject.toml`
+- Fixed empty-state bug in `unit_test/components/test_native_tool_use_policy.py` (pre-existing from `f8a1b27`)
 
 ## 2026-04-18 Unreleased (`0415-terminalbench-integration`)
 

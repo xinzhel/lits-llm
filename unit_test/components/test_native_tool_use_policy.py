@@ -42,6 +42,7 @@ async def test_policy_tool_call():
     policy = AsyncNativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
 
     state = ToolUseState()
+    state.append(NativeToolUseStep(user_message="What's the weather in Melbourne?"))
     steps = await policy._get_actions(query="What's the weather in Melbourne?", state=state, n_actions=1, temperature=0.0)
 
     print(f"Steps: {len(steps)}")
@@ -61,6 +62,7 @@ async def test_policy_final_answer():
     policy = AsyncNativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
 
     state = ToolUseState()
+    state.append(NativeToolUseStep(user_message="What is 2 + 2?"))
     steps = await policy._get_actions(query="What is 2 + 2?", state=state, n_actions=1, temperature=0.0)
 
     print(f"Steps: {len(steps)}")
@@ -85,6 +87,8 @@ async def test_policy_multi_turn():
         action=None, assistant_message_dict=raw, observation="Sunny, 22°C in Melbourne", tool_use_id="t1"
     ))
     state.append(NativeToolUseStep(answer="It's sunny and 22°C in Melbourne."))
+    # Second turn: follow-up question
+    state.append(NativeToolUseStep(user_message="Is it warmer than Sydney?"))
 
     # Build messages for second turn
     msgs = policy._build_messages("Is it warmer than Sydney?", state)
@@ -108,6 +112,7 @@ async def test_get_actions_stream():
     policy = AsyncNativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
 
     state = ToolUseState()
+    state.append(NativeToolUseStep(user_message="What's the weather in Tokyo?"))
     events = []
     async for event in policy._get_actions_stream(query="What's the weather in Tokyo?", state=state):
         events.append(event)
@@ -122,9 +127,9 @@ async def test_get_actions_stream():
 
 
 async def main():
-    # await test_policy_tool_call()
-    # await test_policy_final_answer()
-    # await test_policy_multi_turn()
+    await test_policy_tool_call()
+    await test_policy_final_answer()
+    await test_policy_multi_turn()
     await test_get_actions_stream()
     print("\n✓ All tests done")
 

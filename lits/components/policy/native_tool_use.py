@@ -8,12 +8,16 @@ Instead of text-based XML tag parsing (``ToolUsePolicy``), this policy:
 - Builds messages using raw dicts (no manual reconstruction)
 - Delegates tool result formatting to ``base_model.format_tool_result()`` (provider-agnostic)
 
-Usage:
-    from lits.lm import get_lm
-    from lits.components.policy.native_tool_use import NativeToolUsePolicy
+Two variants sharing all logic except the LLM call:
+- ``NativeToolUsePolicy`` — sync, uses ``BedrockChatModel``
+- ``AsyncNativeToolUsePolicy`` — async, uses ``AsyncBedrockChatModel``
 
-    model = get_lm("async-bedrock/us.anthropic.claude-opus-4-6-v1")
-    policy = NativeToolUsePolicy(base_model=model, tools=tools)
+Hierarchy::
+
+    Policy (ABC)
+      └── _BaseNativeToolUsePolicy   ← shared: __init__, _build_messages, _collect_tool_results, ...
+            ├── NativeToolUsePolicy          ← sync _get_actions
+            └── AsyncNativeToolUsePolicy     ← async _get_actions + _get_actions_stream
 """
 
 import json
@@ -52,19 +56,29 @@ def _tools_to_schemas(tools) -> list[dict]:
     return schemas
 
 
-class AsyncNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
-    """Policy using LLM's native tool use API (structured tool calls).
+def _response_to_steps(response) -> list[NativeToolUseStep]:
+    """Convert LLM response to NativeToolUseStep list (shared by sync and async)."""
+    if isinstance(response, ToolCallOutput) and response.tool_calls:
+        steps = []
+        for tc in response.tool_calls:
+            action_str = json.dumps({"action": tc.name, "action_input": tc.input_args})
+            steps.append(NativeToolUseStep(
+                action=ToolUseAction(action_str),
+                assistant_message_dict=response.raw_message,
+                tool_use_id=tc.id,
+            ))
+        logger.debug("NativeToolUsePolicy: %d tool call(s)", len(steps))
+        return steps
+    else:
+        logger.debug("NativeToolUsePolicy: final answer (%d chars)", len(response.text))
+        return [NativeToolUseStep(answer=response.text)]
 
-    Overrides from ``Policy``:
-    - ``_build_messages()``: uses ``NativeToolUseStep.assistant_message_dict`` directly
-      and ``base_model.format_tool_result()`` for tool results (provider-agnostic)
-    - ``_get_actions()``: passes tool schemas to LLM, handles ``ToolCallOutput``
 
-    Args:
-        base_model: Async LLM with native tool use support (e.g., ``AsyncBedrockChatModel``).
-        tools: List of ``BaseTool`` instances.
-        task_prompt_spec: Optional system prompt. If None, no system message is prepended.
-        **kwargs: Passed to ``Policy.__init__`` (e.g., ``temperature``, ``max_new_tokens``).
+class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
+    """Shared logic for sync and async native tool use policies.
+
+    Not intended for direct use — use ``NativeToolUsePolicy`` (sync) or
+    ``AsyncNativeToolUsePolicy`` (async).
     """
 
     TASK_TYPE: str = "native_tool_use"
@@ -78,10 +92,11 @@ class AsyncNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
         return self.task_prompt_spec
 
     def set_system_prompt(self) -> None:
-        """Set system prompt on AsyncBedrockChatModel.
+        """Set system prompt on the base model.
 
         Overrides base ``Policy.set_system_prompt()`` which only recognizes
-        sync model classes. ``AsyncBedrockChatModel`` has ``sys_prompt`` too.
+        specific sync model classes. Both ``BedrockChatModel`` and
+        ``AsyncBedrockChatModel`` have ``sys_prompt``.
         """
         if self.task_prompt_spec and hasattr(self.base_model, "sys_prompt"):
             base_prompt = self._build_system_prompt()
@@ -118,7 +133,7 @@ class AsyncNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
 
             if not isinstance(step, NativeToolUseStep):
                 raise TypeError(
-                    f"AsyncNativeToolUsePolicy expects NativeToolUseStep, got {type(step).__name__} at index {idx}"
+                    f"NativeToolUsePolicy expects NativeToolUseStep, got {type(step).__name__} at index {idx}"
                 )
 
             if step.user_message:
@@ -176,16 +191,45 @@ class AsyncNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
     def _create_error_steps(self, n_actions: int, error_msg: str) -> list[NativeToolUseStep]:
         return [NativeToolUseStep(error=error_msg) for _ in range(n_actions)]
 
+
+class NativeToolUsePolicy(_BaseNativeToolUsePolicy):
+    """Sync native tool use policy. Uses ``BedrockChatModel``.
+
+    Inherits all shared logic from ``_BaseNativeToolUsePolicy``.
+    Uses ``Policy._call_model`` (sync) inherited through the base chain.
+    """
+
+    def _get_actions(
+        self,
+        query,
+        state: ToolUseState,
+        n_actions,
+        temperature,
+        at_depth_limit=False,
+        from_phase: str = "",
+        existing_siblings: list = None,
+        **kwargs,
+    ) -> list[NativeToolUseStep]:
+        """Generate next step using native tool use API (sync)."""
+        messages = self._build_messages(query, state)
+        logger.debug("NativeToolUsePolicy messages: %d messages", len(messages))
+        response = self._call_model(messages, temperature=temperature, tools=self.tool_schemas)
+        return _response_to_steps(response)
+
+
+class AsyncNativeToolUsePolicy(_BaseNativeToolUsePolicy):
+    """Async native tool use policy. Uses ``AsyncBedrockChatModel``.
+
+    Inherits all shared logic from ``_BaseNativeToolUsePolicy``.
+    Overrides ``_call_model`` with async version.
+    """
+
     async def _call_model(self, prompt, **kwargs):
         """Async call to base_model. Overrides sync ``Policy._call_model``."""
         return await self.base_model(prompt, **kwargs)
 
     async def _get_actions_stream(self, query: str, state: ToolUseState, **kwargs):
         """Streaming version of ``_get_actions``. Yields raw LM events.
-
-        Reuses ``_build_messages()`` and applies the same system prompt setup
-        as ``_get_actions()``, but uses ``base_model.astream()`` instead of
-        ``base_model.__call__()``.
 
         Yields:
             Event dicts from ``AsyncBedrockChatModel.astream()``:
@@ -207,44 +251,8 @@ class AsyncNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
         existing_siblings: list = None,
         **kwargs,
     ) -> list[NativeToolUseStep]:
-        """Generate next step using native tool use API.
-
-        Calls the LLM with tool schemas. If the LLM returns tool calls,
-        creates ``NativeToolUseStep`` with ``action`` + ``assistant_message_dict``.
-        If the LLM returns text (final answer), creates ``NativeToolUseStep``
-        with ``answer``.
-
-        Args:
-            query: Current user query.
-            state: Current ``ToolUseState``.
-            n_actions: Number of actions to generate (typically 1 for native tool use).
-            temperature: Sampling temperature.
-
-        Returns:
-            List of ``NativeToolUseStep`` (typically length 1).
-        """
+        """Generate next step using native tool use API (async)."""
         messages = self._build_messages(query, state)
-
         logger.debug("NativeToolUsePolicy messages: %d messages", len(messages))
-
-        response = await self._call_model(
-            messages,
-            temperature=temperature,
-            tools=self.tool_schemas,
-        )
-
-        if isinstance(response, ToolCallOutput) and response.tool_calls:
-            steps = []
-            for tc in response.tool_calls:
-                action_str = json.dumps({"action": tc.name, "action_input": tc.input_args})
-                steps.append(NativeToolUseStep(
-                    action=ToolUseAction(action_str),
-                    assistant_message_dict=response.raw_message,
-                    tool_use_id=tc.id,
-                ))
-            logger.debug("NativeToolUsePolicy: %d tool call(s)", len(steps))
-            return steps
-        else:
-            # Final answer
-            logger.debug("NativeToolUsePolicy: final answer (%d chars)", len(response.text))
-            return [NativeToolUseStep(answer=response.text)]
+        response = await self._call_model(messages, temperature=temperature, tools=self.tool_schemas)
+        return _response_to_steps(response)
