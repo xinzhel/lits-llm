@@ -279,12 +279,12 @@ from lits.benchmarks.registry import register_dataset, register_evaluator, regis
 TERMINAL_BENCH_CACHE_DIR = Path.home() / ".cache" / "harbor" / "tasks"
 
 TERMINAL_BENCH_SYSTEM_PROMPT = (
-    "You are an AI assistant tasked with solving a command-line task in a Linux "
+    "You are an AI assistant tasked with solving command-line tasks in a Linux "
     "Docker container. You have access to a shell tool that executes bash commands "
     "and returns stdout/stderr.\n\n"
-    "Task:\n{instruction}\n\n"
-    "Solve the task by executing shell commands. When you are done, provide your "
-    "final answer."
+    "Solve the task by executing shell commands step by step. Explore the "
+    "environment, install needed packages, write code, and verify your solution. "
+    "When you believe the task is complete, provide your final answer."
 )
 
 
@@ -392,45 +392,77 @@ def evaluate_terminal_bench(predicted_answer, ground_truth, **kwargs) -> float:
 
 @register_resource("terminal_bench")
 def load_terminal_bench_resource(**kwargs) -> dict:
-    """Load Terminal-Bench tool-use resource: TerminalBenchEnv + ShellTool.
+    """Load Terminal-Bench tool-use resource: shared TerminalBenchEnv + ShellTool.
 
-    This creates a TerminalBenchEnv and ShellTool for a single task.
-    The env is NOT started here — caller must call ``env.start()`` before
-    running the agent, and ``env.stop()`` after.
+    Unlike KGQA (where all examples share the same SPARQL endpoint), each
+    Terminal-Bench task runs in a different Docker container. The
+    ``prepare_tool_state`` callback handles per-task container lifecycle:
+    stop old container → create new env → start new container.
 
-    Kwargs:
-        task_dir: Path to the task directory (required).
+    The ShellTool instance is shared across examples — its ``env`` attribute
+    is updated by ``prepare_tool_state`` to point to the current container.
 
     Returns:
         Dict with:
         - ``"tools"``: list containing one ShellTool
-        - ``"tool_context"``: formatted system prompt with task instruction
-        - ``"env"``: TerminalBenchEnv instance (not started)
+        - ``"tool_context"``: placeholder (updated per-example by prepare_tool_state)
         - ``"prepare_tool_state"``: callback ``(example) -> None`` that
-          resets the env for a new example
+          starts the correct container for each example
     """
     from .terminal_bench_tools import ShellTool
 
-    task_dir = kwargs.get("task_dir")
-    if task_dir is None:
-        raise ValueError("load_terminal_bench_resource requires 'task_dir' kwarg")
-    task_dir = Path(task_dir)
+    # Shared mutable state: env and tool are created once, env is swapped per-example
+    state = {"env": None}
 
-    env = TerminalBenchEnv(task_dir)
-    tool = ShellTool(env)
-    instruction = env.get_instruction()
+    # Create a ShellTool with a dummy env — will be replaced in prepare_tool_state
+    # We use a wrapper so the tool's env reference stays current
+    class _ShellToolProxy(ShellTool):
+        """ShellTool that delegates to the current env in shared state."""
+        def __init__(self):
+            # Skip parent __init__ entirely — we'll set env dynamically
+            object.__setattr__(self, "_state", state)
+
+        @property
+        def env(self):
+            return self._state["env"]
+
+    tool = _ShellToolProxy()
 
     def prepare_tool_state(example: dict) -> None:
-        """Reset env for a new example (stop old container, start fresh)."""
-        new_dir = example.get("task_dir")
-        if new_dir and Path(new_dir) != env.task_dir:
-            env.stop()
-            env.__init__(Path(new_dir))
-            env.start()
+        """Per-example callback: stop old container, start new one.
+
+        Called by ``_run_tool_use`` in ``lits/cli/chain.py`` before each example.
+        Updates the shared env so ShellTool points to the correct container.
+        Also updates the policy's system prompt with the new task instruction.
+        """
+        # Stop previous container if any
+        if state["env"] is not None:
+            try:
+                state["env"].stop()
+            except Exception as e:
+                logger.warning(f"Failed to stop previous container: {e}")
+
+        # Create and start new env for this example
+        task_dir = example.get("task_dir")
+        if task_dir is None:
+            raise ValueError("Example missing 'task_dir' key")
+        task_dir = Path(task_dir)
+
+        env = TerminalBenchEnv(task_dir)
+        env.start()
+        state["env"] = env
+        logger.info(f"Started container for task: {example.get('task_id', task_dir.name)}")
+
+    def cleanup() -> None:
+        """Stop the current container. Call after all examples are done."""
+        if state["env"] is not None:
+            state["env"].stop()
+            state["env"] = None
 
     return {
         "tools": [tool],
-        "tool_context": TERMINAL_BENCH_SYSTEM_PROMPT.format(instruction=instruction),
-        "env": env,
+        "tool_context": TERMINAL_BENCH_SYSTEM_PROMPT,  # Generic — task instruction comes via query
         "prepare_tool_state": prepare_tool_state,
+        "cleanup": cleanup,
     }
+

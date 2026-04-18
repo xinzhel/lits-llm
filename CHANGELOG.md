@@ -14,6 +14,12 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `ShellTool` (`demos/lits_benchmark/terminal_bench_tools.py`) — BaseTool subclass for bash command execution
 - `@register_dataset("terminal_bench")` — dataset loader for 89 Terminal-Bench 2.0 tasks from Harbor cache
 - `@register_evaluator("terminal_bench")` — verifier-based evaluation (test.sh → reward.txt)
+- `@register_resource("terminal_bench")` — resource registration with per-task container switching via `prepare_tool_state`
+- `unit_test/tools/test_terminal_bench.py`
+
+### Changed
+- `load_terminal_bench_resource` uses `_ShellToolProxy` for per-task container switching (compatible with `lits-chain`)
+- `@register_evaluator("terminal_bench")` — verifier-based evaluation (test.sh → reward.txt)
 - `@register_resource("terminal_bench")` — resource registration wiring ShellTool + TerminalBenchEnv
 - `unit_test/tools/test_terminal_bench.py`
 
