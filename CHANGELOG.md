@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-18 Unreleased (`0415-terminalbench-integration`)
+
+### Added
+- `TerminalBenchEnv` (`demos/lits_benchmark/terminal_bench.py`) — Docker container lifecycle for Terminal-Bench 2.0 tasks
+- `ShellTool` (`demos/lits_benchmark/terminal_bench_tools.py`) — BaseTool subclass for bash command execution
+- `@register_dataset("terminal_bench")` — dataset loader for 89 Terminal-Bench 2.0 tasks from Harbor cache
+- `@register_evaluator("terminal_bench")` — verifier-based evaluation (test.sh → reward.txt)
+- `@register_resource("terminal_bench")` — resource registration wiring ShellTool + TerminalBenchEnv
+- `unit_test/tools/test_terminal_bench.py`
+
 ## 2026-04-16 Unreleased
 
 ### Added
