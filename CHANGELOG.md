@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-18 Unreleased (`0418-minor-sync-native-react`)
+
+### Added
+- Native tool use support for sync `BedrockChatModel`: `tools` param on `__call__`/`_converse_api`, `_build_tool_config()`, `format_tool_result()`
+- `ToolCallOutput.__repr__()` (`lits/lm/base.py`)
+- `unit_test/models/test_bedrock_tool_use.py`
+
 ## 2026-04-18 Unreleased (`0415-terminalbench-integration`)
 
 ### Added

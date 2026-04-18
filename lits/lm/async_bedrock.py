@@ -113,10 +113,10 @@ class AsyncBedrockChatModel:
 
     @staticmethod
     def format_tool_result(tool_use_id: str, observation: str) -> dict:
-        """Build a Bedrock Converse API tool result message.
+        """Wrap tool observation as a Bedrock ``toolResult`` user message.
 
-        This is provider-specific. Policy calls ``self.base_model.format_tool_result()``
-        so it stays provider-agnostic.
+        Lives on the model (not policy) because the format is provider-specific.
+        Policy calls ``self.base_model.format_tool_result()`` to stay agnostic.
 
         Args:
             tool_use_id: The ``toolUseId`` from the assistant's tool call.

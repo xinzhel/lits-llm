@@ -531,6 +531,13 @@ class ToolCallOutput(Output):
         self.stop_reason = stop_reason
         self.raw_message = raw_message
 
+    def __repr__(self) -> str:
+        calls = ", ".join(f"{tc.name}({tc.input_args})" for tc in self.tool_calls)
+        parts = [f"stop_reason='{self.stop_reason}'", f"tool_calls=[{calls}]"]
+        if self.text:
+            parts.insert(0, f"text='{self.text[:80]}{'…' if len(self.text) > 80 else ''}'")
+        return f"ToolCallOutput({', '.join(parts)})"
+
 class LanguageModel:
     LOG_MODEL_INPUT = False
     LOG_MODEL_OUTPUT = False

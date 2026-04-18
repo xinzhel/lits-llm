@@ -2,7 +2,7 @@ import time, json, os, logging
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from typing import List, Optional, Dict, Any, Union
-from .base import LanguageModel, Output, InferenceLogger
+from .base import LanguageModel, Output, ToolCall, ToolCallOutput, InferenceLogger, ToolCall, ToolCallOutput
 
 logger = logging.getLogger(__name__)
 
@@ -121,11 +121,19 @@ class BedrockChatModel(LanguageModel):
             for p in prompt:
                 role, content = p["role"], p["content"]
                 assert role in ["system", "user", "assistant"], f"Invalid role: {role}"
-                assert isinstance(content, str), "Content must be a string."
                 if role == "system":
-                    system_prompt = content
+                    if isinstance(content, str):
+                        system_prompt = content
+                    elif isinstance(content, list):
+                        system_prompt = content[0].get("text", "") if content else ""
                 else:
-                    messages.append({"role": role, "content": [{"text": content}]})
+                    if isinstance(content, str):
+                        messages.append({"role": role, "content": [{"text": content}]})
+                    elif isinstance(content, list):
+                        # Already in Converse format (e.g., toolUse/toolResult blocks)
+                        messages.append({"role": role, "content": content})
+                    else:
+                        messages.append(p)
         else:
             raise ValueError("Prompt must be a string or list of messages.")
         
@@ -133,7 +141,6 @@ class BedrockChatModel(LanguageModel):
         if embed_system_prompt and system_prompt:
             messages.insert(0, {"role": "system", "content": system_prompt})
         return messages, system_prompt
-
 
     def __call__(
         self,
@@ -144,8 +151,9 @@ class BedrockChatModel(LanguageModel):
         max_new_tokens: Optional[int] = None,
         stop: Optional[Union[str, List[str]]] = None,
         return_embedding: bool = False,
+        tools: Optional[List[dict]] = None,
         **kwargs,
-    ) -> Output:
+    ) -> Union[Output, "ToolCallOutput"]:
         """
         Generates a response from the Bedrock chat model.
         """
@@ -177,10 +185,25 @@ class BedrockChatModel(LanguageModel):
         # Anthropic, Amazon Nova, Titan, Meta, Mistral, Cohere, AI21 → use converse API
         if any(k in self.model_name.lower() for k in ["anthropic", "claude", "nova", "titan", "meta", "mistral", "cohere", "ai21"]):
             messages, system_prompt = self._format_messages(prompt, embed_system_prompt=False)
-            text, input_tokens, output_tokens = self._converse_api(messages, max_new_tokens, temperature, top_p, stop, system_prompt)
+            result = self._converse_api(messages, max_new_tokens, temperature, top_p, stop, system_prompt, tools=tools)
         else:
             messages, system_prompt = self._format_messages(prompt, embed_system_prompt=False)
-            text, input_tokens, output_tokens = self._invoke_request(messages, max_new_tokens, temperature, top_p, stop, system_prompt)
+            result = self._invoke_request(messages, max_new_tokens, temperature, top_p, stop, system_prompt)
+
+        # If _converse_api returned a ToolCallOutput, handle it directly
+        if isinstance(result, ToolCallOutput):
+            if self.inference_logger and role is not None:
+                self.inference_logger.update_usage(
+                    input_tokens=getattr(result, '_input_tokens', 0),
+                    output_tokens=getattr(result, '_output_tokens', 0),
+                    batch=False,
+                    batch_size=1,
+                    role=role,
+                    running_time=0.0,
+                )
+            return result
+
+        text, input_tokens, output_tokens = result
 
         if self.inference_logger and role is not None:
             # Bedrock responses don’t always return usage counts, so just log approximate tokens
@@ -319,7 +342,51 @@ class BedrockChatModel(LanguageModel):
 
         return np.array(results)
     
-    def _converse_api(self, messages, max_new_tokens, temperature, top_p, stop, system_prompt) -> Dict[str, Any]:
+    def _build_tool_config(self, tools: List[dict]) -> dict:
+        """Build toolConfig for Converse API from tool schema dicts.
+
+        Args:
+            tools: List of tool schemas, each with ``name``, ``description``, ``input_schema``.
+
+        Returns:
+            Converse API ``toolConfig`` dict.
+        """
+        tool_specs = []
+        for tool in tools:
+            tool_specs.append({
+                "toolSpec": {
+                    "name": tool["name"],
+                    "description": tool.get("description", ""),
+                    "inputSchema": {"json": tool["input_schema"]},
+                }
+            })
+        return {"tools": tool_specs}
+
+    @staticmethod
+    def format_tool_result(tool_use_id: str, observation: str) -> dict:
+        """Wrap tool observation as a Bedrock ``toolResult`` user message.
+
+        Lives on the model (not policy) because the format is provider-specific.
+        Policy calls ``self.base_model.format_tool_result()`` to stay agnostic.
+
+        Args:
+            tool_use_id: The ``toolUseId`` from the assistant's tool call.
+            observation: Tool execution result as text.
+
+        Returns:
+            Converse API user message with ``toolResult`` block.
+        """
+        return {
+            "role": "user",
+            "content": [{
+                "toolResult": {
+                    "toolUseId": tool_use_id,
+                    "content": [{"text": observation}],
+                }
+            }],
+        }
+
+    def _converse_api(self, messages, max_new_tokens, temperature, top_p, stop, system_prompt, tools=None) -> Dict[str, Any]:
         """Helper to call the Converse API.
         ### 📝 Example Response (Raw Converse API Output)
 
@@ -385,6 +452,8 @@ class BedrockChatModel(LanguageModel):
         # Request LLM response
         if system_prompt:
             converse_params["system"] = [{"text": system_prompt}]
+        if tools:
+            converse_params["toolConfig"] = self._build_tool_config(tools)
         try:
             logger.debug(f"Converse API call with params: {converse_params}")
             response = self.client.converse(**converse_params)
@@ -409,23 +478,42 @@ class BedrockChatModel(LanguageModel):
             logging.error(f"Bedrock Converse API call failed: {concise_msg}")
             raise RuntimeError(f"Bedrock Converse API call failed: {concise_msg}")
         
-        # Parse response
-        try:
-            if hasattr(response, "output") and hasattr(response.output, "message"):
-                content = response.output.message.content
-                text = content[0].text.strip() if content else ""
-            elif isinstance(response, dict):
-                content = response.get("output", {}).get("message", {}).get("content", [])
-                text = content[0].get("text", "").strip() if content else ""
-            else:
-                text = str(response)  
-        except Exception as e:
-            logging.error(f"Failed to parse Bedrock response: {e}\nResponse content: {response}")
-            raise RuntimeError(f"Failed to parse Bedrock response: {e}")
-        
+        # Parse response — check for tool use
+        content = response.get("output", {}).get("message", {}).get("content", [])
+        tool_calls = []
+        text_parts = []
+        raw_content_blocks = []
+
+        for block in content:
+            if "text" in block:
+                text_parts.append(block["text"])
+                raw_content_blocks.append(block)
+            elif "toolUse" in block:
+                tu = block["toolUse"]
+                tool_calls.append(ToolCall(
+                    id=tu["toolUseId"],
+                    name=tu["name"],
+                    input_args=tu.get("input", {}),
+                ))
+                raw_content_blocks.append(block)
+
+        text = " ".join(text_parts).strip()
         input_tokens = response.get("usage", {}).get("inputTokens", 0)
         output_tokens = response.get("usage", {}).get("outputTokens", 0)
+        stop_reason = response.get("stopReason", "end_turn")
 
+        if tool_calls:
+            raw_message = {"role": "assistant", "content": raw_content_blocks}
+            tool_output = ToolCallOutput(
+                text=text,
+                tool_calls=tool_calls,
+                stop_reason=stop_reason,
+                raw_message=raw_message,
+            )
+            # Attach token counts for logging in __call__
+            tool_output._input_tokens = input_tokens
+            tool_output._output_tokens = output_tokens
+            return tool_output
         return text, input_tokens, output_tokens
         
     def batch_generate(self, prompts: List[str], **kwargs):

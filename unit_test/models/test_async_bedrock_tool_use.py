@@ -61,11 +61,7 @@ async def test_tool_use():
     print(f"Type: {type(output).__name__}")
     print(f"Text: '{output.text}'")
     if isinstance(output, ToolCallOutput):
-        print(f"Stop reason: {output.stop_reason}")
-        print(f"Tool calls: {output.tool_calls}")
-        print(f"Raw message: {output.raw_message}")
-        for tc in output.tool_calls:
-            print(f"  → {tc.name}({tc.input_args}), id={tc.id}")
+        print(output)
     breakpoint()  # inspect: output.tool_calls, output.raw_message
 
 
