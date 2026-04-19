@@ -32,6 +32,7 @@ import os
 import json
 import traceback
 import logging
+from contextlib import nullcontext
 
 from dotenv import load_dotenv, find_dotenv
 
@@ -261,12 +262,17 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                 if prepare_tool_state is not None:
                     prepare_tool_state(example)
 
-                state = agent.run(
-                    query=query,
-                    query_idx=attempt_id,
-                    checkpoint_dir=checkpoint_dir,
-                    override=True,  # always fresh for env-stateful tasks (Docker container is new)
-                )
+                # Log attempt context for InferenceLogger (separate from role)
+                log_ctx = {}
+                if n_attempts > 1:
+                    log_ctx["attempt"] = attempt
+                with agent.policy.base_model.inference_logger.log_context(**log_ctx) if log_ctx else nullcontext():
+                    state = agent.run(
+                        query=query,
+                        query_idx=attempt_id,
+                        checkpoint_dir=checkpoint_dir,
+                        override=True,  # always fresh for env-stateful tasks (Docker container is new)
+                    )
 
                 # Post-run answer resolution (e.g., KG variable → entity names via SPARQL)
                 if resolve_answer is not None and state is not None:

@@ -148,6 +148,16 @@ class NativeReAct(_BaseNativeReAct):
 
             logger.debug(f"[NativeReAct] Iteration {i}")
 
+            # Set query context so InferenceLogger role includes example ID
+            # Extract numeric example_idx from query_idx (which may be "0_a2" for pass@N)
+            if isinstance(query_idx, str):
+                import re
+                match = re.match(r"(\d+)", str(query_idx))
+                self.policy._query_idx = int(match.group(1)) if match else query_idx
+            else:
+                self.policy._query_idx = query_idx
+            self.policy._from_phase = ""
+
             steps = self.policy._get_actions(
                 query=query, state=state, n_actions=1, temperature=self.temperature,
             )
