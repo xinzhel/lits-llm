@@ -24,6 +24,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `ChainConfig`: added `native: bool` field so `--cfg native=True` is recognized (was silently ignored)
 - `BedrockChatModel`: `read_timeout=300s` (was 60s default, too short for long code generation)
 - Native tool call response logging in `_converse_api()`
+- `_run_tool_use`: inline verification after agent.run() — calls `verify` callback while container is alive, saves reward to `{idx}_reward.json`
+- `load_terminal_bench_resource`: added `verify` callback that runs `test.sh` in container
 
 ## 2026-04-18 Unreleased (`0418-minor-sync-native-react`)
 

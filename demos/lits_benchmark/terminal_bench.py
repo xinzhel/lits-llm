@@ -459,10 +459,23 @@ def load_terminal_bench_resource(**kwargs) -> dict:
             state["env"].stop()
             state["env"] = None
 
+    def verify(example: dict) -> float:
+        """Run test.sh in the current container and return reward (0.0 or 1.0).
+
+        Must be called while the container is still alive (before prepare_tool_state
+        stops it for the next example).
+        """
+        env = state["env"]
+        if env is None:
+            logger.warning("verify called but no container is running")
+            return 0.0
+        return env.verify()
+
     return {
         "tools": [tool],
         "tool_context": TERMINAL_BENCH_SYSTEM_PROMPT,  # Generic — task instruction comes via query
         "prepare_tool_state": prepare_tool_state,
         "cleanup": cleanup,
+        "verify": verify,
     }
 

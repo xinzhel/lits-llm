@@ -245,6 +245,21 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                         state.save(checkpoint_path, query)
                         run_logger.info(f"Resolved answer: '{raw_answer}' → '{resolved}'")
 
+            # Post-run verification for environment-based benchmarks (e.g., Terminal-Bench).
+            # Must run while the container is still alive (before prepare_tool_state stops it).
+            verify_fn = tool_use_spec.get("verify")
+            if verify_fn is not None:
+                try:
+                    reward = verify_fn(example)
+                    run_logger.info(f"Verification for example {example_idx}: reward={reward}")
+                    # Save reward alongside checkpoint
+                    reward_path = os.path.join(checkpoint_dir, f"{example_idx}_reward.json")
+                    with open(reward_path, "w") as rf:
+                        import json as _json
+                        _json.dump({"example_idx": example_idx, "task_id": example.get("task_id", ""), "reward": reward}, rf)
+                except Exception as ve:
+                    run_logger.warning(f"Verification failed for example {example_idx}: {ve}")
+
     except Exception as e:
         run_logger.error(f"Error during ReAct execution: {e}")
         traceback.print_exc()
