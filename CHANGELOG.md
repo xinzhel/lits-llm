@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-19 Unreleased (`0418-minor-sync-native-react`)
+
+### Added
+- `NativeReAct` (sync) via `_BaseNativeReAct` shared base (`lits/agents/chain/native_react.py`)
+- `unit_test/agents/test_sync_native_react.py`
+
+### Changed
+- `from_tools()` on both `NativeReAct` and `AsyncNativeReAct` now requires full model key with provider prefix (e.g., `bedrock/...`)
+
 ## 2026-04-18 Unreleased (`0418-minor-sync-native-react`)
 
 ### Added
