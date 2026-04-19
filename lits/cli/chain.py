@@ -204,6 +204,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
         max_iter=config.max_steps,
         root_dir=result_dir,
         override_logger=override,
+        native=getattr(config, "native", False),
     )
 
     # Save experiment config (supplements ReactChatConfig saved by create_tool_use_agent

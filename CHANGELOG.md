@@ -11,6 +11,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Added
 - `NativeReAct` (sync) via `_BaseNativeReAct` shared base (`lits/agents/chain/native_react.py`)
+- `native=True` parameter on `create_tool_use_agent()` — switches from `ReActChat` to `NativeReAct`
+- CLI support: `lits-chain --dataset terminal_bench --cfg native=True`
 - `unit_test/agents/test_sync_native_react.py`
 
 ### Changed

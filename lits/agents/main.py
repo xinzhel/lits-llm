@@ -10,6 +10,7 @@ from ..framework_config import DEFAULT_MODEL_NAME, DEFAULT_DEVICE, PACKAGE_VERSI
 from .base import BaseConfig
 from .chain.react import ReActChat, ReactChatConfig
 from .chain.env_chain import EnvChain, EnvChainConfig
+from .chain.native_react import NativeReAct
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ def create_tool_use_agent(
     post_generation_fn=None,
     step_evaluators=None,
     trajectory_evaluators=None,
+    native: bool = False,
     **kwargs
 ):
     """
@@ -62,6 +64,9 @@ def create_tool_use_agent(
             Creates feedback loop where:
             - Past patterns are loaded and injected into prompts (input enhancement)
             - Complete trajectories are analyzed and patterns saved (output validation)
+        native (bool): If True, use ``NativeReAct`` (structured tool calls via provider API)
+            instead of ``ReActChat`` (text-based XML parsing). Eliminates JSON parsing
+            failures for CLI tool use. Requires a Bedrock model (``bedrock/...``).
     """
 
     # Load LLM backbone
@@ -76,6 +81,33 @@ def create_tool_use_agent(
     )
     inference_logger = InferenceLogger(run_id="", root_dir=root_dir, override=override_logger)
     base_model.inference_logger = inference_logger
+
+    # Construct transition (shared by both text-based and native)
+    transition = ToolUseTransition(
+        tools=tools,
+        observation_on_error="Tool execution failed."
+    )
+
+    # --- Native tool use path ---
+    if native:
+        from ..components.policy.native_tool_use import NativeToolUsePolicy
+        policy = NativeToolUsePolicy(
+            base_model=base_model,
+            tools=tools,
+            task_prompt_spec=None,
+            task_name=task_name,
+            max_length=max_length,
+            n_actions=1,
+        )
+        if post_generation_fn is not None:
+            policy.set_post_generation_fn(post_generation_fn)
+        return NativeReAct(
+            policy=policy,
+            transition=transition,
+            max_iter=max_iter,
+        )
+
+    # --- Text-based tool use path (ReActChat) ---
 
     # Save configuration
     ReactChatConfig(
@@ -92,7 +124,6 @@ def create_tool_use_agent(
         logger.info("ToolUseStep will exclude think steps from history when verbalizing.")
         print("ToolUseStep will exclude think steps from history when verbalizing.")
     
-    # Construct policy
     policy = ToolUsePolicy(
         base_model=base_model,
         tools=tools,
@@ -103,19 +134,10 @@ def create_tool_use_agent(
         n_actions=1,
     )
     
-    # Set post-generation callback if provided (manual mode)
-    # Note: If step_evaluators are provided, ReActChat will set up callbacks automatically
     if post_generation_fn is not None and step_evaluators is None:
         policy.set_post_generation_fn(post_generation_fn)
         logger.info("Post-generation callback function set for policy")
     
-    # Construct transition (world model for tool execution)
-    transition = ToolUseTransition(
-        tools=tools,
-        observation_on_error="Tool execution failed."
-    )
-    
-    # Construct agent
     if agent_type == "react_chat":
         agent = ReActChat(
             policy=policy,
