@@ -22,9 +22,11 @@ class ChainConfig(BaseConfig):
     
     Chain-specific attributes:
         - temperature: Sampling temperature (0 = deterministic/greedy)
+        - native: Use native tool use API (structured tool calls) instead of text-based parsing
     """
     max_steps: int = 10
     temperature: float = 0.0  # Chain agents default to deterministic generation
+    native: bool = False  # Use NativeReAct (structured tool calls) instead of ReActChat (text-based)
 
 class ChainAgent(Generic[StateT]):
     """

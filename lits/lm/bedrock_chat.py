@@ -87,7 +87,12 @@ class BedrockChatModel(LanguageModel):
             session_kwargs["profile_name"] = aws_profile
         session = boto3.Session(**session_kwargs)
         region = aws_region or os.getenv("AWS_REGION", "us-east-1")
-        self.client = session.client("bedrock-runtime", region_name=region)
+        from botocore.config import Config as BotoConfig
+        self.client = session.client(
+            "bedrock-runtime",
+            region_name=region,
+            config=BotoConfig(read_timeout=300),  # 5 min — long code generation can exceed 60s default
+        )
 
         self.model_name = model_name
         self.sys_prompt = sys_prompt
