@@ -99,6 +99,20 @@ class BedrockChatModel(LanguageModel):
         logger.info(f'System prompt for {self.model_name} set to: {self.sys_prompt}')
         self.region = region
 
+        # Cap max_new_tokens to model's output limit
+        MODEL_OUTPUT_LIMITS = {
+            "haiku": 8192,
+            "sonnet-4-5": 16384,
+        }
+        for pattern, limit in MODEL_OUTPUT_LIMITS.items():
+            if pattern in self.model_name.lower():
+                if self.max_new_tokens and self.max_new_tokens > limit:
+                    logger.info(f"Capping max_new_tokens from {self.max_new_tokens} to {limit} for {self.model_name}")
+                    self.max_new_tokens = limit
+                elif not self.max_new_tokens:
+                    self.max_new_tokens = limit
+                break
+
     def _format_messages(self, prompt, embed_system_prompt: bool = False):
         """Return (messages, system_prompt) tuple formatted for Bedrock Converse. 
         Input Example:

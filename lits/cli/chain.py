@@ -195,6 +195,12 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
     log_command(run_logger)
     run_logger.info(f"Loaded {len(full_dataset)} examples from {benchmark_name} dataset")
 
+    # pass@N: auto-set temperature when n_attempts > 1
+    n_attempts = getattr(config, "n_attempts", 1)
+    if n_attempts > 1 and config.temperature == 0.0:
+        config.temperature = 0.9  # follows Golubev et al. ICML 2025
+        run_logger.info(f"Auto-set temperature=0.9 for pass@{n_attempts} (n_attempts>1)")
+
     # Create agent via factory (handles model loading, policy, transition)
     agent = create_tool_use_agent(
         tools=tool_use_spec["tools"],
@@ -205,6 +211,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
         root_dir=result_dir,
         override_logger=override,
         native=getattr(config, "native", False),
+        temperature=config.temperature,
     )
 
     # Save experiment config (supplements ReactChatConfig saved by create_tool_use_agent
@@ -224,41 +231,46 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
             run_logger.info(f"Processing example {example_idx}")
             query = example["question"]
 
-            if prepare_tool_state is not None:
-                prepare_tool_state(example)
+            for attempt in range(n_attempts):
+                attempt_id = f"{example_idx}_a{attempt}" if n_attempts > 1 else example_idx
+                if n_attempts > 1:
+                    run_logger.info(f"  Attempt {attempt+1}/{n_attempts} for example {example_idx}")
 
-            state = agent.run(
-                query=query,
-                query_idx=example_idx,
-                checkpoint_dir=checkpoint_dir,
-                override=override,
-            )
+                if prepare_tool_state is not None:
+                    prepare_tool_state(example)
 
-            # Post-run answer resolution (e.g., KG variable → entity names via SPARQL)
-            if resolve_answer is not None and state is not None:
-                raw_answer = state.get_final_answer()
-                if raw_answer:
-                    resolved = resolve_answer(raw_answer, state)
-                    if resolved != raw_answer:
-                        state[-1].answer = resolved
-                        checkpoint_path = os.path.join(checkpoint_dir, f"{example_idx}.json")
-                        state.save(checkpoint_path, query)
-                        run_logger.info(f"Resolved answer: '{raw_answer}' → '{resolved}'")
+                state = agent.run(
+                    query=query,
+                    query_idx=attempt_id,
+                    checkpoint_dir=checkpoint_dir,
+                    override=override,
+                )
 
-            # Post-run verification for environment-based benchmarks (e.g., Terminal-Bench).
-            # Must run while the container is still alive (before prepare_tool_state stops it).
-            verify_fn = tool_use_spec.get("verify")
-            if verify_fn is not None:
-                try:
-                    reward = verify_fn(example)
-                    run_logger.info(f"Verification for example {example_idx}: reward={reward}")
-                    # Save reward alongside checkpoint
-                    reward_path = os.path.join(checkpoint_dir, f"{example_idx}_reward.json")
-                    with open(reward_path, "w") as rf:
-                        import json as _json
-                        _json.dump({"example_idx": example_idx, "task_id": example.get("task_id", ""), "reward": reward}, rf)
-                except Exception as ve:
-                    run_logger.warning(f"Verification failed for example {example_idx}: {ve}")
+                # Post-run answer resolution (e.g., KG variable → entity names via SPARQL)
+                if resolve_answer is not None and state is not None:
+                    raw_answer = state.get_final_answer()
+                    if raw_answer:
+                        resolved = resolve_answer(raw_answer, state)
+                        if resolved != raw_answer:
+                            state[-1].answer = resolved
+                            checkpoint_path = os.path.join(checkpoint_dir, f"{attempt_id}.json")
+                            state.save(checkpoint_path, query)
+                            run_logger.info(f"Resolved answer: '{raw_answer}' → '{resolved}'")
+
+                # Post-run verification for environment-based benchmarks (e.g., Terminal-Bench).
+                # Must run while the container is still alive (before prepare_tool_state stops it).
+                verify_fn = tool_use_spec.get("verify")
+                if verify_fn is not None:
+                    try:
+                        reward = verify_fn(example)
+                        run_logger.info(f"Verification for {attempt_id}: reward={reward}")
+                        # Save reward alongside checkpoint
+                        reward_path = os.path.join(checkpoint_dir, f"{attempt_id}_reward.json")
+                        with open(reward_path, "w") as rf:
+                            import json as _json
+                            _json.dump({"example_idx": example_idx, "attempt": attempt, "task_id": example.get("task_id", ""), "reward": reward}, rf)
+                    except Exception as ve:
+                        run_logger.warning(f"Verification failed for {attempt_id}: {ve}")
 
     except Exception as e:
         run_logger.error(f"Error during ReAct execution: {e}")
@@ -266,6 +278,43 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
         return 1
 
     run_logger.info(f"ReAct chain complete. Checkpoints saved to {checkpoint_dir}")
+
+    # Generate pass@N summary if n_attempts > 1
+    if n_attempts > 1:
+        import json as _json
+        from collections import defaultdict
+        attempt_rewards = defaultdict(list)  # example_idx -> [reward_0, reward_1, ...]
+        for f in sorted(os.listdir(checkpoint_dir)):
+            if f.endswith("_reward.json"):
+                with open(os.path.join(checkpoint_dir, f)) as fh:
+                    d = _json.load(fh)
+                    attempt_rewards[d["example_idx"]].append(d["reward"])
+
+        summary = {"n_attempts": n_attempts, "examples": [], "temperature": config.temperature}
+        n_pass_1 = 0
+        n_pass_n = 0
+        for idx in sorted(attempt_rewards.keys()):
+            rewards = attempt_rewards[idx]
+            p1 = rewards[0] > 0 if rewards else False
+            pn = any(r > 0 for r in rewards)
+            if p1: n_pass_1 += 1
+            if pn: n_pass_n += 1
+            summary["examples"].append({
+                "idx": idx,
+                "attempts": rewards,
+                "pass_at_1": p1,
+                "pass_at_n": pn,
+            })
+        total = len(attempt_rewards)
+        summary["pass_at_1"] = n_pass_1 / total if total else 0
+        summary["pass_at_n"] = n_pass_n / total if total else 0
+
+        summary_path = os.path.join(checkpoint_dir, "pass_at_n_summary.json")
+        with open(summary_path, "w") as sf:
+            _json.dump(summary, sf, indent=2)
+        run_logger.info(f"pass@1={summary['pass_at_1']:.1%}, pass@{n_attempts}={summary['pass_at_n']:.1%} ({n_pass_n}/{total})")
+        run_logger.info(f"Summary saved to {summary_path}")
+
     run_logger.info(f"Run evaluation: lits-eval --result_dir {result_dir} "
                     f"--dataset_name {benchmark_name} --include {' '.join(config.import_modules or [])}")
     return 0

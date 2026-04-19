@@ -23,10 +23,12 @@ class ChainConfig(BaseConfig):
     Chain-specific attributes:
         - temperature: Sampling temperature (0 = deterministic/greedy)
         - native: Use native tool use API (structured tool calls) instead of text-based parsing
+        - n_attempts: Number of independent attempts per example for pass@N evaluation
     """
     max_steps: int = 10
     temperature: float = 0.0  # Chain agents default to deterministic generation
     native: bool = False  # Use NativeReAct (structured tool calls) instead of ReActChat (text-based)
+    n_attempts: int = 1  # pass@N: run each example N times independently
 
 class ChainAgent(Generic[StateT]):
     """

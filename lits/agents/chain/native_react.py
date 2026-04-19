@@ -84,11 +84,13 @@ class NativeReAct(_BaseNativeReAct):
         policy: NativeToolUsePolicy,
         transition: ToolUseTransition,
         max_iter: int = 10,
+        temperature: float = 0.0,
     ):
         super().__init__(max_steps=max_iter)
         self.policy = policy
         self.transition = transition
         self.max_iter = max_iter
+        self.temperature = temperature
 
     @classmethod
     def from_tools(
@@ -147,7 +149,7 @@ class NativeReAct(_BaseNativeReAct):
             logger.debug(f"[NativeReAct] Iteration {i}")
 
             steps = self.policy._get_actions(
-                query=query, state=state, n_actions=1, temperature=0.0,
+                query=query, state=state, n_actions=1, temperature=self.temperature,
             )
             if not steps:
                 raise RuntimeError("NativeToolUsePolicy returned no steps.")

@@ -105,6 +105,7 @@ def create_tool_use_agent(
             policy=policy,
             transition=transition,
             max_iter=max_iter,
+            temperature=kwargs.get("temperature", 0.0),
         )
 
     # --- Text-based tool use path (ReActChat) ---
