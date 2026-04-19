@@ -395,22 +395,10 @@ class BedrockChatModel(LanguageModel):
         """Helper to call the Converse API.
         ### 📝 Example Response (Raw Converse API Output)
 
-        This example shows the structure of the raw response received from the Amazon Bedrock Converse API call.
+        **Text-based response** (no tools, or tools not invoked):
 
             ```json
             {
-                "ResponseMetadata": {
-                    "RequestId": "6cb93cbe-0ff3-4477-be08-ebb6f72aeb49",
-                    "HTTPStatusCode": 200,
-                    "HTTPHeaders": {
-                        "date": "Tue, 18 Nov 2025 03:59:00 GMT",
-                        "content-type": "application/json",
-                        "content-length": "834",
-                        "connection": "keep-alive",
-                        "x-amzn-requestid": "6cb93cbe-0ff3-4477-be08-ebb6f72aeb49"
-                    },
-                    "RetryAttempts": 0
-                },
                 "output": {
                     "message": {
                         "role": "assistant",
@@ -422,15 +410,39 @@ class BedrockChatModel(LanguageModel):
                     }
                 },
                 "stopReason": "stop_sequence",
-                "usage": {
-                    "inputTokens": 1253,
-                    "outputTokens": 158,
-                    "totalTokens": 1411
-                },
-                "metrics": {
-                    "latencyMs": 4759
-                }
+                "usage": {"inputTokens": 1253, "outputTokens": 158, "totalTokens": 1411}
             }
+            ```
+
+        **Native tool use response** (when ``tools`` param is provided and LLM invokes a tool):
+
+            ```json
+            {
+                "output": {
+                    "message": {
+                        "role": "assistant",
+                        "content": [
+                            {
+                                "text": "Let me explore the task directory first."
+                            },
+                            {
+                                "toolUse": {
+                                    "toolUseId": "tooluse_abc123",
+                                    "name": "shell",
+                                    "input": {"command": "ls -la /app && echo '---' && cat /app/README.md"}
+                                }
+                            }
+                        ]
+                    }
+                },
+                "stopReason": "tool_use",
+                "usage": {"inputTokens": 2048, "outputTokens": 95, "totalTokens": 2143}
+            }
+            ```
+
+            Note: ``stopReason`` is ``"tool_use"`` (not ``"stop_sequence"``), and ``content``
+            contains both ``text`` (reasoning) and ``toolUse`` (structured tool call) blocks.
+            The ``input`` dict is guaranteed valid JSON by the API — no parsing needed.
         """
         # Format for Converse API
         inference_config = {
@@ -518,6 +530,7 @@ class BedrockChatModel(LanguageModel):
             # Attach token counts for logging in __call__
             tool_output._input_tokens = input_tokens
             tool_output._output_tokens = output_tokens
+            logger.info(f"Native tool call: {[f'{tc.name}({tc.input_args})' for tc in tool_calls]} (in={input_tokens}, out={output_tokens})")
             return tool_output
         return text, input_tokens, output_tokens
         

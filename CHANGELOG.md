@@ -18,6 +18,13 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Changed
 - `from_tools()` on both `NativeReAct` and `AsyncNativeReAct` now requires full model key with provider prefix (e.g., `bedrock/...`)
 
+### Fixed
+- `NativeReAct.run()`: added `override` param (was missing, caused `TypeError` from `lits-chain`)
+- `_load_or_init_state()`: added `override` param to skip checkpoint loading when `True`
+- `ChainConfig`: added `native: bool` field so `--cfg native=True` is recognized (was silently ignored)
+- `BedrockChatModel`: `read_timeout=300s` (was 60s default, too short for long code generation)
+- Native tool call response logging in `_converse_api()`
+
 ## 2026-04-18 Unreleased (`0418-minor-sync-native-react`)
 
 ### Added

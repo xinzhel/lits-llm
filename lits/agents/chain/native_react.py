@@ -47,11 +47,12 @@ class _BaseNativeReAct(ChainAgent[ToolUseState]):
         query_idx=None,
         checkpoint_dir: Optional[str] = None,
         checkpoint_path: Optional[str] = None,
+        override: bool = False,
     ) -> tuple[ToolUseState, Optional[Path]]:
         """Load state from checkpoint or create empty state."""
         cp_path = self.get_checkpoint_path(checkpoint_dir, query_idx, checkpoint_path)
         state = None
-        if cp_path:
+        if cp_path and not override:
             state = self.resume_state(str(cp_path), ToolUseState)
         if state is None:
             state = ToolUseState()
@@ -122,6 +123,7 @@ class NativeReAct(_BaseNativeReAct):
         query_idx=None,
         checkpoint_dir: Optional[str] = None,
         checkpoint_path: Optional[str] = None,
+        override: bool = False,
     ) -> ToolUseState:
         """Sync ReAct loop: policy → transition → repeat until answer or max_iter.
 
@@ -130,11 +132,12 @@ class NativeReAct(_BaseNativeReAct):
             query_idx: Session ID (used as checkpoint filename).
             checkpoint_dir: Directory for checkpoint files.
             checkpoint_path: Explicit checkpoint path (overrides dir + idx).
+            override: If True, ignore existing checkpoints and start fresh.
 
         Returns:
             Final ``ToolUseState`` with full conversation history.
         """
-        state, cp_path = self._load_or_init_state(query_idx, checkpoint_dir, checkpoint_path)
+        state, cp_path = self._load_or_init_state(query_idx, checkpoint_dir, checkpoint_path, override=override)
         state.append(NativeToolUseStep(user_message=query))
 
         for i in range(self.max_iter):
