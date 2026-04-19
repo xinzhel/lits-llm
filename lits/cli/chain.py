@@ -225,6 +225,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
     # Per-example callbacks from resource (e.g., KG entity injection, answer resolution)
     prepare_tool_state = tool_use_spec.get("prepare_tool_state")
     resolve_answer = tool_use_spec.get("resolve_answer")
+    verify_fn = tool_use_spec.get("verify")
 
     try:
         for example_idx, example in enumerate(selected_examples, start=offset):
@@ -236,6 +237,27 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                 if n_attempts > 1:
                     run_logger.info(f"  Attempt {attempt+1}/{n_attempts} for example {example_idx}")
 
+                # Skip completed attempts on resume
+                if not override:
+                    cp_file = os.path.join(checkpoint_dir, f"{attempt_id}.json")
+                    reward_file = os.path.join(checkpoint_dir, f"{attempt_id}_reward.json")
+
+                    if os.path.exists(cp_file):
+                        try:
+                            with open(cp_file) as _f:
+                                cp_data = json.load(_f)
+                            has_answer = any(s.get("answer") for s in cp_data.get("steps", []))
+                        except (json.JSONDecodeError, KeyError):
+                            has_answer = False
+
+                        if has_answer:
+                            # If verify exists, also need reward file to be fully complete
+                            if verify_fn is None or os.path.exists(reward_file):
+                                run_logger.info(f"  Skipping {attempt_id} (completed)")
+                                continue
+                            # Has answer but no reward — need to re-run for verify
+                            run_logger.info(f"  Re-running {attempt_id} (answer exists but verify missing)")
+
                 if prepare_tool_state is not None:
                     prepare_tool_state(example)
 
@@ -243,7 +265,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                     query=query,
                     query_idx=attempt_id,
                     checkpoint_dir=checkpoint_dir,
-                    override=override,
+                    override=True,  # always fresh for env-stateful tasks (Docker container is new)
                 )
 
                 # Post-run answer resolution (e.g., KG variable → entity names via SPARQL)
@@ -259,7 +281,6 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
 
                 # Post-run verification for environment-based benchmarks (e.g., Terminal-Bench).
                 # Must run while the container is still alive (before prepare_tool_state stops it).
-                verify_fn = tool_use_spec.get("verify")
                 if verify_fn is not None:
                     try:
                         reward = verify_fn(example)

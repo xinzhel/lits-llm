@@ -15,6 +15,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `pass_at_n_summary.json` generation after all attempts complete
 - Temperature auto-set to 0.9 when `n_attempts>1` (follows Golubev et al. ICML 2025)
 - `NativeReAct` accepts `temperature` parameter (was hardcoded to 0.0)
+- Skip completed attempts on resume: checks checkpoint for answer before re-running
 
 ## 2026-04-19 Unreleased (`0418-minor-sync-native-react`)
 
