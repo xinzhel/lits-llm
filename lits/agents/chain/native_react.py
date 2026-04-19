@@ -164,6 +164,9 @@ class NativeReAct(_BaseNativeReAct):
                 state.append(NativeToolUseStep(error="No action or answer from LLM"))
                 break
 
+            # Per-step checkpoint (crash-safe: resume from last saved step)
+            self._save_state(state, cp_path, query)
+
         self._save_state(state, cp_path, query)
         return state
 
