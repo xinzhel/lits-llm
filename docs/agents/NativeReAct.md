@@ -10,7 +10,7 @@ Two variants:
 
 LiTS has two tool use modes:
 
-| | Text-based (`ReActChat`) | Native (`AsyncNativeReAct`) |
+| | Text-based (`ReActChat`) | Native (`NativeReAct` / `AsyncNativeReAct`) |
 |---|---|---|
 | How LLM calls tools | Outputs XML tags: `<action>{"action": "search", ...}</action>` | Returns structured JSON via provider API (e.g., Bedrock `toolUse` block) |
 | How we parse | Regex/tag extractors (`_extract_first`) | No parsing — structured `ToolCall` objects from `ToolCallOutput` |
@@ -24,7 +24,7 @@ LiTS has two tool use modes:
 
 ## Provider-Agnostic Abstraction
 
-AsyncNativeReAct is not Bedrock-specific. The provider-specific details are isolated in the LM layer:
+NativeReAct is not Bedrock-specific. The provider-specific details are isolated in the LM layer:
 
 | Provider-specific (LM layer) | Provider-agnostic (Policy/Agent layer) |
 |------------------------------|----------------------------------------|
@@ -101,28 +101,55 @@ The LLM's assistant response in native tool use contains provider-specific block
 
 ## Usage
 
-### Simple setup via factory
+### Via `create_tool_use_agent()` factory (recommended for `lits-chain`)
+
+```python
+from lits.agents.main import create_tool_use_agent
+
+agent = create_tool_use_agent(
+    tools=[ShellTool(env)],
+    model_name="bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    native=True,   # ← NativeReAct instead of ReActChat
+    max_iter=10,
+)
+state = agent.run("List files in /tmp", query_idx=0, checkpoint_dir="results/")
+```
+
+CLI equivalent:
+
+```bash
+lits-chain --dataset terminal_bench --cfg native=True
+```
+
+### Via `from_tools()` (standalone)
+
+Sync:
+
+```python
+from lits.agents.chain.native_react import NativeReAct
+
+agent = NativeReAct.from_tools(
+    tools=[ShellTool(env)],
+    model_name="bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    system_message="You are a helpful assistant.",
+    max_iter=10,
+)
+state = agent.run("What's the weather in Melbourne?")
+print(state[-1].answer)
+```
+
+Async:
 
 ```python
 from lits.agents.chain.native_react import AsyncNativeReAct
 
 agent = AsyncNativeReAct.from_tools(
     tools=[SearchDocumentsTool(), GetAllChunksTool()],
-    model_name="us.anthropic.claude-opus-4-6-v1",
+    model_name="async-bedrock/us.anthropic.claude-opus-4-6-v1",
     system_message="You are a helpful assistant.",
     max_iter=10,
 )
-```
-
-### Non-streaming (async)
-
-```python
-state = await agent.run_async(
-    "What is the weather?",
-    query_idx="session_123",          # used as checkpoint filename
-    checkpoint_dir="data/chat_state/",
-)
-print(state.get_final_answer())
+state = await agent.run_async("What is the weather?", query_idx="session_123", checkpoint_dir="data/")
 ```
 
 ### Streaming (for chat endpoints)
@@ -175,9 +202,18 @@ STATUS_MAP = {
 }
 ```
 
-## Async Design
+## Call Chains
 
-AsyncNativeReAct is fully async. The call chain:
+Sync (`NativeReAct`):
+
+```
+NativeReAct.run()
+  → NativeToolUsePolicy._get_actions()          (sync)
+    → Policy._call_model()                       (sync)
+      → BedrockChatModel.__call__()              (sync, converse)
+```
+
+Async (`AsyncNativeReAct`):
 
 ```
 AsyncNativeReAct.stream()
@@ -192,7 +228,7 @@ AsyncNativeReAct.run_async()
 
 Both paths go through Policy (reusing `_build_messages()` and `set_system_prompt()`), so Policy hooks (`dynamic_notes_fn`, etc.) are available in both modes.
 
-The sync `Policy.get_actions()` wrapper is NOT used — it cannot `await` the async `_get_actions()`. `AsyncNativeReAct` calls `_get_actions()` / `_get_actions_stream()` directly.
+The sync `Policy.get_actions()` wrapper is NOT used by `AsyncNativeReAct` — it cannot `await` the async `_get_actions()`. Both agents call `_get_actions()` directly.
 
 ## Files
 
@@ -204,3 +240,4 @@ The sync `Policy.get_actions()` wrapper is NOT used — it cannot `await` the as
 | `lits/structures/tool_use.py` | `BaseToolUseStep`, `NativeToolUseStep` |
 | `lits/components/policy/native_tool_use.py` | `_BaseNativeToolUsePolicy`, `NativeToolUsePolicy`, `AsyncNativeToolUsePolicy` |
 | `lits/agents/chain/native_react.py` | `NativeReAct`, `AsyncNativeReAct` |
+| `lits/agents/main.py` | `create_tool_use_agent(native=True)` |
