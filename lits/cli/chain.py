@@ -243,6 +243,12 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                     cp_file = os.path.join(checkpoint_dir, f"{attempt_id}.json")
                     reward_file = os.path.join(checkpoint_dir, f"{attempt_id}_reward.json")
 
+                    # Fully complete: reward file exists (agent ran + verify ran)
+                    if os.path.exists(reward_file):
+                        run_logger.info(f"  Skipping {attempt_id} (completed)")
+                        continue
+
+                    # Partially complete: checkpoint has answer but no reward
                     if os.path.exists(cp_file):
                         try:
                             with open(cp_file) as _f:
@@ -251,12 +257,12 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                         except (json.JSONDecodeError, KeyError):
                             has_answer = False
 
-                        if has_answer:
-                            # If verify exists, also need reward file to be fully complete
-                            if verify_fn is None or os.path.exists(reward_file):
-                                run_logger.info(f"  Skipping {attempt_id} (completed)")
-                                continue
-                            # Has answer but no reward — need to re-run for verify
+                        if has_answer and verify_fn is None:
+                            # No verify needed, answer = complete
+                            run_logger.info(f"  Skipping {attempt_id} (completed, no verify)")
+                            continue
+                        if has_answer and verify_fn is not None:
+                            # Has answer but verify didn't run — need to re-run
                             run_logger.info(f"  Re-running {attempt_id} (answer exists but verify missing)")
 
                 if prepare_tool_state is not None:
