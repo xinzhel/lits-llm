@@ -14,6 +14,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `create_augmentors()` — new shared function in `lits/cli/search.py`; reads `--memory-arg augmentors=fact,reflection`
 - Removed `enable_memory` and `memory_config` from `ExperimentConfig`
 - `FactMemoryAugmentor.analyze()` — added `batch=True` mode for whole-trajectory fact extraction
+- `augmentor_setup.py` — split `setup_augmentors` into `wire_retrieval_to_policy` + `build_search_callbacks`
+- `chain.py` — use shared `setup_memory_manager` + `create_augmentors` + `wire_retrieval_to_policy`; batch `_analyze_trajectory`
 
 ## 2026-04-19 Unreleased (`0419-minor-pass-at-n`)
 

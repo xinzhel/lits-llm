@@ -20,6 +20,13 @@ Usage:
         --include lits_benchmark.dbbench
     lits-chain --help
 
+    # tool-use with cross-trajectory memory (pass@N + memory)
+    lits-chain --dataset terminal_bench --include lits_benchmark.terminal_bench \
+        --policy-model bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0 \
+        --cfg native=True --cfg n_attempts=5 \
+        --memory-arg backend=local \
+        --var limit=10
+
 Two-Stage Workflow:
 1. Run lits-chain to execute chain agent and save checkpoints
 2. Evaluate:
@@ -33,6 +40,7 @@ import json
 import traceback
 import logging
 from contextlib import nullcontext
+from typing import Dict, List
 
 from dotenv import load_dotenv, find_dotenv
 
@@ -47,10 +55,78 @@ from lits.benchmarks.registry import load_dataset, has_resource, load_resource
 from lits.cli import (
     parse_experiment_args, apply_config_overrides,
     parse_dataset_kwargs, parse_script_vars,
+    parse_memory_args,
     log_command,
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Augmentor helpers for pass@N + cross-trajectory memory
+# ---------------------------------------------------------------------------
+
+
+def _analyze_trajectory(
+    augmentors: List["ContextAugmentor"],
+    state,
+    example_idx: int,
+    attempt: int,
+    run_logger,
+):
+    """Extract facts from a completed trajectory via all augmentors.
+
+    Calls each augmentor once with the full trajectory and ``batch=True``.
+    Per-step augmentors (e.g., FactMemoryAugmentor) use batch mode to
+    process all steps in a single LLM call.  Per-trajectory augmentors
+    (e.g., ReflectionAugmentor) ignore the batch kwarg.
+
+    Trajectory key format: ``q/{attempt}`` — each attempt is a root-level
+    branch in the TrajectoryKey tree.  ``search_id`` is ``q_{example_idx}``.
+
+    Args:
+        augmentors: List of ContextAugmentor instances.
+        state: ToolUseState (list of steps) from agent.run().
+        example_idx: Example index.
+        attempt: Attempt number within pass@N.
+        run_logger: Logger.
+    """
+    if state is None or len(state) == 0:
+        return
+
+    traj_key = f"q/{attempt}"
+    for aug in augmentors:
+        try:
+            aug.analyze(
+                list(state),
+                trajectory_key=traj_key,
+                query_idx=example_idx,
+                batch=True,
+            )
+        except Exception as e:
+            logger.warning(f"  {type(aug).__name__}.analyze() failed: {e}")
+
+    run_logger.info(
+        f"  Augmentors: analyzed attempt {attempt} "
+        f"({len(state)} steps, {len(augmentors)} augmentors)"
+    )
+
+
+def _clear_memory(manager: "LiTSMemoryManager", run_logger, example_idx: int):
+    """Clear all stored facts between examples.
+
+    Memory is per-example: attempts within the same example share memory,
+    but different examples start fresh.
+
+    Args:
+        manager: LiTSMemoryManager whose backend storage is cleared.
+        run_logger: Logger.
+        example_idx: Next example index (for logging).
+    """
+    backend = manager.backend
+    backend._units.clear()
+    backend._vectors.clear()
+    run_logger.info(f"  Memory cleared for example {example_idx}")
 
 
 def main() -> int:
@@ -105,6 +181,9 @@ def main() -> int:
     limit = script_vars['limit']
     override = cli_args.override
 
+    # Parse memory args (--memory-arg backend=local model=... etc.)
+    memory_kwargs = parse_memory_args(cli_args) if cli_args.memory_args else None
+
     # Import custom modules to trigger registration
     if cli_args.import_modules:
         config.import_modules = cli_args.import_modules
@@ -154,7 +233,7 @@ def main() -> int:
 
     if is_tool_use:
         return _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
-                             offset, limit, override)
+                             offset, limit, override, memory_kwargs=memory_kwargs)
     else:
         return _run_env_grounded(config, benchmark_name, full_dataset, dataset_kwargs,
                                  offset, limit, override)
@@ -165,7 +244,7 @@ def main() -> int:
 # ---------------------------------------------------------------------------
 
 def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
-                  offset, limit, override) -> int:
+                  offset, limit, override, memory_kwargs=None) -> int:
     """Run ReActChat on a tool-use dataset (e.g. dbbench, mapeval)."""
 
     # Load tool-use resource (starts DB containers, etc.)
@@ -219,6 +298,18 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
     # with experiment metadata: dataset, import_modules, dataset_kwargs, eval_model, root_dir)
     config.save_config(result_dir)
 
+    # --- Augmentor setup (cross-trajectory fact transfer for pass@N) ---
+    memory_manager = None
+    augmentors = []
+    # Mutable query_context dict — updated per-attempt, read by _combined_retrieve
+    query_context = {}
+    if memory_kwargs is not None:
+        from lits.cli.search import setup_memory_manager, create_augmentors
+        from lits.agents.tree.augmentor_setup import wire_retrieval_to_policy
+        memory_manager = setup_memory_manager(run_logger, memory_kwargs)
+        augmentors = create_augmentors(memory_manager, memory_kwargs, run_logger=run_logger)
+        wire_retrieval_to_policy(agent.policy, augmentors, query_context)
+
     # Run agent on dataset
     selected_examples = _slice_dataset(full_dataset, offset, limit)
     run_logger.info(f"Running on {len(selected_examples)} examples (offset={offset}, limit={limit})")
@@ -232,6 +323,10 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
         for example_idx, example in enumerate(selected_examples, start=offset):
             run_logger.info(f"Processing example {example_idx}")
             query = example["question"]
+
+            # Clear memory between examples (different tasks don't share memory)
+            if memory_manager is not None:
+                _clear_memory(memory_manager, run_logger, example_idx)
 
             for attempt in range(n_attempts):
                 attempt_id = f"{example_idx}_a{attempt}" if n_attempts > 1 else example_idx
@@ -267,6 +362,12 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
 
                 if prepare_tool_state is not None:
                     prepare_tool_state(example)
+
+                # Update query_context for memory retrieval (read by _combined_retrieve)
+                # Uses tree-compatible path: q/{attempt} (attempt as root-level branch)
+                if memory_manager is not None:
+                    query_context["trajectory_key"] = f"q/{attempt}"
+                    query_context["query_idx"] = example_idx
 
                 # Log attempt context for InferenceLogger (separate from role)
                 log_ctx = {}
@@ -304,6 +405,10 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                             _json.dump({"example_idx": example_idx, "attempt": attempt, "task_id": example.get("task_id", ""), "reward": reward}, rf)
                     except Exception as ve:
                         run_logger.warning(f"Verification failed for {attempt_id}: {ve}")
+
+                # Extract facts from trajectory via augmentors for next attempt
+                if augmentors and state is not None:
+                    _analyze_trajectory(augmentors, state, example_idx, attempt, run_logger)
 
     except Exception as e:
         run_logger.error(f"Error during ReAct execution: {e}")

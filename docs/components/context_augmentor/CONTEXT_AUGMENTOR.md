@@ -81,7 +81,49 @@ Each record contains:
 
 ## Current Implementations
 
-### 1. SQLValidator
+### Augmentor Catalog
+
+| Augmentor | Trigger | LLM? | Use Case |
+|-----------|---------|------|----------|
+| `FactMemoryAugmentor` | per-step (or batch) | No (backend LLM) | Cross-trajectory fact extraction and retrieval |
+| `CriticAugmentor` | per-step | Yes | LLM advice on current trajectory |
+| `ReflectionAugmentor` | per-trajectory | Yes | LLM reflection on failed trajectories |
+| `SQLValidator` | per-step | No | SQL syntax/semantic validation |
+| `SQLErrorProfiler` | per-trajectory | Yes | SQL error pattern analysis |
+
+### Wiring Architecture
+
+Augmentors are wired into the execution loop via `augmentor_setup.py`:
+
+- `wire_retrieval_to_policy(policy, augmentors, query_context)` — registers a combined `retrieve()` on the policy's dynamic notes. Used by both `lits-search` and `lits-chain`.
+- `build_search_callbacks(augmentors, query_context)` — returns `(on_step_complete, on_trajectory_complete)` closures for the tree-search loop. Only used by `lits-search`.
+- `setup_augmentors(policy, augmentors, query_context)` — convenience wrapper that calls both.
+
+**lits-search** (tree search): uses `setup_augmentors()` → augmentors are called incrementally during the search loop.
+
+**lits-chain** (chain pass@N): uses `wire_retrieval_to_policy()` for prompt injection + calls `augmentor.analyze(state, batch=True)` once after each attempt completes.
+
+### 1. FactMemoryAugmentor
+
+**Purpose:** Cross-trajectory fact extraction and retrieval via `LiTSMemoryManager`.
+
+**Modes:**
+- `batch=False` (default): Incremental — processes `traj_state[-1]` only. Used by tree search.
+- `batch=True`: Batch — concatenates all steps' messages into one LLM call. Used by chain pass@N. Produces better facts (LLM sees full context) and is cheaper (1 call vs N).
+
+**CLI:** `--memory-arg backend=local augmentors=fact`
+
+### 2. CriticAugmentor
+
+**Purpose:** Per-step LLM advice on the current trajectory.
+
+### 3. ReflectionAugmentor
+
+**Purpose:** Per-trajectory LLM reflection on failed trajectories (reward below threshold).
+
+**CLI:** `--memory-arg augmentors=fact,reflection`
+
+### 4. SQLValidator
 
 **Purpose:** Step-level validation of individual SQL queries
 
@@ -140,7 +182,7 @@ if issue:
 }
 ```
 
-### 2. SQLErrorProfiler
+### 5. SQLErrorProfiler
 
 **Purpose:** Trajectory-level analysis of SQL error patterns
 

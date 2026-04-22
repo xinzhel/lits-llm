@@ -1,10 +1,18 @@
-"""Augmentor setup and callback wiring for tree search.
+"""Augmentor setup and callback wiring for tree search and chain agents.
 
-Provides :func:`setup_augmentors` which connects a list of
-:class:`~lits.components.context_augmentor.ContextAugmentor` instances
-to the tree-search loop via two callback closures:
+Two-layer API:
 
-Callback architecture::
+1. :func:`wire_retrieval_to_policy` — registers a combined ``retrieve()``
+   on the policy's dynamic notes mechanism.  Used by both ``lits-search``
+   (tree search) and ``lits-chain`` (chain pass@N).
+
+2. :func:`build_search_callbacks` — builds ``on_step_complete`` and
+   ``on_trajectory_complete`` closures for the tree-search loop.
+   Only used by ``lits-search``.
+
+:func:`setup_augmentors` is a convenience wrapper that calls both.
+
+Callback architecture (tree search only)::
 
     search loop
     ├── _expand() / _simulate()
@@ -47,40 +55,37 @@ _PER_TRAJECTORY_TYPES = (ReflectionAugmentor, SQLErrorProfiler)
 
 
 
-def setup_augmentors(
+def wire_retrieval_to_policy(
     policy,
     augmentors: List[ContextAugmentor],
     query_context: dict,
-) -> Tuple[Callable, Callable]:
-    """Wire augmentors into the tree-search loop.
+) -> None:
+    """Register combined retrieve on policy for prompt injection.
 
-    Sets storage context on each augmentor, registers a combined
-    ``retrieve()`` to the policy's dynamic notes mechanism, and builds
-    two callback closures for the search loop.
+    Sets storage context on each augmentor, then registers a
+    ``_combined_retrieve`` closure to ``policy.set_dynamic_notes_fn()``.
+    The closure iterates over all augmentors' ``retrieve()`` and
+    concatenates results into the system prompt.
+
+    Used by both ``lits-search`` and ``lits-chain``.
 
     Args:
         policy: Policy instance (has ``set_dynamic_notes_fn``).
-        augmentors: List of ContextAugmentor instances to wire up.
-        query_context: Dict with keys:
-            - ``policy_model_name`` (str): Model name for storage paths.
-            - ``task_type`` (str): Task type for storage paths.
-            - ``query_or_goals`` (str): The problem/question being solved.
-
-    Returns:
-        Tuple of ``(on_step_complete, on_trajectory_complete)`` callbacks.
+        augmentors: List of ContextAugmentor instances.
+        query_context: Mutable dict read by the closure.  Caller updates
+            ``trajectory_key``, ``query_idx``, etc. before each LLM call.
     """
     if not augmentors:
-        logger.debug("setup_augmentors: no augmentors provided, returning no-op callbacks")
-        return _noop_step, _noop_trajectory
+        return
 
     policy_model_name = query_context.get("policy_model_name", "")
     task_type = query_context.get("task_type", "")
 
-    # 1. Set storage context on each augmentor
+    # Set storage context on each augmentor
     for aug in augmentors:
         aug.set_storage_context(policy_model_name, task_type)
 
-    # 2. Register combined retrieve to policy dynamic notes
+    # Register combined retrieve
     def _combined_retrieve() -> List[str]:
         notes = []
         traj_key = query_context.get("trajectory_key", "<unset>")
@@ -108,28 +113,44 @@ def setup_augmentors(
 
     policy.set_dynamic_notes_fn(_combined_retrieve)
 
-    # 3. Classify augmentors by trigger type
+
+def build_search_callbacks(
+    augmentors: List[ContextAugmentor],
+    query_context: dict,
+) -> Tuple[Callable, Callable]:
+    """Build on_step_complete and on_trajectory_complete callbacks for tree search.
+
+    Classifies augmentors into per-step and per-trajectory types, then
+    builds two closures that extract trajectory state from tree nodes
+    and invoke the appropriate augmentors.
+
+    Only used by ``lits-search`` (tree search loop).
+
+    Args:
+        augmentors: List of ContextAugmentor instances.
+        query_context: Dict with ``query_or_goals`` key.
+
+    Returns:
+        Tuple of ``(on_step_complete, on_trajectory_complete)`` callbacks.
+    """
+    if not augmentors:
+        return _noop_step, _noop_trajectory
+
     step_augmentors = [a for a in augmentors if isinstance(a, _PER_STEP_TYPES)]
     traj_augmentors = [a for a in augmentors if isinstance(a, _PER_TRAJECTORY_TYPES)]
 
     logger.info(
-        f"setup_augmentors: {len(step_augmentors)} per-step, "
+        f"build_search_callbacks: {len(step_augmentors)} per-step, "
         f"{len(traj_augmentors)} per-trajectory augmentors"
     )
 
-    # 4. Build on_step_complete closure
     def on_step_complete(step, node, query_idx, **kwargs):
-        """Called after each child node transition in _expand().
-
-        Extracts trajectory state from node ancestry and invokes
-        per-step augmentors.
-        """
+        """Called after each child node transition in _expand()."""
         traj_state = _extract_trajectory_state_up_to(node)
         query_or_goals = query_context.get("query_or_goals", "")
         traj_key_str = (
             node.trajectory_key.path_str if node.trajectory_key else None
         )
-
         for aug in step_augmentors:
             try:
                 aug.analyze(
@@ -145,13 +166,8 @@ def setup_augmentors(
                     f"failed: {e}"
                 )
 
-    # 5. Build on_trajectory_complete closure
     def on_trajectory_complete(path, reward, query_idx, **kwargs):
-        """Called after backpropagation in search().
-
-        Extracts trajectory state from the MCTS path and invokes
-        per-trajectory augmentors.
-        """
+        """Called after backpropagation in search()."""
         traj_state = _extract_trajectory_state(path)
         query_or_goals = query_context.get("query_or_goals", "")
         traj_key_str = (
@@ -159,7 +175,6 @@ def setup_augmentors(
             if path and path[-1].trajectory_key
             else None
         )
-
         for aug in traj_augmentors:
             try:
                 aug.analyze(
@@ -179,19 +194,36 @@ def setup_augmentors(
     return on_step_complete, on_trajectory_complete
 
 
+def setup_augmentors(
+    policy,
+    augmentors: List[ContextAugmentor],
+    query_context: dict,
+) -> Tuple[Callable, Callable]:
+    """Wire augmentors into the tree-search loop (convenience wrapper).
+
+    Calls :func:`wire_retrieval_to_policy` then :func:`build_search_callbacks`.
+
+    Args:
+        policy: Policy instance (has ``set_dynamic_notes_fn``).
+        augmentors: List of ContextAugmentor instances.
+        query_context: Dict with keys:
+            - ``policy_model_name`` (str): Model name for storage paths.
+            - ``task_type`` (str): Task type for storage paths.
+            - ``query_or_goals`` (str): The problem/question being solved.
+
+    Returns:
+        Tuple of ``(on_step_complete, on_trajectory_complete)`` callbacks.
+    """
+    wire_retrieval_to_policy(policy, augmentors, query_context)
+    return build_search_callbacks(augmentors, query_context)
+
+
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
 
 def _extract_trajectory_state_up_to(node) -> list:
-    """Walk the parent chain from *node* to root, collecting steps.
-
-    Args:
-        node: An MCTSNode (or SearchNode) with ``.parent`` and ``.step``.
-
-    Returns:
-        List of steps in root-to-node order.
-    """
+    """Walk the parent chain from *node* to root, collecting steps."""
     steps = []
     current = node
     while current is not None:
@@ -203,14 +235,7 @@ def _extract_trajectory_state_up_to(node) -> list:
 
 
 def _extract_trajectory_state(path) -> list:
-    """Extract steps from an MCTS path (root-to-leaf node list).
-
-    Args:
-        path: List of MCTSNode from root to leaf.
-
-    Returns:
-        List of steps (nodes with non-None step attribute).
-    """
+    """Extract steps from an MCTS path (root-to-leaf node list)."""
     steps = []
     for node in path:
         if hasattr(node, "step") and node.step is not None:
