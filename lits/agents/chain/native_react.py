@@ -153,13 +153,16 @@ class NativeReAct(_BaseNativeReAct):
             if isinstance(query_idx, str):
                 import re
                 match = re.match(r"(\d+)", str(query_idx))
-                self.policy._query_idx = int(match.group(1)) if match else query_idx
+                example_idx = int(match.group(1)) if match else query_idx
             else:
-                self.policy._query_idx = query_idx
-            self.policy._from_phase = ""
+                example_idx = query_idx
 
-            steps = self.policy._get_actions(
-                query=query, state=state, n_actions=1, temperature=self.temperature,
+            # Set temperature on policy (may differ from policy default for pass@N)
+            self.policy.temperature = self.temperature
+
+            steps = self.policy.get_actions(
+                query=query, state=state, n_actions=1,
+                query_idx=example_idx,
             )
             if not steps:
                 raise RuntimeError("NativeToolUsePolicy returned no steps.")

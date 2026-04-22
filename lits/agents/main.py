@@ -98,6 +98,7 @@ def create_tool_use_agent(
             task_name=task_name,
             max_length=max_length,
             n_actions=1,
+            force_terminating_on_depth_limit=False,  # NativeReAct.run() handles its own max_iter
         )
         if post_generation_fn is not None:
             policy.set_post_generation_fn(post_generation_fn)
