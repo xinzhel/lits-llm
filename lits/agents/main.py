@@ -94,7 +94,7 @@ def create_tool_use_agent(
         policy = NativeToolUsePolicy(
             base_model=base_model,
             tools=tools,
-            task_prompt_spec=None,
+            task_prompt_spec=tool_context or None,
             task_name=task_name,
             max_length=max_length,
             n_actions=1,
