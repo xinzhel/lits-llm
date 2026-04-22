@@ -414,10 +414,10 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                 if augmentors and state is not None:
                     _analyze_trajectory(augmentors, state, example_idx, attempt, run_logger)
 
-            # Save memory facts for this example (before clear on next example)
-            if memory_manager is not None:
-                memory_dir = os.path.join(result_dir, "memory")
-                memory_manager.backend.save(os.path.join(memory_dir, f"example_{example_idx}"))
+                # Save memory snapshot after this attempt (before next attempt adds more facts)
+                if memory_manager is not None:
+                    memory_dir = os.path.join(result_dir, "memory")
+                    memory_manager.backend.save(os.path.join(memory_dir, f"{example_idx}_a{attempt}"))
 
     except Exception as e:
         run_logger.error(f"Error during ReAct execution: {e}")

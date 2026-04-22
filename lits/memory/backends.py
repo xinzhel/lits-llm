@@ -183,10 +183,15 @@ Text:
 def _parse_facts_response(response_text: str) -> List[str]:
     """Parse LLM response into a list of fact strings.
 
-    Tries JSON first, falls back to line-split with bullet stripping.
+    Tries JSON first (direct parse), then extracts JSON from markdown
+    code blocks, then looks for any JSON object in the text.
+    Falls back to line-split with bullet stripping only as last resort.
+
+    Filters out obvious non-fact lines (JSON syntax artifacts, LLM preamble).
     """
     text = response_text.strip()
-    # Try JSON parse
+
+    # Strategy 1: Direct JSON parse (LLM returned clean JSON)
     try:
         data = json.loads(text)
         if isinstance(data, dict) and "facts" in data:
@@ -196,8 +201,8 @@ def _parse_facts_response(response_text: str) -> List[str]:
     except json.JSONDecodeError:
         pass
 
-    # Try to extract JSON from markdown code block
-    m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    # Strategy 2: Extract JSON from markdown code block (```json ... ```)
+    m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
     if m:
         try:
             data = json.loads(m.group(1))
@@ -206,13 +211,28 @@ def _parse_facts_response(response_text: str) -> List[str]:
         except json.JSONDecodeError:
             pass
 
-    # Fallback: line-split, strip bullets/numbers
+    # Strategy 3: Find any JSON object with "facts" key in the text
+    m = re.search(r'\{[^{}]*"facts"\s*:\s*\[.*?\]\s*\}', text, re.DOTALL)
+    if m:
+        try:
+            data = json.loads(m.group(0))
+            if isinstance(data, dict) and "facts" in data:
+                return [f for f in data["facts"] if isinstance(f, str) and f.strip()]
+        except json.JSONDecodeError:
+            pass
+
+    # Strategy 4: Fallback — line-split, strip bullets/numbers,
+    # filter out JSON artifacts and LLM preamble
+    _NOISE_PATTERNS = re.compile(
+        r"^(```|{|\}|\[|\]|\"facts\"|\"|I'll |I will |Here are |Let me )", re.IGNORECASE
+    )
     lines = []
     for line in text.splitlines():
         line = line.strip()
         line = re.sub(r"^[-*•]\s*", "", line)
         line = re.sub(r"^\d+[.)]\s*", "", line)
-        if line:
+        line = line.strip().rstrip(",").strip('"').strip()
+        if line and not _NOISE_PATTERNS.match(line) and len(line) > 10:
             lines.append(line)
     return lines
 
