@@ -115,6 +115,10 @@ class FactMemoryAugmentor(ContextAugmentor):
         include_inherited: Whether ``retrieve()`` includes inherited
             (ancestor) memories in the prompt block. Default False,
             since inherited context is typically already in the prompt.
+        skip_similarity_filtering: If True, ``retrieve()`` returns ALL
+            stored facts from prior trajectories without similarity
+            filtering.  Used by chain pass@N where the current attempt
+            has no facts yet.  Default False (tree search mode).
     """
 
     evaluator_type = "fact_memory"
@@ -124,6 +128,7 @@ class FactMemoryAugmentor(ContextAugmentor):
         memory_manager: LiTSMemoryManager,
         persist=True,
         include_inherited: bool = False,
+        skip_similarity_filtering: bool = False,
         **kwargs,
     ):
         super().__init__(
@@ -133,6 +138,7 @@ class FactMemoryAugmentor(ContextAugmentor):
         )
         self.memory_manager = memory_manager
         self.include_inherited = include_inherited
+        self.skip_similarity_filtering = skip_similarity_filtering
 
     # ------------------------------------------------------------------
     # analyze: override directly (NOT _analyze)
@@ -273,7 +279,8 @@ class FactMemoryAugmentor(ContextAugmentor):
             return ""
 
         context: AugmentedContext = self.memory_manager.build_augmented_context(
-            traj_key_obj
+            traj_key_obj,
+            skip_similarity_filtering=self.skip_similarity_filtering,
         )
         result = context.to_prompt_blocks(include_inherited=self.include_inherited)
         log_event(

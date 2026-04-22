@@ -306,6 +306,8 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
     if memory_kwargs is not None:
         from lits.cli.search import setup_memory_manager, create_augmentors
         from lits.agents.tree.augmentor_setup import wire_retrieval_to_policy
+        # Chain pass@N: skip similarity filtering — return all prior facts
+        memory_kwargs.setdefault("skip_similarity_filtering", "true")
         memory_manager = setup_memory_manager(run_logger, memory_kwargs)
         augmentors = create_augmentors(memory_manager, memory_kwargs, run_logger=run_logger)
         wire_retrieval_to_policy(agent.policy, augmentors, query_context)

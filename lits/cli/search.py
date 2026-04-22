@@ -188,7 +188,11 @@ def create_augmentors(
     for name in names:
         if name == "fact":
             from lits.components.context_augmentor.fact_memory import FactMemoryAugmentor
-            augmentors.append(FactMemoryAugmentor(memory_manager=memory_manager))
+            skip_sim = str(memory_kwargs.get("skip_similarity_filtering", "false")).lower() == "true"
+            augmentors.append(FactMemoryAugmentor(
+                memory_manager=memory_manager,
+                skip_similarity_filtering=skip_sim,
+            ))
         elif name == "reflection":
             from lits.components.context_augmentor import ReflectionAugmentor
             if base_model is None:

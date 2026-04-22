@@ -45,18 +45,62 @@ Passing `--memory-arg` enables the memory/augmentor subsystem. Shared by `lits-s
 | `update_length_ratio` | Replace existing fact if new is N× longer | `1.3` |
 | `mem0_config_path` | Path to JSON config for Mem0MemoryBackend | — |
 | `augmentors` | Comma-separated augmentor names to activate | `fact` |
+| `skip_similarity_filtering` | If `true`, retrieve ALL prior facts without similarity search (chain pass@N) | `false` |
 
 **Augmentors:**
 
 - `fact` (default): `FactMemoryAugmentor` — cross-trajectory fact extraction and retrieval via `LiTSMemoryManager`. Per-step trigger.
 - `reflection`: `ReflectionAugmentor` — LLM-generated reflection on failed trajectories. Per-trajectory trigger. Requires a `base_model`.
 
-Note: `--memory-arg` currently configures both the memory backend (layer 1) and augmentor selection (layer 2). Memory is a subsystem of the augmentor pipeline, not the other way around. A future refactor may rename this to `--augmentor-arg`.
+Note: `--memory-arg` currently configures three layers via a flat key-value dict (`memory_kwargs`):
+1. Memory backend: `backend`, `model`, `embedding_model`, `dedup_threshold`, `update_length_ratio`, `mem0_config_path`
+2. Augmentor selection: `augmentors`
+3. Augmentor behavior: `skip_similarity_filtering`
+
+A future refactor may split these into separate CLI flags (e.g., `--augmentor-arg`).
 
 **Backend comparison:**
 
 - `local` (default): In-process, no external services. Uses `lits.embedding` for embeddings and a lits LLM (`model`) for fact extraction. Reproducible, fast startup.
 - `mem0`: Delegates to mem0 library. Requires `mem0_config_path` pointing to a JSON file with mem0 provider config (llm, embedder, vector_store sections).
+
+**`--memory-arg` CLI examples:**
+
+```bash
+# Minimal: local backend with defaults (fact augmentor, similarity search)
+lits-search --memory-arg backend=local
+
+# Local backend with explicit model and embedder
+lits-search --memory-arg backend=local \
+    model=bedrock/us.anthropic.claude-sonnet-4-6 \
+    embedding_model=bedrock-embed/cohere.embed-english-v3
+
+# Local backend with custom dedup/update thresholds
+lits-search --memory-arg backend=local \
+    dedup_threshold=0.9 \
+    update_length_ratio=1.5
+
+# Mem0 backend
+lits-search --memory-arg backend=mem0 \
+    mem0_config_path=./mem0_config.json
+
+# Fact + reflection augmentors (requires base_model for reflection)
+lits-search --memory-arg backend=local \
+    augmentors=fact,reflection
+
+# Chain pass@N: skip similarity filtering (return all prior facts)
+lits-chain --memory-arg backend=local \
+    skip_similarity_filtering=true
+
+# All arguments combined (chain pass@N with reflection)
+lits-chain --memory-arg backend=local \
+    model=bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0 \
+    embedding_model=multi-qa-mpnet-base-cos-v1 \
+    dedup_threshold=0.85 \
+    update_length_ratio=1.3 \
+    augmentors=fact,reflection \
+    skip_similarity_filtering=true
+```
 
 ### Output Files
 

@@ -59,6 +59,7 @@ class AugmentedContext:
     trajectory: TrajectoryKey
     inherited_units: Tuple[MemoryUnit, ...]
     retrieved_trajectories: Tuple[TrajectorySimilarity, ...]
+    all_prior_units: Tuple[MemoryUnit, ...] = ()  # populated when skip_similarity_filtering=True
 
     def selected_facts(self) -> List[str]:
         """
@@ -68,6 +69,7 @@ class AugmentedContext:
         snippets: List[str] = []
         for result in self.retrieved_trajectories:
             snippets.extend(unit.text for unit in result.missing_units)
+        snippets.extend(unit.text for unit in self.all_prior_units)
         return snippets
 
     def to_prompt_blocks(self, include_inherited: bool = False) -> str:
@@ -83,6 +85,9 @@ class AugmentedContext:
            "# Known facts from your current reasoning"
         2. **Insights from other attempts**: For each similar trajectory found,
            includes facts that the current reasoning chain hasn't discovered yet
+        3. **Lessons from previous attempts** (if ``all_prior_units`` is populated):
+           All facts from prior attempts, without similarity filtering.
+           Used by chain pass@N.
 
         Args:
             include_inherited: Whether to include inherited memories in the output.
@@ -92,7 +97,7 @@ class AugmentedContext:
             A formatted string ready for prompt injection. Returns empty string if
             no memories are available.
 
-        Example output::
+        Example output (tree search with similarity filtering)::
 
             # Known facts from your current reasoning
             - The problem requires finding the derivative
@@ -101,6 +106,13 @@ class AugmentedContext:
             # Insights from a previous attempt (relevance: 0.75)
             - Consider substitution u = x^2
             - Apply power rule after substitution
+
+        Example output (chain pass@N with skip_similarity_filtering)::
+
+            # Lessons from previous attempts
+            - apt-get install gcc failed: package not found
+            - The C approach doesn't work, need Python instead
+            - Config file is at /etc/myapp/config.yaml
 
         Note:
             :mod:`lits.components.policy` can call this helper to assemble the
@@ -114,6 +126,11 @@ class AugmentedContext:
 
         for result in self.retrieved_trajectories:
             blocks.append(result.to_prompt_section())
+
+        if self.all_prior_units:
+            prior_text = "\n".join(f"- {unit.text}" for unit in self.all_prior_units)
+            blocks.append(f"# Lessons from previous attempts\n{prior_text}")
+
         return "\n\n".join(blocks).strip()
 
 
@@ -209,27 +226,52 @@ class LiTSMemoryManager:
         ]
         return self.retriever.search(trajectory, inherited, units)
 
-    def build_augmented_context(self, trajectory: TrajectoryKey) -> AugmentedContext:
+    def build_augmented_context(
+        self, trajectory: TrajectoryKey, skip_similarity_filtering: bool = False,
+    ) -> AugmentedContext:
         """
-        Convenience wrapper returning an :class:`AugmentedContext` object that merges
-        inherited memories with cross-trajectory augmentations.  Policies can call this
-        method and directly feed :meth:`AugmentedContext.to_prompt_blocks` into their
-        system prompts.
+        Return an :class:`AugmentedContext` merging inherited memories with
+        cross-trajectory augmentations.
+
+        Args:
+            trajectory: Current trajectory position.
+            skip_similarity_filtering: If True, skip similarity search and
+                return ALL stored facts (excluding the current trajectory's
+                own facts) as a single retrieved block.  Used by chain pass@N
+                where the current attempt has no facts yet and we want all
+                prior attempts' knowledge.
         """
 
+        all_units = self.backend.list_all_units(trajectory.search_id)
         inherited = tuple(self.list_inherited_units(trajectory))
-        search_results = tuple(self.search_related_trajectories(trajectory))
 
-        limited_results: List[TrajectorySimilarity] = []
-        total_selected = 0
-        for result in search_results:
-            if total_selected >= self.config.max_augmented_memories:
-                break
-            limited_results.append(result)
-            total_selected += len(result.missing_units)
+        if skip_similarity_filtering:
+            # Return all non-inherited facts from other trajectories
+            inherited_paths = {u.origin_path for u in inherited}
+            other_units = tuple(
+                u for u in all_units
+                if u.origin_path != trajectory.path_str
+                and u not in inherited
+            )
+            return AugmentedContext(
+                trajectory=trajectory,
+                inherited_units=inherited,
+                retrieved_trajectories=(),
+                all_prior_units=other_units,
+            )
+        else:
+            search_results = tuple(self.search_related_trajectories(trajectory))
+            limited_results: List[TrajectorySimilarity] = []
+            total_selected = 0
+            for result in search_results:
+                if total_selected >= self.config.max_augmented_memories:
+                    break
+                limited_results.append(result)
+                total_selected += len(result.missing_units)
+            retrieved = tuple(limited_results)
 
         return AugmentedContext(
             trajectory=trajectory,
             inherited_units=inherited,
-            retrieved_trajectories=tuple(limited_results),
+            retrieved_trajectories=retrieved,
         )

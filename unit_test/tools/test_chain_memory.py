@@ -117,13 +117,19 @@ def test_analyze_batch_and_clear():
 
 
 def test_cross_attempt_retrieval():
-    """End-to-end: analyze attempt 0 (batch), retrieve in attempt 1 context."""
+    """End-to-end: analyze attempt 0 (batch), retrieve in attempt 1 context.
+
+    Uses skip_similarity_filtering=true (chain pass@N mode) so that
+    attempt 1 can retrieve all facts from attempt 0 without needing
+    its own facts for similarity search.
+    """
     from lits.cli.search import setup_memory_manager, create_augmentors
     from lits.agents.tree.augmentor_setup import wire_retrieval_to_policy
     from lits.cli.chain import _analyze_trajectory
 
-    manager = setup_memory_manager(logger, {"backend": "local"})
-    augmentors = create_augmentors(manager, {"backend": "local"}, run_logger=logger)
+    memory_kwargs = {"backend": "local", "skip_similarity_filtering": "true"}
+    manager = setup_memory_manager(logger, memory_kwargs)
+    augmentors = create_augmentors(manager, memory_kwargs, run_logger=logger)
 
     policy = MockPolicy()
     query_context = {"trajectory_key": "q/0", "query_idx": 0}
@@ -148,8 +154,8 @@ def test_cross_attempt_retrieval():
 
 
 if __name__ == "__main__":
-    # test_setup_memory_and_augmentors()
-    # test_wire_and_retrieve()
-    # test_analyze_batch_and_clear()
+    test_setup_memory_and_augmentors()
+    test_wire_and_retrieve()
+    test_analyze_batch_and_clear()
     test_cross_attempt_retrieval()
     print("\n=== All chain memory tests passed ===")
