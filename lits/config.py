@@ -81,7 +81,7 @@ _EXCLUDE_FROM_SEARCH_CONFIG: Set[str] = {
     "dataset", "search_framework", "search_algorithm",
     "offset", "limit", "eval_idx",
     "verbose", "model_verbose", "print_answer_for_each_example", "override_log_result",
-    "enable_memory", "memory_config", "memory_args", "check_action_sim"
+    "memory_args", "check_action_sim"
 }
 
 
@@ -107,8 +107,7 @@ class ExperimentConfig:
         search_algorithm: Underlying algorithm ("mcts" or "bfs")
         search_args: Search algorithm parameters (overrides defaults)
         component_args: Component parameters (overrides defaults)
-        enable_memory: Whether to enable cross-trajectory memory
-        memory_config: Optional memory configuration dict
+        memory_args: Memory arguments dict (from --memory-arg)
         offset: Starting index for dataset slicing
         limit: Number of examples to evaluate (None = all)
         eval_idx: Specific indices to evaluate (overrides offset/limit)
@@ -196,10 +195,8 @@ class ExperimentConfig:
     import_modules: Optional[List[str]] = None  # Custom modules to import (--include)
     dataset_kwargs: Dict[str, Any] = field(default_factory=dict)  # Dataset-specific args (--dataset-arg)
     
-    # === Memory (feature toggle) ===
-    enable_memory: bool = False
+    # === Memory ===
     memory_args: Dict[str, Any] = field(default_factory=dict)
-    memory_config: Optional[Dict[str, Any]] = None  # deprecated: use memory_args
     
     # === Execution (not saved to config) ===
     offset: int = 0
@@ -469,9 +466,7 @@ class ExperimentConfig:
             "import_modules": self.import_modules,
             "dataset_kwargs": self.dataset_kwargs,
             # Memory
-            "enable_memory": self.enable_memory,
             "memory_args": self.memory_args,
-            "memory_config": self.memory_config,  # deprecated, kept for backward compat
             # Output
             "output_dir": self.output_dir,
             "root_dir": self.root_dir,

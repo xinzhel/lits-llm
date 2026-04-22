@@ -34,21 +34,29 @@ python main_search.py --dataset <dataset> --search_framework <framework> [option
 
 ### Memory Parameters (`--memory-arg`)
 
-Passing `--memory-arg` implicitly enables memory (no need for `--cfg enable_memory=true`).
+Passing `--memory-arg` enables the memory/augmentor subsystem. Shared by `lits-search` and `lits-chain`.
 
 | Key | Description | Default |
 |-----|-------------|---------|
 | `backend` | Backend type: `local` or `mem0` | `local` |
-| `model` | LLM for fact extraction (LocalMemoryBackend) | `bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0` |
+| `model` | LLM for fact extraction (LocalMemoryBackend) | `bedrock/us.anthropic.claude-sonnet-4-6` |
 | `embedding_model` | Embedder name (LocalMemoryBackend) | `multi-qa-mpnet-base-cos-v1` |
 | `dedup_threshold` | Cosine similarity threshold for dedup (0–1) | `0.85` |
 | `update_length_ratio` | Replace existing fact if new is N× longer | `1.3` |
 | `mem0_config_path` | Path to JSON config for Mem0MemoryBackend | — |
+| `augmentors` | Comma-separated augmentor names to activate | `fact` |
+
+**Augmentors:**
+
+- `fact` (default): `FactMemoryAugmentor` — cross-trajectory fact extraction and retrieval via `LiTSMemoryManager`. Per-step trigger.
+- `reflection`: `ReflectionAugmentor` — LLM-generated reflection on failed trajectories. Per-trajectory trigger. Requires a `base_model`.
+
+Note: `--memory-arg` currently configures both the memory backend (layer 1) and augmentor selection (layer 2). Memory is a subsystem of the augmentor pipeline, not the other way around. A future refactor may rename this to `--augmentor-arg`.
 
 **Backend comparison:**
 
 - `local` (default): In-process, no external services. Uses `lits.embedding` for embeddings and a lits LLM (`model`) for fact extraction. Reproducible, fast startup.
-- `mem0`: Delegates to mem0 library. Requires `mem0_config_path` pointing to a JSON file with mem0 provider config (llm, embedder, vector_store sections). Falls back to `ExperimentConfig.memory_config` (deprecated) if no path given.
+- `mem0`: Delegates to mem0 library. Requires `mem0_config_path` pointing to a JSON file with mem0 provider config (llm, embedder, vector_store sections).
 
 ### Output Files
 
@@ -225,16 +233,18 @@ Key points:
 ### Question 4: How does `--memory-arg` flow to the memory backend?
 
 ```
-CLI --memory-arg backend=local model=bedrock/... embedding_model=multi-qa-mpnet-base-cos-v1
-  → cli_args.memory_args = ["backend=local", "model=bedrock/...", ...]
-  → config.enable_memory = True                          # search.py (implicit)
-  → memory_kwargs = parse_memory_args(cli_args)           # args.py → {"backend": "local", "model": "bedrock/...", ...}
-  → setup_memory_manager(config, run_logger, memory_kwargs)
-  → _create_local_backend(memory_kwargs, run_logger)      # no config dependency
-    → llm = get_lm(memory_kwargs["model"])
-    → embedder = get_embedder(memory_kwargs["embedding_model"])
-    → LocalMemoryBackend(llm, embedder, dedup_threshold, update_length_ratio)
-  → LiTSMemoryManager(backend=backend)
+CLI --memory-arg backend=local model=bedrock/... augmentors=fact,reflection
+  → cli_args.memory_args = ["backend=local", "model=bedrock/...", "augmentors=fact,reflection"]
+  → memory_kwargs = parse_memory_args(cli_args)           # args.py → {"backend": "local", "model": "bedrock/...", "augmentors": "fact,reflection"}
+  → setup_memory_manager(run_logger, memory_kwargs)       # Layer 1: backend + manager
+    → _create_local_backend(memory_kwargs, run_logger)
+      → llm = get_lm(memory_kwargs["model"])
+      → embedder = get_embedder(memory_kwargs["embedding_model"])
+      → LocalMemoryBackend(llm, embedder, dedup_threshold, update_length_ratio)
+    → LiTSMemoryManager(backend=backend)
+  → create_augmentors(manager, memory_kwargs, ...)        # Layer 2: augmentor assembly
+    → FactMemoryAugmentor(memory_manager=manager)         # "fact"
+    → ReflectionAugmentor(base_model=base_model)          # "reflection"
 ```
 
 For `backend=mem0`:

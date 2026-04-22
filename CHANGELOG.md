@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-22 Unreleased (`0421-minor-terminalbench-memory-exploration`)
+
+### Changed
+- `setup_memory_manager()` — removed `config` parameter and `enable_memory` check; pure factory function
+- `create_augmentors()` — new shared function in `lits/cli/search.py`; reads `--memory-arg augmentors=fact,reflection`
+- Removed `enable_memory` and `memory_config` from `ExperimentConfig`
+
 ## 2026-04-19 Unreleased (`0419-minor-pass-at-n`)
 
 ### Added

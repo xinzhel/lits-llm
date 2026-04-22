@@ -42,7 +42,6 @@ from lits.components.bn_evaluator import BNEvaluatorBase
 from lits.memory.manager import LiTSMemoryManager
 from lits.memory.backends import Mem0MemoryBackend
 from lits.memory.config import LiTSMemoryConfig
-from lits.components.context_augmentor.fact_memory import FactMemoryAugmentor
 from lits.registry import import_custom_modules
 from lits.cli import (
     parse_experiment_args, apply_config_overrides, parse_dataset_kwargs,
@@ -92,8 +91,11 @@ def setup_result_savers(search_algorithm: str, result_dir: str, override: bool):
     return result_saver, result_saver_unselected
 
 
-def setup_memory_manager(config: ExperimentConfig, run_logger, memory_kwargs: Dict = None):
-    """Initialize memory manager if memory is enabled in config.
+def setup_memory_manager(run_logger, memory_kwargs: Dict = None):
+    """Create a LiTSMemoryManager from CLI kwargs.
+
+    Pure factory function — caller decides whether to call (gate on
+    ``memory_kwargs is not None``).
 
     Dispatches on ``memory_kwargs["backend"]``:
     - ``"local"`` (default): ``LocalMemoryBackend`` — in-process, no external
@@ -103,17 +105,16 @@ def setup_memory_manager(config: ExperimentConfig, run_logger, memory_kwargs: Di
       ``mem0_config_path`` pointing to a JSON file with mem0 provider config.
 
     Args:
-        config: ExperimentConfig with ``enable_memory`` flag.
         run_logger: Logger instance for debug output.
         memory_kwargs: Dict from ``parse_memory_args()``.  Keys:
             backend, embedding_model, dedup_threshold, update_length_ratio,
             mem0_config_path.
 
     Returns:
-        LiTSMemoryManager instance if memory is enabled, None otherwise.
+        LiTSMemoryManager instance.
 
     Raises:
-        ValueError: If memory is enabled but configuration is invalid.
+        ValueError: If configuration is invalid.
 
     CLI examples::
 
@@ -128,18 +129,14 @@ def setup_memory_manager(config: ExperimentConfig, run_logger, memory_kwargs: Di
         # Mem0 backend
         lits-search --memory-arg backend=mem0 mem0_config_path=mem0_config.json
     """
-    if not config.enable_memory:
-        return None
-
     memory_kwargs = memory_kwargs or {"backend": "local"}
     backend_type = memory_kwargs.get("backend", "local")
 
     try:
-        memory_llm = None
         if backend_type == "local":
             backend = _create_local_backend(memory_kwargs, run_logger)
         elif backend_type == "mem0":
-            backend = _create_mem0_backend(config, memory_kwargs, run_logger)
+            backend = _create_mem0_backend(memory_kwargs, run_logger)
         else:
             raise ValueError(f"Unknown memory backend: '{backend_type}'. Expected: local, mem0")
 
@@ -152,6 +149,60 @@ def setup_memory_manager(config: ExperimentConfig, run_logger, memory_kwargs: Di
         raise ValueError(f"Memory dependency missing: {e}")
     except Exception as e:
         raise ValueError(f"Failed to initialize memory manager: {e}")
+
+
+def create_augmentors(
+    memory_manager: "LiTSMemoryManager",
+    memory_kwargs: Dict,
+    base_model=None,
+    run_logger=None,
+) -> list:
+    """Assemble a list of ContextAugmentors from CLI kwargs.
+
+    Reads ``memory_kwargs["augmentors"]`` (comma-separated string) to decide
+    which augmentors to create.  Default: ``"fact"`` only.
+
+    Supported augmentors:
+        - ``fact``: ``FactMemoryAugmentor`` — cross-trajectory fact extraction
+          and retrieval via ``LiTSMemoryManager``.  Requires ``memory_manager``.
+        - ``reflection``: ``ReflectionAugmentor`` — LLM-generated reflection on
+          failed trajectories.  Requires ``base_model``.
+
+    Used by both ``lits-search`` and ``lits-chain``.
+
+    Args:
+        memory_manager: LiTSMemoryManager instance (from ``setup_memory_manager``).
+        memory_kwargs: Dict from ``parse_memory_args()``.  Reads ``augmentors`` key.
+        base_model: LLM instance for augmentors that need it (e.g., ReflectionAugmentor).
+        run_logger: Logger instance.
+
+    Returns:
+        List of ContextAugmentor instances.
+    """
+    _logger = run_logger or logger
+
+    augmentor_names = memory_kwargs.get("augmentors", "fact")
+    names = [n.strip() for n in augmentor_names.split(",")]
+
+    augmentors = []
+    for name in names:
+        if name == "fact":
+            from lits.components.context_augmentor.fact_memory import FactMemoryAugmentor
+            augmentors.append(FactMemoryAugmentor(memory_manager=memory_manager))
+        elif name == "reflection":
+            from lits.components.context_augmentor import ReflectionAugmentor
+            if base_model is None:
+                raise ValueError(
+                    "ReflectionAugmentor requires base_model but none was provided"
+                )
+            augmentors.append(ReflectionAugmentor(base_model=base_model))
+        else:
+            raise ValueError(
+                f"Unknown augmentor '{name}'. Supported: fact, reflection"
+            )
+
+    _logger.info(f"Augmentors: {[type(a).__name__ for a in augmentors]}")
+    return augmentors
 
 
 def _create_local_backend(memory_kwargs: Dict, run_logger):
@@ -193,16 +244,13 @@ def _create_local_backend(memory_kwargs: Dict, run_logger):
     )
 
 
-def _create_mem0_backend(config: ExperimentConfig, memory_kwargs: Dict, run_logger):
+def _create_mem0_backend(memory_kwargs: Dict, run_logger):
     """Create a Mem0MemoryBackend from CLI kwargs.
 
     Requires ``mem0_config_path`` in memory_kwargs pointing to a JSON file
     with mem0 provider configuration (llm, embedder, vector_store sections).
 
-    Falls back to ``config.memory_config`` if no path is provided (legacy).
-
     Args:
-        config: ExperimentConfig.
         memory_kwargs: Parsed --memory-arg dict.
         run_logger: Logger.
 
@@ -217,9 +265,6 @@ def _create_mem0_backend(config: ExperimentConfig, memory_kwargs: Dict, run_logg
         with open(config_path) as f:
             mem0_config = _json.load(f)
         run_logger.info(f"Mem0MemoryBackend: loaded config from {config_path}")
-    elif config.memory_config:
-        mem0_config = config.memory_config
-        run_logger.info("Mem0MemoryBackend: using config.memory_config (legacy)")
     else:
         run_logger.warning(
             "Mem0MemoryBackend: no config provided, using mem0 defaults "
@@ -517,11 +562,8 @@ def main() -> int:
         model_verbose=config.model_verbose
     )
 
-    # Initialize memory manager if enabled (before inference logging so memory_llm is included)
-    # --memory-arg implicitly enables memory (no need for --cfg enable_memory=true)
-    if cli_args.memory_args:
-        config.enable_memory = True
-    memory_kwargs = parse_memory_args(cli_args) if config.enable_memory else None
+    # Initialize memory manager if --memory-arg provided
+    memory_kwargs = parse_memory_args(cli_args) if cli_args.memory_args else None
 
     # Setup logging
     run_logger = setup_logging(
@@ -531,14 +573,12 @@ def main() -> int:
     )
     log_command(run_logger)
 
-    memory_manager = setup_memory_manager(config, run_logger, memory_kwargs)
+    memory_manager = setup_memory_manager(run_logger, memory_kwargs) if memory_kwargs else None
     # Include memory_llm (via backend._llm) so its token usage is tracked
     memory_llm = getattr(getattr(memory_manager, 'backend', None), '_llm', None)
 
-    # Wrap memory_manager in FactMemoryAugmentor for the augmentor callback pipeline
-    augmentors = []
-    if memory_manager is not None:
-        augmentors.append(FactMemoryAugmentor(memory_manager=memory_manager))
+    # Create augmentors from --memory-arg augmentors=fact,reflection (default: fact)
+    augmentors = create_augmentors(memory_manager, memory_kwargs, run_logger=run_logger) if memory_manager else []
     inference_logger = setup_inference_logging(
         base_model, eval_model, terminal_model, terminate_ORM, memory_llm,
         root_dir=result_dir, override=config.override_log_result,
