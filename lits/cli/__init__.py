@@ -42,6 +42,7 @@ __all__ = [
     "print_config_help",
     "CLIArgs",
     "log_command",
+    "clean_result_dir",
 ]
 
 
@@ -50,3 +51,23 @@ def log_command(logger):
     import sys, os
     logger.info(f"Command: {' '.join(sys.argv)}")
     logger.info(f"Working directory: {os.getcwd()}")
+
+
+def clean_result_dir(result_dir: str, logger=None):
+    """Remove and recreate the entire result directory for a fresh run.
+
+    Used by both ``lits-search`` and ``lits-chain`` when ``--override``
+    is specified.
+
+    Args:
+        result_dir: The ``run_{version}`` directory to clean.
+        logger: Optional logger for info messages.
+    """
+    import shutil
+    from pathlib import Path
+    result_path = Path(result_dir)
+    if result_path.exists():
+        shutil.rmtree(result_path)
+        if logger:
+            logger.info(f"Override: removed {result_path}")
+    result_path.mkdir(parents=True, exist_ok=True)

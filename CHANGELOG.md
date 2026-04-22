@@ -22,6 +22,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Fixed
 - `NativeToolUsePolicy.set_system_prompt` — inject dynamic notes (memory context) even when `task_prompt_spec` is None
+- `--override` in `lits-chain` now cleans the entire result directory (shared `clean_result_dir` with `lits-search`)
 
 ## 2026-04-19 Unreleased (`0419-minor-pass-at-n`)
 

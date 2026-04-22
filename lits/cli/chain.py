@@ -56,7 +56,7 @@ from lits.cli import (
     parse_experiment_args, apply_config_overrides,
     parse_dataset_kwargs, parse_script_vars,
     parse_memory_args,
-    log_command,
+    log_command, clean_result_dir,
 )
 
 logger = logging.getLogger(__name__)
@@ -255,6 +255,8 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
     # Setup directories
     run_id = f"{benchmark_name}_chain"
     result_dir = config.setup_directories(run_id)
+    if override:
+        clean_result_dir(result_dir)
     checkpoint_dir = os.path.join(result_dir, "checkpoints")
     os.makedirs(checkpoint_dir, exist_ok=True)
 

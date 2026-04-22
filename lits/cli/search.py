@@ -57,27 +57,16 @@ def setup_result_savers(search_algorithm: str, result_dir: str, override: bool):
 
     Both MCTS and BFS use TreeToJsonl to save paths consistently.
     MCTS additionally saves unselected simulation paths.
-    If override is True, cleans up stale files from previous runs.
+    If override is True, cleans the entire result directory via
+    ``clean_result_dir()`` before creating savers.
     """
-    # Clean up stale files if override is specified
     if override:
-        result_path = Path(result_dir)
-
-        # Clean checkpoints directory
-        checkpoints_dir = result_path / "checkpoints"
-        if checkpoints_dir.exists():
-            for f in checkpoints_dir.glob("*"):
-                f.unlink()
-
-        # Clean terminal_nodes directory
-        terminal_nodes_dir = result_path / "terminal_nodes"
-        if terminal_nodes_dir.exists():
-            for f in terminal_nodes_dir.glob("*"):
-                f.unlink()
-
-        # Clean treetojsonl*.jsonl files
-        for f in result_path.glob("treetojsonl*.jsonl"):
-            f.unlink()
+        from lits.cli import clean_result_dir
+        clean_result_dir(result_dir)
+        # Recreate checkpoints dir (setup_directories only creates result_dir)
+        import os
+        os.makedirs(os.path.join(result_dir, "checkpoints"), exist_ok=True)
+        os.makedirs(os.path.join(result_dir, "terminal_nodes"), exist_ok=True)
 
     result_saver = TreeToJsonl(run_id='', root_dir=result_dir, override=override)
 
