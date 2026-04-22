@@ -97,11 +97,17 @@ class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
         Overrides base ``Policy.set_system_prompt()`` which only recognizes
         specific sync model classes. Both ``BedrockChatModel`` and
         ``AsyncBedrockChatModel`` have ``sys_prompt``.
+
+        Dynamic notes (e.g., memory context from augmentors) are injected
+        even when ``task_prompt_spec`` is None — memory augmentation should
+        work regardless of whether a task-specific system prompt is configured.
         """
-        if self.task_prompt_spec and hasattr(self.base_model, "sys_prompt"):
-            base_prompt = self._build_system_prompt()
-            dynamic_notes = self._get_dynamic_notes()
-            self.base_model.sys_prompt = base_prompt + dynamic_notes
+        if not hasattr(self.base_model, "sys_prompt"):
+            return
+        base_prompt = self._build_system_prompt() or ""
+        dynamic_notes = self._get_dynamic_notes()
+        combined = (base_prompt + dynamic_notes).strip()
+        self.base_model.sys_prompt = combined if combined else None
 
     def _build_messages(self, query: str, state: ToolUseState) -> list[dict]:
         """Build Converse API message list from state.
