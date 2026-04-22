@@ -139,29 +139,29 @@ class FactMemoryAugmentor(ContextAugmentor):
     # ------------------------------------------------------------------
 
     def analyze(self, traj_state, **kwargs) -> Optional[ContextUnit]:
-        """Extract facts from the latest step and record them in memory.
+        """Extract facts from trajectory steps and record them in memory.
 
-        Extracts messages from ``traj_state[-1]``, passes them to
-        ``memory_manager.record_action()`` which delegates to the backend
-        for atomic fact extraction and storage.
+        Two modes controlled by ``batch`` kwarg:
 
-        Does NOT append to ``_buffer`` — facts are persisted by the
-        backend during ``record_action()``.
+        - ``batch=False`` (default): Incremental mode — extracts messages
+          from ``traj_state[-1]`` only.  Used by tree search where steps
+          arrive one at a time.
+        - ``batch=True``: Batch mode — extracts messages from ALL steps
+          and passes them as a single text to the LLM for fact extraction.
+          Used by chain pass@N where the full trajectory is available.
+          Produces better facts (LLM sees full context) and is cheaper
+          (1 LLM call vs N).
 
         Args:
-            traj_state: Trajectory (list of Steps). Only the last step
-                is processed (incremental recording).
+            traj_state: Trajectory (list of Steps).
             **kwargs:
                 trajectory_key: TrajectoryKey or ``q/...`` string.
                 query_idx (int): Example index for logging.
+                batch (bool): If True, extract facts from all steps at once.
 
         Returns:
             ContextUnit summarizing what was recorded, or None if
-            the step yielded no extractable content. Note: this return
-            value is informational only (for debugging/logging). The
-            actual fact persistence happens inside ``record_action()``
-            above — the returned ContextUnit is not buffered or
-            persisted by the ABC machinery.
+            no extractable content.
         """
         if traj_state is None or len(traj_state) == 0:
             return None
@@ -169,12 +169,12 @@ class FactMemoryAugmentor(ContextAugmentor):
         trajectory_key = kwargs.get("trajectory_key")
         query_idx = kwargs.get("query_idx", -1)
         from_phase = kwargs.get("from_phase", "")
+        batch = kwargs.get("batch", False)
 
         # Resolve TrajectoryKey
         if isinstance(trajectory_key, TrajectoryKey):
             traj_key_obj = trajectory_key
         elif isinstance(trajectory_key, str) and trajectory_key:
-            # Infer search_id from query_idx (must be set by caller)
             assert query_idx is not None, (
                 "FactMemoryAugmentor.analyze: query_idx is required when "
                 "trajectory_key is a string (needed to construct search_id)"
@@ -185,9 +185,16 @@ class FactMemoryAugmentor(ContextAugmentor):
             logger.debug("FactMemoryAugmentor.analyze: no trajectory_key, skipping")
             return None
 
-        # Extract messages from the last step
-        last_step = traj_state[-1]
-        messages = _extract_messages_from_step(last_step)
+        # Extract messages
+        if batch:
+            # Batch mode: all steps concatenated
+            messages = []
+            for step in traj_state:
+                messages.extend(_extract_messages_from_step(step))
+        else:
+            # Incremental mode: last step only
+            messages = _extract_messages_from_step(traj_state[-1])
+
         if not messages:
             logger.debug("FactMemoryAugmentor.analyze: no messages extracted, skipping")
             return None
@@ -201,22 +208,20 @@ class FactMemoryAugmentor(ContextAugmentor):
             query_idx=query_idx,
         )
 
-        # UNUSED; 
-        # (not buffered — facts already persisted)
-        # (for debugging/logging only)
+        n_steps = len(traj_state) if batch else 1
         content_summary = "; ".join(
-            m.get("content", "")[:100] for m in messages
+            m.get("content", "")[:100] for m in messages[:3]
         )
         unit = ContextUnit(
-            content=f"[fact_memory] Recorded from step {len(traj_state)}: {content_summary}",
+            content=f"[fact_memory] Recorded from {n_steps} step(s): {content_summary}",
             source=self.evaluator_type,
             trajectory_key=normalize_trajectory_key(trajectory_key),
             query_id=query_idx if query_idx is not None else -1,
-            metadata={"n_messages": len(messages), "step_idx": len(traj_state)},
+            metadata={"n_messages": len(messages), "n_steps": n_steps, "step_idx": None if batch else len(traj_state)},
         )
         logger.debug(
             f"FactMemoryAugmentor: recorded {len(messages)} messages "
-            f"at {traj_key_obj.path_str}"
+            f"from {n_steps} step(s) at {traj_key_obj.path_str}"
         )
         return unit
 

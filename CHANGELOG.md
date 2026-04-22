@@ -13,6 +13,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `setup_memory_manager()` — removed `config` parameter and `enable_memory` check; pure factory function
 - `create_augmentors()` — new shared function in `lits/cli/search.py`; reads `--memory-arg augmentors=fact,reflection`
 - Removed `enable_memory` and `memory_config` from `ExperimentConfig`
+- `FactMemoryAugmentor.analyze()` — added `batch=True` mode for whole-trajectory fact extraction
 
 ## 2026-04-19 Unreleased (`0419-minor-pass-at-n`)
 
