@@ -18,6 +18,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `chain.py` — use shared `setup_memory_manager` + `create_augmentors` + `wire_retrieval_to_policy`; batch `_analyze_trajectory`
 - `FactMemoryAugmentor` — added `skip_similarity_filtering` for chain pass@N (return all prior facts)
 - `LiTSMemoryManager.build_augmented_context` — `skip_similarity_filtering` param, `AugmentedContext.all_prior_units` field
+- Rewrote `docs/eval/OUTPUT_FILES.md` — added lits-chain output structure, result dir management, updated to current CLI/log formats
 
 ## 2026-04-19 Unreleased (`0419-minor-pass-at-n`)
 
