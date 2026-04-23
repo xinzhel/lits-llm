@@ -332,6 +332,19 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
             if memory_manager is not None:
                 _clear_memory(memory_manager, run_logger, example_idx)
 
+                # Resume: load latest memory snapshot if prior attempts were saved
+                if not override:
+                    memory_dir = os.path.join(result_dir, "memory")
+                    latest_snapshot = None
+                    for a in range(n_attempts - 1, -1, -1):
+                        snap_dir = os.path.join(memory_dir, f"{example_idx}_a{a}")
+                        if os.path.isdir(snap_dir):
+                            latest_snapshot = snap_dir
+                            break
+                    if latest_snapshot:
+                        memory_manager.backend.load(latest_snapshot)
+                        run_logger.info(f"  Memory resumed from {latest_snapshot}")
+
             for attempt in range(n_attempts):
                 attempt_id = f"{example_idx}_a{attempt}" if n_attempts > 1 else example_idx
                 if n_attempts > 1:
