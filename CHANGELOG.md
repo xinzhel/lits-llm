@@ -7,6 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-23 Unreleased (`0421-minor-terminalbench-memory-exploration`)
+
+### Fixed
+- Memory LLM InferenceLogger wired to same log file as policy model in `lits-chain`
+- `NativeToolUsePolicy` receives `tool_context` as system prompt (was `None`)
+- `NativeReAct.run()` uses `policy.get_actions()` (dynamic notes injection via `set_system_prompt`)
+- `_parse_facts_response` — robust JSON extraction from LLM responses (greedy regex, noise filtering)
+- `--override` in `lits-chain` cleans entire result dir (shared `clean_result_dir`)
+
+### Added
+- Per-attempt memory snapshots saved to `{result_dir}/memory/{idx}_a{attempt}/`
+- Memory resume from disk on process restart
+
 ## 2026-04-22 Unreleased (`0421-minor-terminalbench-memory-exploration`)
 
 ### Changed
@@ -23,6 +36,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Fixed
 - `NativeToolUsePolicy.set_system_prompt` — inject dynamic notes (memory context) even when `task_prompt_spec` is None
 - `--override` in `lits-chain` now cleans the entire result directory (shared `clean_result_dir` with `lits-search`)
+- `NativeReAct.run()` — use `policy.get_actions()` instead of `policy._get_actions()` (was bypassing `set_system_prompt`, memory injection, logging)
 
 ## 2026-04-19 Unreleased (`0419-minor-pass-at-n`)
 

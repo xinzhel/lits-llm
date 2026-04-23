@@ -314,6 +314,11 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
         augmentors = create_augmentors(memory_manager, memory_kwargs, run_logger=run_logger)
         wire_retrieval_to_policy(agent.policy, augmentors, query_context)
 
+        # Wire memory LLM's InferenceLogger to the same result dir as the policy model
+        memory_llm = getattr(memory_manager.backend, '_llm', None)
+        if memory_llm is not None and hasattr(agent.policy.base_model, 'inference_logger'):
+            memory_llm.inference_logger = agent.policy.base_model.inference_logger
+
     # Run agent on dataset
     selected_examples = _slice_dataset(full_dataset, offset, limit)
     run_logger.info(f"Running on {len(selected_examples)} examples (offset={offset}, limit={limit})")
