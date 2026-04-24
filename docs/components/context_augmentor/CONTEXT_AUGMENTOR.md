@@ -93,15 +93,104 @@ Each record contains:
 
 ### Wiring Architecture
 
-Augmentors are wired into the execution loop via `augmentor_setup.py`:
+Augmentors are connected to the execution loop through two mechanisms:
+**dynamic notes injection** (retrieval → policy system prompt via `_dynamic_notes_fn`) and **analysis callbacks** (execution events → augmentor analysis).
+Both mechanisms share a mutable `query_context` dict that tracks the current position in the search/attempt space.
 
-- `wire_retrieval_to_policy(policy, augmentors, query_context)` — registers a combined `retrieve()` on the policy's dynamic notes. Used by both `lits-search` and `lits-chain`.
-- `build_search_callbacks(augmentors, query_context)` — returns `(on_step_complete, on_trajectory_complete)` closures for the tree-search loop. Only used by `lits-search`.
-- `setup_augmentors(policy, augmentors, query_context)` — convenience wrapper that calls both.
+Note: dynamic notes currently inject into the **policy** system prompt only. The framework's prompt spec system (`lits/prompts/`, see [ADDING_PROMPTS.md](../../prompts/ADDING_PROMPTS.md)) supports prompts for policy, reward model, and transition, but augmentor context injection to reward/transition is not yet implemented (see `target=policy+reward` in the design spec `0312-major-context-augmentation/design.md`).
 
-**lits-search** (tree search): uses `setup_augmentors()` → augmentors are called incrementally during the search loop.
+#### Shared: `query_context` and prompt injection
 
-**lits-chain** (chain pass@N): uses `wire_retrieval_to_policy()` for prompt injection + calls `augmentor.analyze(state, batch=True)` once after each attempt completes.
+`query_context` is a mutable dict created once before the execution loop. It is passed by reference to `wire_retrieval_to_policy()`, which creates a [closure](https://docs.python.org/3/faq/programming.html#why-am-i-getting-an-unboundlocalerror-when-the-variable-has-a-value) — an inner function (`_combined_retrieve`) that captures the dict reference. The execution loop updates the dict's contents before each LLM call; the closure reads the current values when invoked.
+
+This pattern is shared by both `lits-search` and `lits-chain`:
+
+```mermaid
+sequenceDiagram
+    participant EL as Execution Loop
+    participant QC as query_context
+    participant Pol as Policy
+    participant Notes as _get_dynamic_notes
+    participant CR as _combined_retrieve
+    participant Aug as augmentor.retrieve
+    participant Mem as Memory Backend
+
+    Note over EL,QC: Setup (once, before execution loop)
+    EL->>QC: query_context = {}
+    EL->>CR: wire_retrieval_to_policy(policy, augmentors, query_context)
+    Note right of CR: closure captures references to augmentors + query_context
+
+    Note over EL,Mem: Each LLM call (repeated per step)
+    EL->>QC: query_context["trajectory_key"] = "q/1"
+    EL->>Pol: get_actions() or agent.run()
+    Pol->>Pol: set_system_prompt()
+    Pol->>Notes: _get_dynamic_notes()
+    Notes->>CR: _dynamic_notes_fn() = _combined_retrieve()
+    CR->>QC: read trajectory_key, query_idx
+    CR->>Aug: augmentor.retrieve(query_context)
+    Aug->>Mem: search facts/reflections for trajectory "q/1"
+    Mem-->>Aug: matching facts or reflections
+    Aug-->>CR: formatted context string
+    CR-->>Notes: list of context strings
+    Notes-->>Pol: Additional Notes prefix + context
+    Pol->>Pol: sys_prompt = base_prompt + dynamic_notes
+    Note right of Pol: LLM sees augmented system prompt
+```
+
+**What gets injected is NOT `query_context` itself.** `query_context` is a routing parameter — it tells the augmentor *which* trajectory's context to retrieve. The injected content is the **return value of `augmentor.retrieve()`**: formatted text from the memory backend (facts, reflections, etc.).
+
+Complete call chain with code references:
+
+| Step | Code location | What happens |
+|------|--------------|-------------|
+| 1. Update context | `chain.py` attempt loop / `mcts.py` search loop | `query_context["trajectory_key"] = "q/{attempt}"` |
+| 2. Trigger | `base.py::Policy.get_actions()` | Calls `self.set_system_prompt()` |
+| 3. Build prompt | `native_tool_use.py::set_system_prompt()` | `base_prompt = self._build_system_prompt()` |
+| 4. Get notes | `base.py::Policy._get_dynamic_notes()` | Calls `self._dynamic_notes_fn()` → the closure |
+| 5. Retrieve | `augmentor_setup.py::_combined_retrieve()` | Iterates augmentors, calls `aug.retrieve(query_context)` |
+| 6. Search | `fact_memory.py::retrieve()` or `reflection.py::retrieve()` | Uses `query_context["trajectory_key"]` to find relevant content |
+| 7. Format | augmentor's `retrieve()` | Returns formatted string (e.g., `"# Lessons from previous attempts\n- ..."`) |
+| 8. Inject | `base.py::_get_dynamic_notes()` | Wraps with `"\n\nAdditional Notes:\n"` prefix |
+| 9. Set | `native_tool_use.py::set_system_prompt()` | `self.base_model.sys_prompt = base_prompt + dynamic_notes` |
+| 10. Send | `bedrock_chat.py::_converse_api()` | `sys_prompt` sent as Converse API `system` field |
+
+**Keys in `query_context`:**
+
+| Key | Updated by | Read by | Purpose |
+|-----|------------|---------|---------|
+| `trajectory_key` | chain: per-attempt (`q/{attempt}`); search: per-iteration | `FactMemoryAugmentor.retrieve()`, `ReflectionAugmentor.retrieve()` | Current trajectory for cross-trajectory retrieval |
+| `query_idx` | chain: per-attempt; search: per-example | `FactMemoryAugmentor.retrieve()` | Example index → `search_id` construction |
+| `query_or_goals` | chain: per-attempt; search: per-example | `ReflectionAugmentor.retrieve()` | Task question for history-access filtering |
+| `policy_model_name` | search: at setup | `set_storage_context()` | Model name for storage paths |
+| `task_type` | search: at setup | `set_storage_context()` | Task type for storage paths |
+
+#### API functions (`augmentor_setup.py`)
+
+| Function | Used by | What it does |
+|----------|---------|-------------|
+| `wire_retrieval_to_policy(policy, augmentors, query_context)` | both | Registers `_combined_retrieve` closure on policy's dynamic notes |
+| `build_search_callbacks(augmentors, query_context)` | search only | Returns `(on_step_complete, on_trajectory_complete)` callbacks |
+| `setup_augmentors(policy, augmentors, query_context)` | search only | Convenience wrapper: calls both of the above |
+
+#### `lits-search` specifics
+
+Uses `setup_augmentors()` which calls both `wire_retrieval_to_policy` and `build_search_callbacks`. The two callbacks are invoked by the MCTS/BFS loop:
+- `on_step_complete(step, node, query_idx)` — after each child node transition in `_expand()`. Triggers per-step augmentors (FactMemoryAugmentor, CriticAugmentor, SQLValidator).
+- `on_trajectory_complete(path, reward, query_idx)` — after backpropagation. Triggers per-trajectory augmentors (ReflectionAugmentor, SQLErrorProfiler).
+
+`query_context` is updated by the search loop before each iteration (trajectory_key changes as the tree is explored).
+
+#### `lits-chain` specifics
+
+Uses `wire_retrieval_to_policy()` only (no search callbacks). Analysis is done explicitly after each attempt:
+
+```python
+# After attempt completes + verify
+_analyze_trajectory(augmentors, state, example_idx, attempt, run_logger,
+                    reward=attempt_reward, query_or_goals=query)
+```
+
+`query_context` is updated at the start of each attempt (trajectory_key = `q/{attempt}`). Memory is cleared between examples via `_clear_memory()` (FactMemoryAugmentor only).
 
 ### 1. FactMemoryAugmentor
 
