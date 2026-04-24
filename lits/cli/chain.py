@@ -417,11 +417,12 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                 if prepare_tool_state is not None:
                     prepare_tool_state(example)
 
-                # Update query_context for memory retrieval (read by _combined_retrieve)
+                # Update query_context for augmentor retrieval (read by _combined_retrieve)
                 # Uses tree-compatible path: q/{attempt} (attempt as root-level branch)
-                if memory_manager is not None:
+                if augmentors:
                     query_context["trajectory_key"] = f"q/{attempt}"
                     query_context["query_idx"] = example_idx
+                    query_context["query_or_goals"] = query
 
                 # Log attempt context for InferenceLogger (separate from role)
                 log_ctx = {}

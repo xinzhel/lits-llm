@@ -13,6 +13,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `create_augmentors()` — `memory_manager` now optional (reflection-only mode) [T1.1]
 - `_analyze_trajectory()` — accepts `reward` and `query_or_goals` for ReflectionAugmentor [T1.3]
 - Chain augmentor setup: conditional `memory_manager`/`base_model` creation based on augmentor names [T1.2]
+- `query_context` update gated on `if augmentors` instead of `if memory_manager` (works for reflection-only) [T1.4]
+- `query_context["query_or_goals"]` added for ReflectionAugmentor.retrieve() [T1.4]
 
 ### Added
 - `docs/components/context_augmentor/REFLECTION.md` — reward semantics, chain vs search setup
