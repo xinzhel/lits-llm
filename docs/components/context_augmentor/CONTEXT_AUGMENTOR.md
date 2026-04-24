@@ -1,15 +1,25 @@
-# Context Augmentor Framework (formerly Verbal Evaluator)
+# Context Augmentor Framework
 
 ## Overview
 
-The Context Augmentor framework provides LLM-based validation and analysis of generated content (SQL queries, code, etc.) with automatic issue tracking and policy feedback generation.
+The Context Augmentor framework enables LLM agents to **learn from experience** during multi-trajectory reasoning. Each augmentor follows a core cycle:
 
-**Key Features:**
-- Step-level and trajectory-level evaluation
-- Automatic issue tracking to `~/.lits_llm/context_augmentor/`
-- Policy feedback generation from historical issues
-- Unified `evaluate()` interface across all augmentors
-- Simple file-based persistence using `ResultDictToJsonl`
+1. **Analyze** (`analyze()`) — after a step or trajectory completes, extract knowledge from the execution (facts, reflections, error patterns)
+2. **Store** (`store()` / `_buffer`) — persist the extracted knowledge for later use
+3. **Retrieve** (`retrieve()`) — before each LLM call, fetch relevant knowledge and inject it into the policy prompt
+
+This cycle is the same for all augmentors — they differ only in *what* they extract and *how* they store/retrieve:
+
+| Augmentor | What it extracts (analyze) | How it stores | What it injects (retrieve) |
+|-----------|---------------------------|---------------|---------------------------|
+| FactMemoryAugmentor | Atomic facts from observations | Vector-indexed memory backend | Similar facts from prior trajectories |
+| ReflectionAugmentor | Strategy-level summary of failed trajectory | In-memory buffer + jsonl | Recent reflections |
+| CriticAugmentor | LLM advice on current trajectory | In-memory buffer + jsonl | Latest critic |
+| SQLValidator | SQL syntax/semantic issues | jsonl | Historical issues |
+| SQLErrorProfiler | Error patterns across trajectory | jsonl | Error pattern summaries |
+
+All augmentors inherit from the `ContextAugmentor` ABC (`lits/components/context_augmentor/__init__.py`).
+See §3.4 (Persistence and the Augmentor Pipeline) of the paper for the formal pipeline definition.
 
 ## Architecture
 
