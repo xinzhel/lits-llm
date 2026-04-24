@@ -116,6 +116,13 @@ def _build_reflection_message(traj_state, query_or_goals: str, task_type: str,
     Includes the full trajectory and optionally the reward score so the
     LLM knows how badly the attempt failed.
 
+    Note: For NativeReAct agents, ``traj_state[0]`` already contains the
+    task question as a user message (``NativeToolUseStep(user_message=query)``),
+    so ``query_or_goals`` is redundant with Step 1's ``verb_step()`` output.
+    This is harmless (the LLM sees the task description twice) but worth
+    noting. For other agents (e.g., tree search ConcatPolicy), ``traj_state``
+    may not include the user message, so ``query_or_goals`` is necessary.
+
     Args:
         traj_state: Iterable of Step objects.
         query_or_goals: The problem/task being solved.

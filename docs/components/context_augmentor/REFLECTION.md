@@ -81,6 +81,8 @@ The reflection prompt (`reflection.py::_build_reflection_message`) includes:
 - The terminal reward
 - An instruction to summarize what went wrong and suggest improvements
 
+Note: For NativeReAct agents, the task question appears twice in the prompt — once from `query_or_goals` and once from `traj_state[0].verb_step()` (which renders the user message step). This is redundant but harmless. For tree search agents where `traj_state` may not include the user message, `query_or_goals` is necessary.
+
 The LLM generates a free-form reflection that is stored in `_buffer` (in-memory)
 and optionally persisted to jsonl.
 
