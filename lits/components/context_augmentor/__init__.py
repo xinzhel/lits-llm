@@ -75,8 +75,8 @@ class ContextAugmentor(ABC):
         temperature: Sampling temperature for LLM generation.
         max_new_tokens: Maximum tokens to generate.
         flush_threshold: Buffer size that triggers auto-flush to
-            persistent storage. 0 (default) disables auto-flush,
-            which is appropriate for non-buffering augmentors.
+            persistent storage. Default 1 (flush after every analyze).
+            Set to 0 to disable auto-flush, or higher for batched writes.
     """
 
     def __init__(
@@ -86,7 +86,7 @@ class ContextAugmentor(ABC):
         require_chat_model: bool = False,
         temperature: float = 0.0,
         max_new_tokens: int = 500,
-        flush_threshold: int = 0,
+        flush_threshold: int = 1,
         **kwargs,
     ):
         if require_chat_model:

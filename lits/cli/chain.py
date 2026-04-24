@@ -486,6 +486,12 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
 
     run_logger.info(f"ReAct chain complete. Checkpoints saved to {checkpoint_dir}")
 
+    # Flush augmentor buffers to disk (reflections that didn't reach auto-flush threshold)
+    for aug in augmentors:
+        if hasattr(aug, 'flush_buffer'):
+            aug.flush_buffer(policy_model_name=config.policy_model_name or "",
+                             task_type=benchmark_name)
+
     # Generate pass@N summary if n_attempts > 1
     if n_attempts > 1:
         import json as _json

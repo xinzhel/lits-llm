@@ -191,6 +191,7 @@ class ReflectionAugmentor(ContextAugmentor):
         max_reflections: Maximum reflections to inject into prompt.
             Matches LATS default of 3.
         flush_threshold: Buffer size that triggers auto-flush to jsonl.
+            Default 1 (flush after every reflection).
         reward_threshold: Reward below this triggers reflection.
         persist: Persistence mode (True / False / "auto").
         history_access: Set of access levels for retrieve filtering.
@@ -206,7 +207,7 @@ class ReflectionAugmentor(ContextAugmentor):
         task_type: str = "language_grounded",
         reflection_prompt: str = None,
         max_reflections: int = 3,
-        flush_threshold: int = 5,
+        flush_threshold: int = 1,
         reward_threshold: float = 0.3,
         persist=True,
         history_access=None,

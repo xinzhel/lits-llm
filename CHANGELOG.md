@@ -19,6 +19,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Fixed
 - `ReflectionAugmentor.retrieve()` reads `query_idx` from `query_context` (was `query_id`, key mismatch)
 - `VALID_ROLES_PREFIX` — added `augmentor` (ReflectionAugmentor InferenceLogger role was rejected)
+- `flush_threshold` default changed to 1 (was 0 in base, 5 in ReflectionAugmentor) — flush after every analyze
+- Added `flush_buffer()` call at end of chain run (safety net for any remaining buffer entries)
 
 ### Added
 - `docs/components/context_augmentor/REFLECTION.md` — reward semantics, chain vs search setup
