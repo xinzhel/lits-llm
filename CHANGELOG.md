@@ -16,6 +16,10 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `query_context` update gated on `if augmentors` instead of `if memory_manager` (works for reflection-only) [T1.4]
 - `query_context["query_or_goals"]` added for ReflectionAugmentor.retrieve() [T1.4]
 
+### Fixed
+- `ReflectionAugmentor.retrieve()` reads `query_idx` from `query_context` (was `query_id`, key mismatch)
+- `VALID_ROLES_PREFIX` — added `augmentor` (ReflectionAugmentor InferenceLogger role was rejected)
+
 ### Added
 - `docs/components/context_augmentor/REFLECTION.md` — reward semantics, chain vs search setup
 - Augmentor persistence to `result_dir/augmentor/` via `save_dir` in `query_context`

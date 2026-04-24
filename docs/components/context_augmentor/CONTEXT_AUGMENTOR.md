@@ -114,8 +114,13 @@ Note: dynamic notes currently inject into the **policy** system prompt only. The
 `query_context` is a mutable dict created once before the execution loop. It serves two purposes:
 
 1. **Runtime routing** (updated per-attempt/iteration, read by the closure on every LLM call): `trajectory_key`, `query_idx`, `query_or_goals`. These tell augmentors *which* trajectory's context to retrieve.
+   - Set by: `chain.py::_run_tool_use` (per-attempt) / `mcts.py::MCTSSearch.search` (per-iteration)
+   - Read by: `augmentor_setup.py::_combined_retrieve` closure → `augmentor.retrieve(query_context)`
 
 2. **One-time configuration** (set at setup, read once by `set_storage_context`): `policy_model_name`, `task_type`, `save_dir`. These configure where augmentors persist their data. They are consumed during `wire_retrieval_to_policy` and stored on each augmentor instance — not read from `query_context` again afterward.
+   - Set by: `chain.py::_run_tool_use` (at setup) / `mcts.py::MCTSSearch.search` (at setup)
+   - Read by: `augmentor_setup.py::wire_retrieval_to_policy` → `ContextAugmentor.set_storage_context()` (`__init__.py`)
+   - Consumed by: `ContextAugmentor._get_result_saver()` (`__init__.py`) for jsonl persistence path; `ReflectionAugmentor._load_persisted_units()` (`reflection.py`) for loading historical reflections
 
 The dict is passed by reference to `wire_retrieval_to_policy()`, which creates a [closure](https://docs.python.org/3/faq/programming.html#why-am-i-getting-an-unboundlocalerror-when-the-variable-has-a-value) — an inner function (`_combined_retrieve`) that captures the dict reference. The execution loop updates the runtime keys before each LLM call; the closure reads the current values when invoked.
 

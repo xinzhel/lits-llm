@@ -314,7 +314,7 @@ class ReflectionAugmentor(ContextAugmentor):
             return ""
 
         traj_key = query_context.get("trajectory_key")
-        query_id = query_context.get("query_id")
+        query_id = query_context.get("query_idx")
 
         # Collect persisted entries from jsonl
         persisted_units = self._load_persisted_units(query_context)
