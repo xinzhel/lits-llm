@@ -73,13 +73,16 @@ def _analyze_trajectory(
     example_idx: int,
     attempt: int,
     run_logger,
+    reward: float = None,
+    query_or_goals: str = "",
 ):
-    """Extract facts from a completed trajectory via all augmentors.
+    """Extract facts / generate reflections from a completed trajectory.
 
     Calls each augmentor once with the full trajectory and ``batch=True``.
     Per-step augmentors (e.g., FactMemoryAugmentor) use batch mode to
     process all steps in a single LLM call.  Per-trajectory augmentors
-    (e.g., ReflectionAugmentor) ignore the batch kwarg.
+    (e.g., ReflectionAugmentor) use ``reward`` to decide whether to
+    generate a reflection (only for failed trajectories).
 
     Trajectory key format: ``q/{attempt}`` — each attempt is a root-level
     branch in the TrajectoryKey tree.  ``search_id`` is ``q_{example_idx}``.
@@ -90,6 +93,10 @@ def _analyze_trajectory(
         example_idx: Example index.
         attempt: Attempt number within pass@N.
         run_logger: Logger.
+        reward: Terminal reward for this attempt (used by ReflectionAugmentor
+            to decide whether trajectory is "failed").
+        query_or_goals: The task question/instruction (used by ReflectionAugmentor
+            to generate contextual reflections).
     """
     if state is None or len(state) == 0:
         return
@@ -102,6 +109,8 @@ def _analyze_trajectory(
                 trajectory_key=traj_key,
                 query_idx=example_idx,
                 batch=True,
+                reward=reward,
+                query_or_goals=query_or_goals,
             )
         except Exception as e:
             logger.warning(f"  {type(aug).__name__}.analyze() failed: {e}")
@@ -300,7 +309,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
     # with experiment metadata: dataset, import_modules, dataset_kwargs, eval_model, root_dir)
     config.save_config(result_dir)
 
-    # --- Augmentor setup (cross-trajectory fact transfer for pass@N) ---
+    # --- Augmentor setup (cross-trajectory memory / reflection for pass@N) ---
     memory_manager = None
     augmentors = []
     # Mutable query_context dict — updated per-attempt, read by _combined_retrieve
@@ -308,16 +317,39 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
     if memory_kwargs is not None:
         from lits.cli.search import setup_memory_manager, create_augmentors
         from lits.agents.tree.augmentor_setup import wire_retrieval_to_policy
-        # Chain pass@N: skip similarity filtering — return all prior facts
-        memory_kwargs.setdefault("skip_similarity_filtering", "true")
-        memory_manager = setup_memory_manager(run_logger, memory_kwargs)
-        augmentors = create_augmentors(memory_manager, memory_kwargs, run_logger=run_logger)
+
+        augmentor_names = memory_kwargs.get("augmentors", "fact")
+        needs_memory_manager = "fact" in augmentor_names
+        needs_base_model = "reflection" in augmentor_names
+
+        # Layer 1: memory manager (only for fact augmentor)
+        if needs_memory_manager:
+            memory_kwargs.setdefault("skip_similarity_filtering", "true")
+            memory_manager = setup_memory_manager(run_logger, memory_kwargs)
+
+        # Layer 2: base model for reflection (separate LLM instance)
+        augmentor_base_model = None
+        if needs_base_model:
+            model_name = memory_kwargs.get("model", "bedrock/us.anthropic.claude-sonnet-4-6")
+            augmentor_base_model = get_lm(model_name)
+
+        augmentors = create_augmentors(
+            memory_manager=memory_manager,
+            memory_kwargs=memory_kwargs,
+            base_model=augmentor_base_model,
+            run_logger=run_logger,
+        )
         wire_retrieval_to_policy(agent.policy, augmentors, query_context)
 
-        # Wire memory LLM's InferenceLogger to the same result dir as the policy model
-        memory_llm = getattr(memory_manager.backend, '_llm', None)
-        if memory_llm is not None and hasattr(agent.policy.base_model, 'inference_logger'):
-            memory_llm.inference_logger = agent.policy.base_model.inference_logger
+        # Wire InferenceLogger for any augmentor LLMs (memory backend LLM + reflection LLM)
+        policy_logger = getattr(agent.policy.base_model, 'inference_logger', None)
+        if policy_logger is not None:
+            if memory_manager is not None:
+                memory_llm = getattr(memory_manager.backend, '_llm', None)
+                if memory_llm is not None:
+                    memory_llm.inference_logger = policy_logger
+            if augmentor_base_model is not None:
+                augmentor_base_model.inference_logger = policy_logger
 
     # Run agent on dataset
     selected_examples = _slice_dataset(full_dataset, offset, limit)
@@ -416,21 +448,26 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
 
                 # Post-run verification for environment-based benchmarks (e.g., Terminal-Bench).
                 # Must run while the container is still alive (before prepare_tool_state stops it).
+                attempt_reward = None
                 if verify_fn is not None:
                     try:
-                        reward = verify_fn(example)
-                        run_logger.info(f"Verification for {attempt_id}: reward={reward}")
+                        attempt_reward = verify_fn(example)
+                        run_logger.info(f"Verification for {attempt_id}: reward={attempt_reward}")
                         # Save reward alongside checkpoint
                         reward_path = os.path.join(checkpoint_dir, f"{attempt_id}_reward.json")
                         with open(reward_path, "w") as rf:
                             import json as _json
-                            _json.dump({"example_idx": example_idx, "attempt": attempt, "task_id": example.get("task_id", ""), "reward": reward}, rf)
+                            _json.dump({"example_idx": example_idx, "attempt": attempt, "task_id": example.get("task_id", ""), "reward": attempt_reward}, rf)
                     except Exception as ve:
                         run_logger.warning(f"Verification failed for {attempt_id}: {ve}")
 
-                # Extract facts from trajectory via augmentors for next attempt
+                # Extract facts / generate reflections via augmentors for next attempt
                 if augmentors and state is not None:
-                    _analyze_trajectory(augmentors, state, example_idx, attempt, run_logger)
+                    _analyze_trajectory(
+                        augmentors, state, example_idx, attempt, run_logger,
+                        reward=attempt_reward,
+                        query_or_goals=query,
+                    )
 
                 # Save memory snapshot after this attempt (before next attempt adds more facts)
                 if memory_manager is not None:

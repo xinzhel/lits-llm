@@ -141,8 +141,8 @@ def setup_memory_manager(run_logger, memory_kwargs: Dict = None):
 
 
 def create_augmentors(
-    memory_manager: "LiTSMemoryManager",
-    memory_kwargs: Dict,
+    memory_manager: "LiTSMemoryManager" = None,
+    memory_kwargs: Dict = None,
     base_model=None,
     run_logger=None,
 ) -> list:
@@ -161,6 +161,7 @@ def create_augmentors(
 
     Args:
         memory_manager: LiTSMemoryManager instance (from ``setup_memory_manager``).
+            Required for ``fact`` augmentor, optional otherwise.
         memory_kwargs: Dict from ``parse_memory_args()``.  Reads ``augmentors`` key.
         base_model: LLM instance for augmentors that need it (e.g., ReflectionAugmentor).
         run_logger: Logger instance.
@@ -169,6 +170,7 @@ def create_augmentors(
         List of ContextAugmentor instances.
     """
     _logger = run_logger or logger
+    memory_kwargs = memory_kwargs or {}
 
     augmentor_names = memory_kwargs.get("augmentors", "fact")
     names = [n.strip() for n in augmentor_names.split(",")]
@@ -176,6 +178,11 @@ def create_augmentors(
     augmentors = []
     for name in names:
         if name == "fact":
+            if memory_manager is None:
+                raise ValueError(
+                    "FactMemoryAugmentor requires memory_manager but none was provided. "
+                    "Call setup_memory_manager() first or use augmentors=reflection."
+                )
             from lits.components.context_augmentor.fact_memory import FactMemoryAugmentor
             skip_sim = str(memory_kwargs.get("skip_similarity_filtering", "false")).lower() == "true"
             augmentors.append(FactMemoryAugmentor(

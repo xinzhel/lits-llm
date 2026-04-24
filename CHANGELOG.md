@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-24 Unreleased (`0421-minor-terminalbench-memory-exploration/tasks_reflection`)
+
+### Changed
+- `create_augmentors()` — `memory_manager` now optional (reflection-only mode) [T1.1]
+- `_analyze_trajectory()` — accepts `reward` and `query_or_goals` for ReflectionAugmentor [T1.3]
+- Chain augmentor setup: conditional `memory_manager`/`base_model` creation based on augmentor names [T1.2]
+
+### Added
+- `docs/components/context_augmentor/REFLECTION.md` — reward semantics, chain vs search setup
+
 ## 2026-04-23 Unreleased (`0421-minor-terminalbench-memory-exploration`)
 
 ### Fixed

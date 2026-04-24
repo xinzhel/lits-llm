@@ -123,6 +123,8 @@ Augmentors are wired into the execution loop via `augmentor_setup.py`:
 
 **CLI:** `--memory-arg augmentors=fact,reflection`
 
+See [REFLECTION.md](./REFLECTION.md) for detailed documentation including reward semantics, chain vs tree search setup, and code references.
+
 ### 4. SQLValidator
 
 **Purpose:** Step-level validation of individual SQL queries
