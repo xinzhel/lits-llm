@@ -713,6 +713,12 @@ def main() -> int:
     # Log final metrics
     log_final_metrics(run_logger, base_model.inference_logger)
 
+    # Flush augmentor buffers to disk (safety net for any remaining entries)
+    for aug in augmentors:
+        if hasattr(aug, 'flush_buffer'):
+            aug.flush_buffer(policy_model_name=config.policy_model_name or "",
+                             task_type=task_name or "")
+
     # Log diversity report to file
     if llm_calls_path:
         try:
