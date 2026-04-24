@@ -313,7 +313,11 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
     memory_manager = None
     augmentors = []
     # Mutable query_context dict — updated per-attempt, read by _combined_retrieve
-    query_context = {}
+    query_context = {
+        "save_dir": os.path.join(result_dir, "augmentor"),
+        "policy_model_name": config.policy_model_name or "",
+        "task_type": benchmark_name,
+    }
     if memory_kwargs is not None:
         from lits.cli.search import setup_memory_manager, create_augmentors
         from lits.agents.tree.augmentor_setup import wire_retrieval_to_policy

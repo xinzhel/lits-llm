@@ -111,7 +111,13 @@ Note: dynamic notes currently inject into the **policy** system prompt only. The
 
 #### Shared: `query_context` and prompt injection
 
-`query_context` is a mutable dict created once before the execution loop. It is passed by reference to `wire_retrieval_to_policy()`, which creates a [closure](https://docs.python.org/3/faq/programming.html#why-am-i-getting-an-unboundlocalerror-when-the-variable-has-a-value) — an inner function (`_combined_retrieve`) that captures the dict reference. The execution loop updates the dict's contents before each LLM call; the closure reads the current values when invoked.
+`query_context` is a mutable dict created once before the execution loop. It serves two purposes:
+
+1. **Runtime routing** (updated per-attempt/iteration, read by the closure on every LLM call): `trajectory_key`, `query_idx`, `query_or_goals`. These tell augmentors *which* trajectory's context to retrieve.
+
+2. **One-time configuration** (set at setup, read once by `set_storage_context`): `policy_model_name`, `task_type`, `save_dir`. These configure where augmentors persist their data. They are consumed during `wire_retrieval_to_policy` and stored on each augmentor instance — not read from `query_context` again afterward.
+
+The dict is passed by reference to `wire_retrieval_to_policy()`, which creates a [closure](https://docs.python.org/3/faq/programming.html#why-am-i-getting-an-unboundlocalerror-when-the-variable-has-a-value) — an inner function (`_combined_retrieve`) that captures the dict reference. The execution loop updates the runtime keys before each LLM call; the closure reads the current values when invoked.
 
 This pattern is shared by both `lits-search` and `lits-chain`:
 
@@ -171,8 +177,9 @@ Complete call chain with code references:
 | `trajectory_key` | chain: per-attempt (`q/{attempt}`); search: per-iteration | `FactMemoryAugmentor.retrieve()`, `ReflectionAugmentor.retrieve()` | Current trajectory for cross-trajectory retrieval |
 | `query_idx` | chain: per-attempt; search: per-example | `FactMemoryAugmentor.retrieve()` | Example index → `search_id` construction |
 | `query_or_goals` | chain: per-attempt; search: per-example | `ReflectionAugmentor.retrieve()` | Task question for history-access filtering |
-| `policy_model_name` | search: at setup | `set_storage_context()` | Model name for storage paths |
-| `task_type` | search: at setup | `set_storage_context()` | Task type for storage paths |
+| `policy_model_name` | chain: at setup; search: at setup | `set_storage_context()`, `ReflectionAugmentor._load_persisted_units()` | Model name for storage paths and jsonl persistence |
+| `task_type` | chain: at setup (`benchmark_name`); search: at setup | `set_storage_context()`, `ReflectionAugmentor._load_persisted_units()` | Task type for storage paths and jsonl persistence |
+| `save_dir` | chain: at setup (`result_dir/augmentor`); search: not set (uses default `~/.lits_llm/`) | `set_storage_context()` → `_get_result_saver()` | Override persistence directory |
 
 #### API functions (`augmentor_setup.py`)
 

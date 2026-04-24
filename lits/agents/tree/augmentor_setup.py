@@ -82,8 +82,9 @@ def wire_retrieval_to_policy(
     task_type = query_context.get("task_type", "")
 
     # Set storage context on each augmentor
+    save_dir = query_context.get("save_dir")
     for aug in augmentors:
-        aug.set_storage_context(policy_model_name, task_type)
+        aug.set_storage_context(policy_model_name, task_type, save_dir=save_dir)
 
     # Register combined retrieve
     def _combined_retrieve() -> List[str]:

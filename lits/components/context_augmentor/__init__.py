@@ -128,6 +128,7 @@ class ContextAugmentor(ABC):
         self,
         policy_model_name: str,
         task_type: str,
+        save_dir: str = None,
     ) -> None:
         """Set storage parameters used by store() and flush_buffer().
 
@@ -137,9 +138,12 @@ class ContextAugmentor(ABC):
         Args:
             policy_model_name: Model name for result file path.
             task_type: Task type for result file path.
+            save_dir: Directory for persistent storage. If None, defaults
+                to ``~/.lits_llm/context_augmentor/``.
         """
         self._policy_model_name = policy_model_name
         self._task_type = task_type
+        self._save_dir = save_dir
 
     # ------------------------------------------------------------------
     # Abstract: subclasses implement _analyze (was _evaluate)
@@ -452,7 +456,8 @@ class ContextAugmentor(ABC):
         All augmentors for the same (policy_model_name, task_type) share
         one file. The evaluator_type field distinguishes records.
 
-        Uses ~/.lits_llm/context_augmentor/ for persistent storage.
+        Uses ``self._save_dir`` if set (via ``set_storage_context``),
+        otherwise falls back to ``~/.lits_llm/context_augmentor/``.
         """
         from ...eval.results import ResultDictToJsonl
         from ...lm import get_clean_model_name
@@ -460,7 +465,10 @@ class ContextAugmentor(ABC):
         model_name_clean = get_clean_model_name(policy_model_name)
         run_id = f"{model_name_clean}_{task_type}"
 
-        save_dir = Path.home() / ".lits_llm" / "context_augmentor"
+        if getattr(self, '_save_dir', None):
+            save_dir = Path(self._save_dir)
+        else:
+            save_dir = Path.home() / ".lits_llm" / "context_augmentor"
         save_dir.mkdir(parents=True, exist_ok=True)
 
         filepath = str(save_dir / f"resultdicttojsonl_{run_id}.jsonl")

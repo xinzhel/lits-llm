@@ -18,6 +18,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Added
 - `docs/components/context_augmentor/REFLECTION.md` — reward semantics, chain vs search setup
+- Augmentor persistence to `result_dir/augmentor/` via `save_dir` in `query_context`
+- `query_context` now sets `policy_model_name` and `task_type` in chain (enables jsonl persistence)
 
 ## 2026-04-23 Unreleased (`0421-minor-terminalbench-memory-exploration`)
 
