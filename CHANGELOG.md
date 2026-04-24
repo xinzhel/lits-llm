@@ -22,6 +22,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `flush_threshold` default changed to 1 (was 0 in base, 5 in ReflectionAugmentor) — flush after every analyze
 - Added `flush_buffer()` call at end of chain run (safety net for any remaining buffer entries)
 - Added `flush_buffer()` call at end of search run (same safety net)
+- `docs/components/context_augmentor/REFLECTION.md` — added execution.log debugging guide
 
 ### Added
 - `docs/components/context_augmentor/REFLECTION.md` — reward semantics, chain vs search setup

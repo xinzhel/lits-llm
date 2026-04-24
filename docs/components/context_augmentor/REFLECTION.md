@@ -113,3 +113,53 @@ Maximum reflections injected is controlled by `max_reflections` (default 3).
 - [CONTEXT_AUGMENTOR.md](./CONTEXT_AUGMENTOR.md) — augmentor catalog and wiring architecture
 - `reflection.py::_build_reflection_message` — prompt construction
 - `reflection.py::_is_failed_path` — failure threshold logic
+
+
+## Debugging: Verifying Reflection in execution.log
+
+To confirm reflections are being generated, stored, and injected, search `execution.log` for these key entries:
+
+```bash
+grep -n "buffered unit\|flushed buffer\|returned.*chars\|Augmentors.*analyzed" execution.log
+```
+
+### Expected log entries for a 2-attempt run
+
+**1. Attempt 0 — retrieve returns empty (no prior reflections):**
+```
+[INFO] _combined_retrieve: ReflectionAugmentor returned empty for traj_key=q/0
+```
+This repeats for every LLM call during attempt 0. Expected — no reflections exist yet.
+
+**2. Attempt 0 completes — reflection generated and flushed:**
+```
+[DEBUG] ReflectionAugmentor: buffered unit (buffer size: 1)
+[DEBUG] ReflectionAugmentor: flushed buffer
+[INFO]  Augmentors: analyzed attempt 0 (11 steps, 1 augmentors)
+```
+- `buffered unit`: `_analyze()` generated a reflection and appended to `_buffer`
+- `flushed buffer`: `flush_threshold=1` triggered immediate write to jsonl
+- If you see `analyze() failed:` instead, check the error message (common: InferenceLogger role prefix not registered)
+
+**3. Attempt 1 — retrieve returns reflection content:**
+```
+[INFO] _combined_retrieve: ReflectionAugmentor returned 2025 chars for traj_key=q/1
+```
+- `returned N chars`: reflection was successfully retrieved and will be injected into system prompt
+- If this still says `returned empty`, check:
+  - `query_context["query_idx"]` is set (needed for `_filter_by_history_access`)
+  - The reflection's `query_id` matches `query_idx` (both should be the example index)
+  - `history_access` includes `"cross_trajectory"`
+
+**4. System prompt contains reflection (in Converse API params):**
+```
+'system': [{'text': '...Additional Notes:\n["Previous failed attempts and reflections:\n\n[Reflection 1]\n## Diagnosis of Failure\n..."]'}]
+```
+
+### Persisted reflections
+
+After the run, check `{result_dir}/augmentor/resultdicttojsonl_*.jsonl`:
+```bash
+cat result_dir/augmentor/resultdicttojsonl_*.jsonl | python -m json.tool
+```
+Each line is a JSON record with `content` (the reflection text), `trajectory_key`, `query_id`, and metadata.
