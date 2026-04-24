@@ -29,7 +29,7 @@ def _ensure_hf_imports():
     np = _np
     F = _F
 
-VALID_ROLES_PREFIX = ["default", "dynamics", "policy", "evaluator", "prm", "bn_eval", "bn_entropy", "memory"]
+VALID_ROLES_PREFIX = ["default", "dynamics", "policy", "evaluator", "prm", "bn_eval", "bn_entropy", "memory", "augmentor"]
 DETERMINISTIC_TEMPERATURE = 1e-6
 DEFAULT_MAX_LENGTH = 2048
 LOADED_MODEL_CACHE = {}
