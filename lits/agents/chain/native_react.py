@@ -40,7 +40,7 @@ STATUS_MAP = {
 
 
 class _BaseNativeReAct(ChainAgent[ToolUseState]):
-    """Shared checkpoint logic for sync and async NativeReAct."""
+    """Shared checkpoint and step-processing logic for sync and async NativeReAct."""
 
     def _load_or_init_state(
         self,
@@ -64,6 +64,39 @@ class _BaseNativeReAct(ChainAgent[ToolUseState]):
             cp_path.parent.mkdir(parents=True, exist_ok=True)
             state.save(str(cp_path), query)
             logger.debug(f"Checkpoint saved to {cp_path}")
+
+    def _process_steps(
+        self, steps: list, state: ToolUseState, query: str
+    ) -> tuple[ToolUseState, bool]:
+        """Process policy output steps: handle answer, parallel tool calls, or error.
+
+        Handles parallel tool calls by executing all tool calls sequentially
+        via transition. Bedrock Converse API may return multiple toolUse blocks
+        in a single assistant message; all must be executed and their results
+        included in the next user message.
+
+        Args:
+            steps: List of NativeToolUseStep from policy.
+            state: Current ToolUseState.
+            query: User query for transition context.
+
+        Returns:
+            (updated_state, should_break): updated state and whether to stop the loop.
+        """
+        if steps[0].answer:
+            state.append(steps[0])
+            return state, False  # answer appended, loop will check and break
+        elif steps[0].action:
+            for step in steps:
+                if step.action:
+                    new_state, _ = self.transition.step(
+                        state=state, step_or_action=step, query_or_goals=query,
+                    )
+                    state = new_state
+            return state, False
+        else:
+            state.append(NativeToolUseStep(error="No action or answer from LLM"))
+            return state, True
 
 
 class NativeReAct(_BaseNativeReAct):
@@ -166,17 +199,9 @@ class NativeReAct(_BaseNativeReAct):
             )
             if not steps:
                 raise RuntimeError("NativeToolUsePolicy returned no steps.")
-            step = steps[0]
 
-            if step.answer:
-                state.append(step)
-            elif step.action:
-                new_state, _ = self.transition.step(
-                    state=state, step_or_action=step, query_or_goals=query,
-                )
-                state = new_state
-            else:
-                state.append(NativeToolUseStep(error="No action or answer from LLM"))
+            state, should_break = self._process_steps(steps, state, query)
+            if should_break:
                 break
 
             # Per-step checkpoint (crash-safe: resume from last saved step)
@@ -280,20 +305,9 @@ class AsyncNativeReAct(_BaseNativeReAct):
             )
             if not steps:
                 raise RuntimeError("AsyncNativeToolUsePolicy returned no steps.")
-            step = steps[0]
 
-            if step.answer:
-                # Final answer — append and done
-                state.append(step)
-            elif step.action:
-                # Tool call — execute via transition
-                new_state, _ = self.transition.step(
-                    state=state, step_or_action=step, query_or_goals=query,
-                )
-                state = new_state
-            else:
-                # No action or answer — error
-                state.append(NativeToolUseStep(error="No action or answer from LLM"))
+            state, should_break = self._process_steps(steps, state, query)
+            if should_break:
                 break
 
         self._save_state(state, cp_path, query)

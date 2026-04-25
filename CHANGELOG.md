@@ -23,6 +23,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Added `flush_buffer()` call at end of chain run (safety net for any remaining buffer entries)
 - Added `flush_buffer()` call at end of search run (same safety net)
 - `docs/components/context_augmentor/REFLECTION.md` — added execution.log debugging guide
+- `_BaseNativeReAct._process_steps` — shared parallel tool call handling for sync and async NativeReAct
 
 ### Added
 - `docs/components/context_augmentor/REFLECTION.md` — reward semantics, chain vs search setup
