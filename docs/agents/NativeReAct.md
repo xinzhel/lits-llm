@@ -99,6 +99,18 @@ The tool result format is provider-specific (Bedrock: `toolResult` block, OpenAI
 
 The LLM's assistant response in native tool use contains provider-specific blocks (`toolUse` with `toolUseId`, `input`, etc.). Reconstructing this from parsed fields would be fragile and provider-coupled. Instead, `ToolCallOutput.raw_message` is stored as-is in `NativeToolUseStep.assistant_message_dict` and replayed directly in `_build_messages()`. No reconstruction needed.
 
+### Parallel tool calls
+
+The LLM may return multiple `toolUse` blocks in a single assistant message (parallel tool calls). Each iteration of the ReAct loop (`NativeReAct.run`) processes one LLM response through three stages:
+
+1. **Parse** — `_response_to_steps` (`native_tool_use.py`): Creates one `NativeToolUseStep` per tool call. Only the first step carries `assistant_message_dict` (the raw response with all toolUse blocks). Subsequent steps have `assistant_message_dict=None`.
+
+2. **Execute** — `_process_steps` (`native_react.py::_BaseNativeReAct`): Executes all tool calls sequentially via `transition.step()`. Each step gets its `observation` populated.
+
+3. **Rebuild** (next iteration) — `_build_messages` + `_collect_tool_results` (`native_tool_use.py`): Reconstructs the conversation for the next LLM call. The first step's `assistant_message_dict` becomes one assistant message. `_collect_tool_results` groups all tool results (from the first step and subsequent `assistant_message_dict=None` steps) into one user message with multiple `toolResult` blocks.
+
+**`raw_message` is the source of truth** for the assistant message. The `text` field in `ToolCallOutput` (LLM's reasoning before tool calls) is already inside `raw_message["content"]` and does not need a separate field on `NativeToolUseStep`. Step fields (`action`, `tool_use_id`) are convenience extractions for transition execution; `_build_messages` uses only `assistant_message_dict` and `observation`.
+
 ## Usage
 
 ### Via `create_tool_use_agent()` factory (recommended for `lits-chain`)

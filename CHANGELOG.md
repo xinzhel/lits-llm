@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
-## 2026-04-24 Unreleased (`0421-minor-terminalbench-memory-exploration/tasks_reflection`)
+## 2026-04-25 Unreleased (`0421-minor-terminalbench-memory-exploration/tasks_reflection`)
 
 ### Changed
 - `create_augmentors()` — `memory_manager` now optional (reflection-only mode) [T1.1]
@@ -24,6 +24,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Added `flush_buffer()` call at end of search run (same safety net)
 - `docs/components/context_augmentor/REFLECTION.md` — added execution.log debugging guide
 - `_BaseNativeReAct._process_steps` — shared parallel tool call handling for sync and async NativeReAct
+- `_response_to_steps` — only first step carries `assistant_message_dict` for parallel tool calls
 
 ### Added
 - `docs/components/context_augmentor/REFLECTION.md` — reward semantics, chain vs search setup

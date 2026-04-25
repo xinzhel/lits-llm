@@ -57,14 +57,53 @@ def _tools_to_schemas(tools) -> list[dict]:
 
 
 def _response_to_steps(response) -> list[NativeToolUseStep]:
-    """Convert LLM response to NativeToolUseStep list (shared by sync and async)."""
+    """Convert LLM response to NativeToolUseStep list (shared by sync and async).
+
+    Args:
+        response: ``ToolCallOutput`` (tool calls) or ``Output`` (final answer)
+            from ``BedrockChatModel.__call__``.
+
+            For tool calls, ``response`` has:
+            - ``tool_calls``: list of ``ToolCall(id, name, input_args)``
+            - ``raw_message``: the raw Converse API assistant message dict
+              containing all toolUse blocks
+
+            For final answer, ``response`` has:
+            - ``text``: the answer string
+
+    Returns:
+        List of NativeToolUseStep. For parallel tool calls (N > 1), only the
+        first step carries ``assistant_message_dict`` (the raw response with
+        all toolUse blocks). Subsequent steps have ``assistant_message_dict=None``
+        so that ``_build_messages`` groups them correctly into one assistant
+        message + one user message with all toolResults.
+
+    Example (parallel tool calls)::
+
+        response = ToolCallOutput(
+            text="I'll run two commands",
+            tool_calls=[
+                ToolCall(id="tc_1", name="shell", input_args={"command": "ls /app"}),
+                ToolCall(id="tc_2", name="shell", input_args={"command": "cat /app/README"}),
+            ],
+            stop_reason="tool_use",
+            raw_message={"role": "assistant", "content": [
+                {"text": "I'll run two commands"},
+                {"toolUse": {"toolUseId": "tc_1", "name": "shell", "input": {"command": "ls /app"}}},
+                {"toolUse": {"toolUseId": "tc_2", "name": "shell", "input": {"command": "cat /app/README"}}},
+            ]},
+        )
+        steps = _response_to_steps(response)
+        # steps[0]: assistant_message_dict=raw_message, tool_use_id="tc_1"
+        # steps[1]: assistant_message_dict=None,        tool_use_id="tc_2"
+    """
     if isinstance(response, ToolCallOutput) and response.tool_calls:
         steps = []
-        for tc in response.tool_calls:
+        for i, tc in enumerate(response.tool_calls):
             action_str = json.dumps({"action": tc.name, "action_input": tc.input_args})
             steps.append(NativeToolUseStep(
                 action=ToolUseAction(action_str),
-                assistant_message_dict=response.raw_message,
+                assistant_message_dict=response.raw_message if i == 0 else None,
                 tool_use_id=tc.id,
             ))
         logger.debug("NativeToolUsePolicy: %d tool call(s)", len(steps))
