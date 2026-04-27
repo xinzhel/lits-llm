@@ -12,6 +12,11 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Changed
 - `reflection.py::_build_reflection_message` — neutral prompt language when `reward=None` (no verifier)
 - `reflection.py::retrieve()` — header changed to "Reflections from previous attempts:" (neutral)
+- `eval_search.py` — pass@N checkpoint detection and evaluation (auto-detects `{idx}_a{attempt}.json` files, outputs `pass_at_n_summary.json`)
+
+### Fixed
+- `AgentBench/sparql_executer.py` — replaced `exit(0)` on URLError with `raise RuntimeError` (11 occurrences)
+- `react.py` — `%d` → `%s` format for `query_idx` logging (pass@N sends string like "0_a0")
 
 ### Added
 - `docs/components/context_augmentor/REFLECTION.md` — `verify_fn` design rationale (environment feedback vs gold answer comparison)

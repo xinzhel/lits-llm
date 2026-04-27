@@ -150,7 +150,7 @@ class ReActChat(ChainAgent[ToolUseState]):
         Returns:
             ToolUseState: Final state containing the trajectory of steps
         """
-        logger.info("Starting ReAct evaluation for example index %d", query_idx)
+        logger.info("Starting ReAct evaluation for example index %s", query_idx)
         checkpoint_path = self.get_checkpoint_path(checkpoint_dir, query_idx, checkpoint_path)
             
         state = None

@@ -113,6 +113,124 @@ def is_env_grounded_task(dataset_name: str) -> bool:
     return dataset_name.lower() in [b.lower() for b in env_grounded_benchmarks]
 
 
+def _evaluate_pass_at_n(
+    pass_at_n_groups: dict,
+    n_attempts: int,
+    full_dataset: list,
+    dataset_name: str,
+    result_dir: "Path",
+    checkpoints_dir: "Path",
+    eval_logger,
+    offset: int = 0,
+    end_idx: int = None,
+) -> dict:
+    """Evaluate pass@N chain checkpoints and produce pass_at_n_summary.json.
+
+    Reads checkpoint files named ``{idx}_a{attempt}.json``, evaluates each
+    attempt against the dataset's ground truth using the registered evaluator,
+    and outputs a summary with per-example scores and aggregate pass@1/pass@N.
+
+    Args:
+        pass_at_n_groups: Dict mapping example_idx → list of (attempt, filepath).
+        n_attempts: Maximum number of attempts per example.
+        full_dataset: Loaded dataset (for ground truth lookup by index).
+        dataset_name: Dataset name (for evaluator lookup).
+        result_dir: Result directory Path (for logging).
+        checkpoints_dir: Checkpoints directory Path (for saving summary).
+        eval_logger: Logger instance.
+        offset: Dataset offset filter.
+        end_idx: Dataset end index filter (None = no limit).
+
+    Returns:
+        Summary dict (same format as chain.py's pass_at_n_summary.json).
+    """
+    from lits.structures.tool_use import ToolUseState
+
+    custom_evaluator = get_evaluator(dataset_name) if has_evaluator(dataset_name) else None
+    if custom_evaluator:
+        eval_logger.info(f"Using registered evaluator for '{dataset_name}' (pass@N mode)")
+
+    # Filter groups by offset/limit
+    filtered_groups = {
+        idx: attempts for idx, attempts in pass_at_n_groups.items()
+        if idx >= offset and (end_idx is None or idx < end_idx)
+    }
+
+    summary = {"n_attempts": n_attempts, "examples": [], "temperature": None}
+    n_pass_1 = 0
+    n_pass_n = 0
+
+    for example_idx in sorted(filtered_groups.keys()):
+        attempts_list = filtered_groups[example_idx]
+        ground_truth = full_dataset[example_idx]['answer']
+        scores = []
+
+        for attempt_num, filepath in attempts_list:
+            try:
+                query, state = ToolUseState.load(str(filepath))
+                answer_pred = state.get_final_answer() or ""
+
+                if custom_evaluator:
+                    result = custom_evaluator(answer_pred, ground_truth)
+                    score = float(result) if isinstance(result, (int, float)) else (1.0 if result else 0.0)
+                else:
+                    score = 1.0 if answer_pred == str(ground_truth) else 0.0
+
+                scores.append(score)
+                eval_logger.debug(
+                    f"  [{example_idx}_a{attempt_num}] Pred='{answer_pred[:80]}', "
+                    f"Score={score}"
+                )
+            except Exception as e:
+                eval_logger.warning(f"  [{example_idx}_a{attempt_num}] Error: {e}")
+                scores.append(0.0)
+
+        p1 = scores[0] == 1.0 if scores else False
+        pn = any(s == 1.0 for s in scores)
+        if p1:
+            n_pass_1 += 1
+        if pn:
+            n_pass_n += 1
+
+        summary["examples"].append({
+            "idx": example_idx,
+            "attempts": scores,
+            "pass_at_1": p1,
+            "pass_at_n": pn,
+        })
+
+    total = len(filtered_groups)
+    summary["pass_at_1"] = n_pass_1 / total if total else 0
+    summary["pass_at_n"] = n_pass_n / total if total else 0
+
+    # Save pass_at_n_summary.json
+    summary_path = checkpoints_dir / "pass_at_n_summary.json"
+    with open(summary_path, "w") as sf:
+        json.dump(summary, sf, indent=2)
+
+    # Print and log results
+    eval_logger.info("=" * 60)
+    eval_logger.info(f"Pass@N Evaluation Results: {result_dir.name}")
+    eval_logger.info(f"Dataset: {dataset_name}, Examples: {total}, Attempts: {n_attempts}")
+    eval_logger.info(f"pass@1: {summary['pass_at_1']:.1%} ({n_pass_1}/{total})")
+    eval_logger.info(f"pass@{n_attempts}: {summary['pass_at_n']:.1%} ({n_pass_n}/{total})")
+    eval_logger.info(f"Summary saved to {summary_path}")
+    eval_logger.info("=" * 60)
+
+    print()
+    print("=" * 60)
+    print(f"  Pass@N Evaluation: {result_dir.name}")
+    print("=" * 60)
+    print(f"  Dataset:    {dataset_name}")
+    print(f"  Examples:   {total}")
+    print(f"  Attempts:   {n_attempts}")
+    print(f"  pass@1:     {summary['pass_at_1']:.1%} ({n_pass_1}/{total})")
+    print(f"  pass@{n_attempts}:     {summary['pass_at_n']:.1%} ({n_pass_n}/{total})")
+    print("=" * 60)
+
+    return summary
+
+
 def evaluate_from_checkpoints(
     result_dir: str,
     dataset_name: str,
@@ -216,6 +334,7 @@ def evaluate_from_checkpoints(
     terminal_nodes_dir = result_dir / "terminal_nodes"
     checkpoints_dir = result_dir / "checkpoints"
     use_chain_checkpoints = False
+    is_pass_at_n = False
 
     if terminal_nodes_dir.exists():
         terminal_node_files = sorted(terminal_nodes_dir.glob("terminal_nodes_*.json"),
@@ -225,14 +344,51 @@ def evaluate_from_checkpoints(
             return
         eval_logger.info(f"Found {len(terminal_node_files)} terminal node files")
     elif checkpoints_dir.exists():
-        # Chain agent checkpoints: {idx}.json containing serialized TrajectoryState
-        terminal_node_files = sorted(checkpoints_dir.glob("*.json"),
-                                     key=lambda f: int(f.stem) if f.stem.isdigit() else float('inf'))
-        if not terminal_node_files:
+        # Chain agent checkpoints: {idx}.json or {idx}_a{attempt}.json (pass@N)
+        all_checkpoint_files = sorted(
+            [f for f in checkpoints_dir.glob("*.json")
+             if f.stem != "pass_at_n_summary"],
+            key=lambda f: f.stem
+        )
+        if not all_checkpoint_files:
             eval_logger.error(f"No checkpoint files found in {checkpoints_dir}")
             return
-        use_chain_checkpoints = True
-        eval_logger.info(f"Found {len(terminal_node_files)} chain checkpoint files")
+
+        # Detect pass@N: files matching {idx}_a{attempt}.json pattern
+        import re
+        pass_at_n_pattern = re.compile(r'^(\d+)_a(\d+)$')
+        pass_at_n_files = [f for f in all_checkpoint_files if pass_at_n_pattern.match(f.stem)]
+
+        if pass_at_n_files:
+            # Pass@N mode: group by example idx
+            use_chain_checkpoints = True
+            is_pass_at_n = True
+            # Group files: {example_idx: [file_a0, file_a1, ...]}
+            from collections import defaultdict
+            pass_at_n_groups = defaultdict(list)
+            for f in pass_at_n_files:
+                m = pass_at_n_pattern.match(f.stem)
+                example_idx = int(m.group(1))
+                attempt = int(m.group(2))
+                pass_at_n_groups[example_idx].append((attempt, f))
+            # Sort attempts within each group
+            for idx in pass_at_n_groups:
+                pass_at_n_groups[idx].sort(key=lambda x: x[0])
+            terminal_node_files = pass_at_n_files  # For filtering logic below
+            n_attempts = max(len(v) for v in pass_at_n_groups.values())
+            eval_logger.info(
+                f"Found {len(pass_at_n_files)} pass@N checkpoint files "
+                f"({len(pass_at_n_groups)} examples, up to {n_attempts} attempts each)"
+            )
+        else:
+            # Single-attempt mode: {idx}.json
+            use_chain_checkpoints = True
+            is_pass_at_n = False
+            terminal_node_files = sorted(
+                all_checkpoint_files,
+                key=lambda f: int(f.stem) if f.stem.isdigit() else float('inf')
+            )
+            eval_logger.info(f"Found {len(terminal_node_files)} chain checkpoint files")
     else:
         eval_logger.error(f"Neither terminal_nodes/ nor checkpoints/ found in {result_dir}")
         return
@@ -259,6 +415,20 @@ def evaluate_from_checkpoints(
     
     filtered_files = [f for f in terminal_node_files if should_include_file(f)]
     eval_logger.info(f"Processing {len(filtered_files)} files (offset={offset}, limit={limit})")
+
+    # --- Pass@N evaluation path (short-circuits the normal eval loop) ---
+    if is_pass_at_n:
+        return _evaluate_pass_at_n(
+            pass_at_n_groups=pass_at_n_groups,
+            n_attempts=n_attempts,
+            full_dataset=full_dataset,
+            dataset_name=dataset_name,
+            result_dir=result_dir,
+            checkpoints_dir=checkpoints_dir,
+            eval_logger=eval_logger,
+            offset=offset,
+            end_idx=end_idx,
+        )
     
     # Process each file and extract answers
     predictions = []
