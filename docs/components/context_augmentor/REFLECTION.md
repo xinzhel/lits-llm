@@ -52,6 +52,36 @@ This is a reasonable default — better to reflect unnecessarily on a successful
 than to miss reflecting on a failed one. Benchmarks can opt into inline verification
 by returning a `"verify"` callback from `load_resource()` (see Terminal-Bench for an example).
 
+#### Neutral vs failure-assuming prompt language
+
+When `reward=None`, the reflection prompt uses **neutral language** ("Previous attempt:",
+"Analyze this attempt. If it appears incorrect...") instead of assuming failure
+("Failed trajectory:", "Diagnose the failure..."). This avoids misleading the reflection
+LLM when the attempt may have actually succeeded — the LLM judges quality itself from
+the trajectory content.
+
+When `reward` is a confirmed low value (< threshold), the prompt uses explicit failure
+language to focus the LLM on diagnosing what went wrong.
+
+#### `verify_fn` design: environment feedback vs gold answer comparison
+
+A `verify_fn` should provide **environment feedback** (pass/fail from an independent test
+oracle), NOT gold answer comparison. The distinction:
+
+| Type | Example | Leaks gold? | Practical? |
+|------|---------|-------------|------------|
+| Environment feedback | Terminal-Bench: run `test.sh` in container → 0/1 | No | Yes — agent sees pass/fail but not the test logic or expected output |
+| Gold answer comparison | KGQA: `evaluate_kgqa(predicted, gold)` → F1 | Yes | No — requires ground truth at inference time |
+
+Terminal-Bench's `verify_fn` is legitimate because:
+- The test suite is an independent oracle (like CI/CD)
+- The agent never sees test.sh content or expected outputs
+- It only learns "your solution passed/failed" — same signal a developer gets from CI
+
+KGQA and DBBench do NOT have `verify_fn` because their only evaluation method is
+comparing against gold answers, which would leak ground truth to the agent. For these
+benchmarks, `reward=None` and the neutral prompt framing is the correct approach.
+
 ### In `lits-search` (tree search: MCTS, BFS)
 
 Reward comes from the LLM reward model, passed via the `on_trajectory_complete` callback
@@ -91,7 +121,7 @@ and optionally persisted to jsonl.
 `retrieve()` returns recent reflections formatted as:
 
 ```
-Previous failed attempts and reflections:
+Reflections from previous attempts:
 
 [Reflection 1]
 The approach of using apt-get failed because the package is not in the

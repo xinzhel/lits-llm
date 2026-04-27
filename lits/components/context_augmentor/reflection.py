@@ -116,6 +116,12 @@ def _build_reflection_message(traj_state, query_or_goals: str, task_type: str,
     Includes the full trajectory and optionally the reward score so the
     LLM knows how badly the attempt failed.
 
+    When ``reward`` is None (no inline verifier available), uses neutral
+    language ("Previous attempt") instead of assuming failure ("Failed
+    trajectory"). This avoids misleading the reflection LLM when the
+    attempt may have actually succeeded — the LLM judges quality itself
+    from the trajectory content.
+
     Note: For NativeReAct agents, ``traj_state[0]`` already contains the
     task question as a user message (``NativeToolUseStep(user_message=query)``),
     so ``query_or_goals`` is redundant with Step 1's ``verb_step()`` output.
@@ -127,14 +133,19 @@ def _build_reflection_message(traj_state, query_or_goals: str, task_type: str,
         traj_state: Iterable of Step objects.
         query_or_goals: The problem/task being solved.
         task_type: "language_grounded" or "tool_use".
-        reward: Terminal reward (if available).
+        reward: Terminal reward (if available). None means no verifier.
 
     Returns:
         Formatted user message string.
     """
+    # When reward is None, we don't know if the attempt failed — use neutral framing
+    is_confirmed_failure = reward is not None and reward < 0.3
+    traj_label = "Failed trajectory:" if is_confirmed_failure else "Previous attempt:"
+    attempt_label = "Failed attempt:" if is_confirmed_failure else "Previous attempt:"
+
     if task_type == "tool_use":
         parts = [f"Task: {query_or_goals}\n"]
-        parts.append("Failed trajectory:")
+        parts.append(traj_label)
         for idx, step in enumerate(traj_state):
             parts.append(f"--- Step {idx + 1} ---")
             if hasattr(step, "verb_step"):
@@ -143,7 +154,7 @@ def _build_reflection_message(traj_state, query_or_goals: str, task_type: str,
                 parts.append(str(step))
     else:
         parts = [f"Question: {query_or_goals}\n"]
-        parts.append("Failed attempt:")
+        parts.append(attempt_label)
         for idx, step in enumerate(traj_state):
             action_text = step.action if hasattr(step, "action") else str(step)
             parts.append(f"Step {idx + 1}: {action_text}")
@@ -151,7 +162,14 @@ def _build_reflection_message(traj_state, query_or_goals: str, task_type: str,
     if reward is not None:
         parts.append(f"\nReward score: {reward}")
 
-    parts.append("\nDiagnose the failure and suggest a better approach.")
+    if is_confirmed_failure:
+        parts.append("\nDiagnose the failure and suggest a better approach.")
+    else:
+        parts.append(
+            "\nAnalyze this attempt. If it appears incorrect or suboptimal, "
+            "diagnose the likely issues and suggest improvements. If it appears "
+            "correct, briefly note what worked well."
+        )
     return "\n".join(parts)
 
 
@@ -337,7 +355,7 @@ class ReflectionAugmentor(ContextAugmentor):
         if not recent:
             return ""
 
-        parts = ["Previous failed attempts and reflections:\n"]
+        parts = ["Reflections from previous attempts:\n"]
         for i, unit in enumerate(recent, 1):
             parts.append(f"[Reflection {i}]\n{unit.content}")
         return "\n\n".join(parts)

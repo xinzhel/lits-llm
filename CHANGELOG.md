@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-27 Unreleased (`0302-agentbench-integration/tasks_kg_reflection`)
+
+### Changed
+- `reflection.py::_build_reflection_message` — neutral prompt language when `reward=None` (no verifier)
+- `reflection.py::retrieve()` — header changed to "Reflections from previous attempts:" (neutral)
+
+### Added
+- `docs/components/context_augmentor/REFLECTION.md` — `verify_fn` design rationale (environment feedback vs gold answer comparison)
+- `run_experiments_kgqa.sh` — Exp #6 (independent traj + reflection) and #7 (beam search + reflection) commands
+- `.kiro/specs/lits_mem/0302-agentbench-integration/tasks_kg_reflection.md`
+- `.kiro/specs/lits_mem/0302-agentbench-integration/tasks_dbbench_reflection.md`
+
 ## 2026-04-25 Unreleased (`0421-minor-terminalbench-memory-exploration/tasks_reflection`)
 
 ### Changed
