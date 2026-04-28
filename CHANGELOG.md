@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-04-28 Unreleased (`0302-agentbench-integration/tasks_kg_reflection`)
+
+### Fixed
+- `chain.py` — resume logic: when no `verify_fn`, checkpoint existence = complete (was re-running no-answer completions)
+
 ## 2026-04-27 Unreleased (`0302-agentbench-integration/tasks_kg_reflection`)
 
 ### Changed
