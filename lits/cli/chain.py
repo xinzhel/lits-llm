@@ -401,22 +401,16 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                         run_logger.info(f"  Skipping {attempt_id} (completed)")
                         continue
 
-                    # Partially complete: checkpoint has answer but no reward
+                    # Checkpoint exists but no reward file
                     if os.path.exists(cp_file):
-                        try:
-                            with open(cp_file) as _f:
-                                cp_data = json.load(_f)
-                            has_answer = any(s.get("answer") for s in cp_data.get("steps", []))
-                        except (json.JSONDecodeError, KeyError):
-                            has_answer = False
-
-                        if has_answer and verify_fn is None:
-                            # No verify needed, answer = complete
+                        if verify_fn is None:
+                            # No verifier → checkpoint existence = complete
+                            # (agent may have hit max_steps without answer — that's a valid outcome)
                             run_logger.info(f"  Skipping {attempt_id} (completed, no verify)")
                             continue
-                        if has_answer and verify_fn is not None:
-                            # Has answer but verify didn't run — need to re-run
-                            run_logger.info(f"  Re-running {attempt_id} (answer exists but verify missing)")
+                        # Has verifier but no reward → re-run entire attempt
+                        # (verify needs live container, so we re-run agent + verify)
+                        run_logger.info(f"  Re-running {attempt_id} (verify incomplete)")
 
                 if prepare_tool_state is not None:
                     prepare_tool_state(example)
