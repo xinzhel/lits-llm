@@ -36,6 +36,11 @@ from lits.log import setup_logging
 from lits.structures import ToolUseState, ToolUseStep  # Import to register types
 from lits.structures.env_grounded import EnvState, EnvStep  # Import to register types
 
+try:
+    import botocore.exceptions
+except ImportError:
+    botocore = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 
@@ -113,122 +118,199 @@ def is_env_grounded_task(dataset_name: str) -> bool:
     return dataset_name.lower() in [b.lower() for b in env_grounded_benchmarks]
 
 
-def _evaluate_pass_at_n(
-    pass_at_n_groups: dict,
-    n_attempts: int,
-    full_dataset: list,
-    dataset_name: str,
-    result_dir: "Path",
-    checkpoints_dir: "Path",
-    eval_logger,
-    offset: int = 0,
-    end_idx: int = None,
-) -> dict:
-    """Evaluate pass@N chain checkpoints and produce pass_at_n_summary.json.
-
-    Reads checkpoint files named ``{idx}_a{attempt}.json``, evaluates each
-    attempt against the dataset's ground truth using the registered evaluator,
-    and outputs a summary with per-example scores and aggregate pass@1/pass@N.
-
-    Args:
-        pass_at_n_groups: Dict mapping example_idx → list of (attempt, filepath).
-        n_attempts: Maximum number of attempts per example.
-        full_dataset: Loaded dataset (for ground truth lookup by index).
-        dataset_name: Dataset name (for evaluator lookup).
-        result_dir: Result directory Path (for logging).
-        checkpoints_dir: Checkpoints directory Path (for saving summary).
-        eval_logger: Logger instance.
-        offset: Dataset offset filter.
-        end_idx: Dataset end index filter (None = no limit).
+def _discover_checkpoint_files(checkpoints_dir: Path) -> tuple:
+    """Scan a checkpoints directory and classify its contents.
 
     Returns:
-        Summary dict (same format as chain.py's pass_at_n_summary.json).
+        ``(files, is_pass_at_n, n_attempts)`` where *files* is a sorted
+        list of ``Path`` objects (only recognized checkpoint patterns),
+        *is_pass_at_n* is ``True`` when ``{idx}_a{attempt}.json`` files
+        are present, and *n_attempts* is the max attempt count (1 for
+        single-attempt runs).
     """
-    from lits.structures.tool_use import ToolUseState
+    all_json = sorted(checkpoints_dir.glob("*.json"), key=lambda f: f.stem)
+    files = []
+    max_attempt = -1
+    for f in all_json:
+        try:
+            _idx, attempt = _parse_checkpoint_filename(f)
+        except ValueError:
+            continue  # e.g. "pass_at_n_summary.json", "3_a2_incomplete.json"
+        files.append(f)
+        if attempt is not None and attempt > max_attempt:
+            max_attempt = attempt
 
-    custom_evaluator = get_evaluator(dataset_name) if has_evaluator(dataset_name) else None
+    is_pass_at_n = max_attempt >= 0
+    n_attempts = (max_attempt + 1) if is_pass_at_n else 1  # attempts are 0-indexed
+    return files, is_pass_at_n, n_attempts
+
+
+def _parse_checkpoint_filename(filepath: Path) -> tuple:
+    """Extract ``(query_idx, attempt)`` from a checkpoint filename.
+
+    Returns:
+        ``(query_idx: int, attempt: int | None)``.
+
+    Raises:
+        ``ValueError`` if the filename doesn't match any known pattern.
+
+    Supported patterns::
+
+        "3_a2.json"             → (3, 2)   pass@N checkpoint
+        "3.json"                → (3, None) single-attempt chain checkpoint
+        "terminal_nodes_3.json" → (3, None) tree search result
+    """
+    import re
+    filename = filepath.stem
+    # "3_a2" → pass@N checkpoint, example idx = 3, attempt = 2
+    m = re.match(r'^(\d+)_a(\d+)$', filename)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    # "3" → single-attempt chain checkpoint, example idx = 3
+    if re.match(r'^\d+$', filename):
+        return int(filename), None
+    # "terminal_nodes_3" → tree search result, example idx = 3
+    m = re.match(r'^terminal_nodes_(\d+)$', filename)
+    if m:
+        return int(m.group(1)), None
+    raise ValueError(f"Unrecognized checkpoint filename: {filepath.name}")
+
+
+def _should_include_file(filepath: Path, offset: int, end_idx: int = None) -> bool:
+    """Check if a checkpoint file's example index falls within ``[offset, end_idx)``.
+
+    Only includes files matching known checkpoint patterns (see
+    ``_parse_checkpoint_filename``). Files with extra suffixes
+    (e.g. ``1_a2_incomplete.json``) are excluded.
+    """
+    try:
+        idx, _attempt = _parse_checkpoint_filename(filepath)
+    except ValueError:
+        return False
+    if idx < offset:
+        return False
+    if end_idx is not None and idx >= end_idx:
+        return False
+    return True
+
+
+def _check_answer(pred: str, truth, custom_evaluator=None, llm_evaluator=None,
+                  llm_eval_mode: str = "binary",
+                  eval_logger=None, label: str = "") -> tuple:
+    """Evaluate a single predicted answer against ground truth.
+
+    Tries evaluators in priority order:
+    1. ``custom_evaluator`` (dataset-specific, e.g. dbbench float tolerance)
+    2. ``llm_evaluator`` fallback (LLM-as-judge for verbose answers)
+    3. Exact string match
+
+    Args:
+        pred: Predicted answer string.
+        truth: Ground truth (any type — converted to str for fallback).
+        custom_evaluator: Registered evaluator function, or *None*.
+        llm_evaluator: ``GeneralEvaluator`` instance, or *None*.
+        llm_eval_mode: ``"binary"`` (yes/no) or ``"f1"`` (float score).
+        eval_logger: Logger for debug messages (optional).
+        label: Human-readable label for log lines (e.g. ``"[3_a2]"``).
+
+    Returns:
+        ``(correct, score)`` where *correct* is bool and *score* is
+        ``Optional[float]`` (non-None when the evaluator returns a
+        continuous score, e.g. F1 mode or a float-returning custom
+        evaluator).
+    """
+    score = None
+
     if custom_evaluator:
-        eval_logger.info(f"Using registered evaluator for '{dataset_name}' (pass@N mode)")
+        try:
+            result = custom_evaluator(pred, truth)
+            if isinstance(result, float):
+                score = result
+                correct = (result == 1.0)
+            else:
+                correct = bool(result)
+        except Exception as e:
+            correct = False
+            if eval_logger:
+                eval_logger.debug(f"  {label} custom evaluator failed: {e}")
+        if not correct and llm_evaluator:
+            correct, score = _llm_judge(llm_evaluator, llm_eval_mode, pred, truth, score)
+            if eval_logger:
+                eval_logger.debug(f"  {label} LLM fallback: correct={correct}, score={score}")
+        return correct, score
 
-    # Filter groups by offset/limit
-    filtered_groups = {
-        idx: attempts for idx, attempts in pass_at_n_groups.items()
-        if idx >= offset and (end_idx is None or idx < end_idx)
-    }
+    if llm_evaluator:
+        correct, score = _llm_judge(llm_evaluator, llm_eval_mode, pred, truth, score)
+        if eval_logger:
+            eval_logger.debug(f"  {label} LLM evaluator: correct={correct}, score={score}")
+        return correct, score
 
-    summary = {"n_attempts": n_attempts, "examples": [], "temperature": None}
-    n_pass_1 = 0
-    n_pass_n = 0
+    return (pred == str(truth)), None
 
-    for example_idx in sorted(filtered_groups.keys()):
-        attempts_list = filtered_groups[example_idx]
-        ground_truth = full_dataset[example_idx]['answer']
-        scores = []
 
-        for attempt_num, filepath in attempts_list:
-            try:
-                query, state = ToolUseState.load(str(filepath))
-                answer_pred = state.get_final_answer() or ""
+def _llm_judge(llm_evaluator, llm_eval_mode, pred, truth, prior_score=None):
+    """Run LLM evaluator. Returns ``(correct, score)``."""
+    if llm_eval_mode == "f1":
+        llm_score = llm_evaluator.check_score(pred, truth)
+        final = max(prior_score, llm_score) if prior_score is not None else llm_score
+        return (final == 1.0), final
+    else:
+        return llm_evaluator.check_correct(pred, truth), prior_score
 
-                if custom_evaluator:
-                    result = custom_evaluator(answer_pred, ground_truth)
-                    score = float(result) if isinstance(result, (int, float)) else (1.0 if result else 0.0)
-                else:
-                    score = 1.0 if answer_pred == str(ground_truth) else 0.0
 
-                scores.append(score)
-                eval_logger.debug(
-                    f"  [{example_idx}_a{attempt_num}] Pred='{answer_pred[:80]}', "
-                    f"Score={score}"
-                )
-            except Exception as e:
-                eval_logger.warning(f"  [{example_idx}_a{attempt_num}] Error: {e}")
-                scores.append(0.0)
+def _create_llm_evaluator(base_model, llm_eval_mode: str, eval_logger):
+    """Create an LLM-based evaluator if mode is not ``"none"``.
 
-        p1 = scores[0] == 1.0 if scores else False
-        pn = any(s == 1.0 for s in scores)
-        if p1:
-            n_pass_1 += 1
-        if pn:
-            n_pass_n += 1
+    Returns:
+        A ``GeneralEvaluator`` instance, or *None*.
+    """
+    if llm_eval_mode == "none":
+        return None
+    from lits.eval.general_eval import GeneralEvaluator
+    if llm_eval_mode == "f1":
+        evaluator = GeneralEvaluator(
+            base_model=base_model,
+            eval_perspectives=[{
+                "eval_id": "score",
+                "output_type": "float",
+                "description": (
+                    "Compute the F1 score between the predicted and ground truth answer sets. "
+                    "F1 = 2 * precision * recall / (precision + recall), where "
+                    "precision = (correct predictions) / (total predictions), "
+                    "recall = (correct predictions) / (total ground truth elements). "
+                    "Output 0.0 if no overlap, 1.0 if exact match. "
+                    "Penalize both missing elements (low recall) and extra wrong elements (low precision)."
+                ),
+            }],
+        )
+        eval_logger.info("LLM-based F1 score evaluator enabled")
+    else:
+        evaluator = GeneralEvaluator(
+            base_model=base_model,
+            eval_perspectives=[{
+                "eval_id": "correct",
+                "description": (
+                    "Does the predicted answer contain the correct value? "
+                    "Ignore formatting differences, extra explanation, or markdown. "
+                    "Focus only on whether the core answer value matches."
+                ),
+                "options": ["yes", "no"],
+            }],
+        )
+        eval_logger.info("LLM-based binary evaluator enabled")
+    return evaluator
 
-        summary["examples"].append({
-            "idx": example_idx,
-            "attempts": scores,
-            "pass_at_1": p1,
-            "pass_at_n": pn,
-        })
 
-    total = len(filtered_groups)
-    summary["pass_at_1"] = n_pass_1 / total if total else 0
-    summary["pass_at_n"] = n_pass_n / total if total else 0
+def _save_eval_results(results: dict, result_dir: "Path", eval_logger):
+    """Write ``eval_results.json`` to *result_dir*.
 
-    # Save pass_at_n_summary.json
-    summary_path = checkpoints_dir / "pass_at_n_summary.json"
-    with open(summary_path, "w") as sf:
-        json.dump(summary, sf, indent=2)
-
-    # Print and log results
-    eval_logger.info("=" * 60)
-    eval_logger.info(f"Pass@N Evaluation Results: {result_dir.name}")
-    eval_logger.info(f"Dataset: {dataset_name}, Examples: {total}, Attempts: {n_attempts}")
-    eval_logger.info(f"pass@1: {summary['pass_at_1']:.1%} ({n_pass_1}/{total})")
-    eval_logger.info(f"pass@{n_attempts}: {summary['pass_at_n']:.1%} ({n_pass_n}/{total})")
-    eval_logger.info(f"Summary saved to {summary_path}")
-    eval_logger.info("=" * 60)
-
-    print()
-    print("=" * 60)
-    print(f"  Pass@N Evaluation: {result_dir.name}")
-    print("=" * 60)
-    print(f"  Dataset:    {dataset_name}")
-    print(f"  Examples:   {total}")
-    print(f"  Attempts:   {n_attempts}")
-    print(f"  pass@1:     {summary['pass_at_1']:.1%} ({n_pass_1}/{total})")
-    print(f"  pass@{n_attempts}:     {summary['pass_at_n']:.1%} ({n_pass_n}/{total})")
-    print("=" * 60)
-
-    return summary
+    Both the single-attempt and pass@N evaluation paths call this so
+    there is exactly one save location for every eval run.
+    """
+    path = result_dir / "eval_results.json"
+    with open(path, "w") as f:
+        json.dump(results, f, indent=2, default=str)
+    eval_logger.info(f"Evaluation results saved to {path}")
 
 
 def evaluate_from_checkpoints(
@@ -344,50 +426,14 @@ def evaluate_from_checkpoints(
             return
         eval_logger.info(f"Found {len(terminal_node_files)} terminal node files")
     elif checkpoints_dir.exists():
-        # Chain agent checkpoints: {idx}.json or {idx}_a{attempt}.json (pass@N)
-        all_checkpoint_files = sorted(
-            [f for f in checkpoints_dir.glob("*.json")
-             if f.stem != "pass_at_n_summary"],
-            key=lambda f: f.stem
-        )
-        if not all_checkpoint_files:
+        use_chain_checkpoints = True
+        terminal_node_files, is_pass_at_n, n_attempts = _discover_checkpoint_files(checkpoints_dir)
+        if not terminal_node_files:
             eval_logger.error(f"No checkpoint files found in {checkpoints_dir}")
             return
-
-        # Detect pass@N: files matching {idx}_a{attempt}.json pattern
-        import re
-        pass_at_n_pattern = re.compile(r'^(\d+)_a(\d+)$')
-        pass_at_n_files = [f for f in all_checkpoint_files if pass_at_n_pattern.match(f.stem)]
-
-        if pass_at_n_files:
-            # Pass@N mode: group by example idx
-            use_chain_checkpoints = True
-            is_pass_at_n = True
-            # Group files: {example_idx: [file_a0, file_a1, ...]}
-            from collections import defaultdict
-            pass_at_n_groups = defaultdict(list)
-            for f in pass_at_n_files:
-                m = pass_at_n_pattern.match(f.stem)
-                example_idx = int(m.group(1))
-                attempt = int(m.group(2))
-                pass_at_n_groups[example_idx].append((attempt, f))
-            # Sort attempts within each group
-            for idx in pass_at_n_groups:
-                pass_at_n_groups[idx].sort(key=lambda x: x[0])
-            terminal_node_files = pass_at_n_files  # For filtering logic below
-            n_attempts = max(len(v) for v in pass_at_n_groups.values())
-            eval_logger.info(
-                f"Found {len(pass_at_n_files)} pass@N checkpoint files "
-                f"({len(pass_at_n_groups)} examples, up to {n_attempts} attempts each)"
-            )
+        if is_pass_at_n:
+            eval_logger.info(f"Found {len(terminal_node_files)} pass@N checkpoint files (up to {n_attempts} attempts)")
         else:
-            # Single-attempt mode: {idx}.json
-            use_chain_checkpoints = True
-            is_pass_at_n = False
-            terminal_node_files = sorted(
-                all_checkpoint_files,
-                key=lambda f: int(f.stem) if f.stem.isdigit() else float('inf')
-            )
             eval_logger.info(f"Found {len(terminal_node_files)} chain checkpoint files")
     else:
         eval_logger.error(f"Neither terminal_nodes/ nor checkpoints/ found in {result_dir}")
@@ -397,306 +443,233 @@ def evaluate_from_checkpoints(
     # The query_idx in terminal node files corresponds to the original dataset index
     end_idx = offset + limit if limit is not None else None
     
-    def should_include_file(filepath):
-        """Check if file's query_idx falls within [offset, offset+limit) range."""
-        # Extract query_idx from filename:
-        #   terminal_nodes_{query_idx}.json  (tree search)
-        #   {query_idx}.json                 (chain checkpoints)
-        filename = filepath.stem
-        try:
-            idx = int(filename.split('_')[-1]) if '_' in filename else int(filename)
-            if idx < offset:
-                return False
-            if end_idx is not None and idx >= end_idx:
-                return False
-            return True
-        except ValueError:
-            return True  # Include files with non-standard names
-    
-    filtered_files = [f for f in terminal_node_files if should_include_file(f)]
+    filtered_files = [f for f in terminal_node_files if _should_include_file(f, offset, end_idx)]
     eval_logger.info(f"Processing {len(filtered_files)} files (offset={offset}, limit={limit})")
 
-    # --- Pass@N evaluation path (short-circuits the normal eval loop) ---
-    if is_pass_at_n:
-        return _evaluate_pass_at_n(
-            pass_at_n_groups=pass_at_n_groups,
-            n_attempts=n_attempts,
-            full_dataset=full_dataset,
-            dataset_name=dataset_name,
-            result_dir=result_dir,
-            checkpoints_dir=checkpoints_dir,
-            eval_logger=eval_logger,
-            offset=offset,
-            end_idx=end_idx,
-        )
-    
-    # Process each file and extract answers
-    predictions = []
-    ground_truths = []
-    query_indices = []  # Track dataset query indices for correct log output
-    soft_scores = []  # For env_grounded tasks: word-level accuracy scores
-    
-    # Use tqdm progress bar for console feedback
+    # --- Setup evaluators (shared by both single-attempt and pass@N) ---
+    from lits.components.utils import eval_output
+
+    custom_evaluator = get_evaluator(dataset_name) if has_evaluator(dataset_name) else None
+    if custom_evaluator:
+        eval_logger.info(f"Using registered evaluator for '{dataset_name}'")
+
+    llm_evaluator = None
+    if is_tool_use and llm_eval_mode != "none":
+        llm_evaluator = _create_llm_evaluator(base_model, llm_eval_mode, eval_logger)
+
+    # --- Evaluate every checkpoint file (single-attempt and pass@N alike) ---
+    # Each file produces one (query_idx, correct, score) result.
+    # For pass@N files ({idx}_a{attempt}.json), query_idx is parsed from the
+    # filename prefix; for single files ({idx}.json), it's the whole stem.
+    EvalPoint = dict  # {"idx": int, "attempt": int|None, "correct": bool, "score": float}
+    eval_points: List[EvalPoint] = []
+    soft_scores = []  # env_grounded word-level scores
+    eval_scores = []  # continuous scores from float-returning evaluators
+
+    eval_logger.info("=" * 40)
+    eval_logger.info("Detailed comparison:")
+
     for filepath in tqdm(filtered_files, desc="Evaluating", unit="file"):
         try:
-            # --- Chain checkpoint path: load ToolUseState directly ---
+            # --- Parse query_idx and attempt from filename ---
+            query_idx, attempt = _parse_checkpoint_filename(filepath)
+
+            # --- Extract predicted answer ---
             if use_chain_checkpoints:
                 from lits.structures.tool_use import ToolUseState
-                query, state = ToolUseState.load(str(filepath))
-                query_idx = int(filepath.stem)
-                ground_truth = str(full_dataset[query_idx]['answer'])
+                _query, state = ToolUseState.load(str(filepath))
+                ground_truth = full_dataset[query_idx]['answer']
                 answer_pred = state.get_final_answer() or ""
-                predictions.append(answer_pred)
-                ground_truths.append(ground_truth)
-                query_indices.append(query_idx)
-                eval_logger.debug(f"Query {query_idx}: Pred='{answer_pred}', Truth='{ground_truth}'")
-                continue
-
-            # --- Tree search path: load terminal nodes ---
-            data = load_terminal_nodes_from_file(filepath)
-            terminal_nodes = data['terminal_nodes']
-            query = data['query']
-            query_idx = data['query_idx']
-            
-            # Get ground truth based on task type
-            if is_env_grounded:
-                # For BlocksWorld, ground truth is always "correct" if goal is reached
+            elif is_env_grounded:
+                data = load_terminal_nodes_from_file(filepath)
+                terminal_nodes = data['terminal_nodes']
+                _query = data['query']
                 ground_truth = "correct"
-            else:
-                ground_truth = str(full_dataset[query_idx]['answer'])
-            
-            # Extract answer
-            if is_env_grounded:
-                # For environment-grounded, check if any terminal node reached the goal
                 if terminal_nodes:
-                    # Sort by cumulative reward (descending) to get best node first
                     def get_best_reward(node):
                         if hasattr(node, 'cum_rewards') and node.cum_rewards:
                             return max(node.cum_rewards) if isinstance(node.cum_rewards, list) else node.cum_rewards
                         return -float('inf')
-                    sorted_nodes = sorted(terminal_nodes, key=get_best_reward, reverse=True)
-                    # Check the best terminal node (highest cumulative reward)
-                    best_node = sorted_nodes[0]
-                    if hasattr(best_node, 'state') and best_node.state:
-                        state = best_node.state
-                        if isinstance(state, EnvState):
-                            final_env_state = state.env_state
-                            is_reached, score = goal_check(query, final_env_state)
-                            answer_pred = "correct" if is_reached else "incorrect"
-                            soft_scores.append(score)
-                        else:
-                            answer_pred = "incorrect"
-                            soft_scores.append(0.0)
+                    best_node = sorted(terminal_nodes, key=get_best_reward, reverse=True)[0]
+                    if hasattr(best_node, 'state') and best_node.state and isinstance(best_node.state, EnvState):
+                        is_reached, env_score = goal_check(_query, best_node.state.env_state)
+                        answer_pred = "correct" if is_reached else "incorrect"
+                        soft_scores.append(env_score)
                     else:
                         answer_pred = "incorrect"
                         soft_scores.append(0.0)
                 else:
                     answer_pred = "incorrect"
                     soft_scores.append(0.0)
-                    eval_logger.warning(f"Query {query_idx}: No terminal nodes found")
             elif is_tool_use:
-                # Direct extraction from node
-                answer_pred = retrieve_answer(terminal_nodes[0], query) if terminal_nodes else ""
-                ground_truth = "Option " + ground_truth if "mapeval" in dataset_name else ground_truth
+                data = load_terminal_nodes_from_file(filepath)
+                terminal_nodes = data['terminal_nodes']
+                _query = data['query']
+                ground_truth = full_dataset[query_idx]['answer']
+                answer_pred = retrieve_answer(terminal_nodes[0], _query) if terminal_nodes else ""
+                if "mapeval" in dataset_name:
+                    ground_truth = "Option " + str(ground_truth)
             else:
-                # Use voting for QA tasks
-                vote_answers, answer_reward_d, best_node, trace_of_nodes = extract_answers_from_terminal_nodes(
+                data = load_terminal_nodes_from_file(filepath)
+                terminal_nodes = data['terminal_nodes']
+                _query = data['query']
+                ground_truth = full_dataset[query_idx]['answer']
+                vote_answers, *_ = extract_answers_from_terminal_nodes(
                     terminal_nodes_collected=terminal_nodes,
                     retrieve_answer=retrieve_answer,
-                    query=query
+                    query=_query,
                 )
-                # Get prediction
-                if len(vote_answers) > 0:
-                    answer_pred = max(vote_answers, key=lambda answer: vote_answers[answer])
-                else:
-                    answer_pred = ''
-            
-            predictions.append(answer_pred)
-            ground_truths.append(ground_truth)
-            query_indices.append(query_idx)
-            
-            # Log to file only
-            eval_logger.debug(f"Query {query_idx}: Pred='{answer_pred}', Truth='{ground_truth}'")
-            
+                answer_pred = max(vote_answers, key=lambda a: vote_answers[a]) if vote_answers else ''
+
+            # --- Score the prediction ---
+            label = f"[{query_idx}_a{attempt}]" if attempt is not None else f"[{query_idx}]"
+            if is_env_grounded:
+                correct = (answer_pred == ground_truth)
+                score = None
+            elif custom_evaluator or llm_evaluator:
+                correct, score = _check_answer(
+                    answer_pred, str(ground_truth),
+                    custom_evaluator=custom_evaluator,
+                    llm_evaluator=llm_evaluator,
+                    llm_eval_mode=llm_eval_mode,
+                    eval_logger=eval_logger,
+                    label=label,
+                )
+                if score is not None:
+                    eval_scores.append(score)
+            else:
+                try:
+                    correct = eval_output(str(ground_truth), answer_pred, type="number_exact")
+                except (AssertionError, ValueError):
+                    correct = (answer_pred == str(ground_truth))
+                score = None
+
+            eval_logger.info(f"  {label} Pred='{str(answer_pred)[:80]}', Truth='{str(ground_truth)[:80]}', Correct={correct}")
+            eval_points.append({"idx": query_idx, "attempt": attempt, "correct": correct, "score": 1.0 if correct else 0.0})
+
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception as e:
+            # Auth errors are global — fail fast instead of silently skipping all files
+            if botocore is not None and isinstance(e, (
+                botocore.exceptions.SSOError,
+                botocore.exceptions.UnauthorizedSSOTokenError,
+                botocore.exceptions.TokenRetrievalError,
+            )):
+                raise
             eval_logger.error(f"Error processing {filepath}: {e}")
             eval_logger.error(traceback.format_exc())
-            continue
-    
-    # Calculate accuracy
-    # Accuracy comparison priority:
-    # 1. env_grounded: exact string match (goal_check already applied during answer extraction above)
-    # 2. registered evaluator: dataset-specific comparison (e.g., dbbench float tolerance + set match)
-    # 3. LLM-based evaluation: for tool-use tasks where answers may be verbose
-    # 4. eval_output: generic number comparison (math QA tasks)
-    #
-    # LLM usage in evaluation (--eval-model):
-    #   - Language-grounded tasks: LLM extracts/formats the answer from verbose model
-    #     output (e.g., extracting "18" from a reasoning trace) via retrieve_answer.
-    #   - Tool-use tasks: GeneralEvaluator uses LLM as a judge to compare predicted
-    #     vs ground-truth answers, handling verbose/reformatted predictions that fail
-    #     exact string matching (e.g., "Women +60kg Bronze" vs full-sentence answer).
-    from lits.components.utils import eval_output
-    
-    custom_evaluator = get_evaluator(dataset_name) if has_evaluator(dataset_name) else None
-    if custom_evaluator:
-        eval_logger.info(f"Using registered evaluator for '{dataset_name}'")
-    
-    # Setup LLM-based evaluator for tool-use tasks (verbose answers)
-    llm_evaluator = None
-    if is_tool_use and llm_eval_mode != "none":
-        from lits.eval.general_eval import GeneralEvaluator
-        if llm_eval_mode == "f1":
-            llm_evaluator = GeneralEvaluator(
-                base_model=base_model,
-                eval_perspectives=[{
-                    "eval_id": "score",
-                    "output_type": "float",
-                    "description": (
-                        "Compute the F1 score between the predicted and ground truth answer sets. "
-                        "F1 = 2 * precision * recall / (precision + recall), where "
-                        "precision = (correct predictions) / (total predictions), "
-                        "recall = (correct predictions) / (total ground truth elements). "
-                        "Output 0.0 if no overlap, 1.0 if exact match. "
-                        "Penalize both missing elements (low recall) and extra wrong elements (low precision)."
-                    ),
-                }],
-            )
-            eval_logger.info("LLM-based F1 score evaluator enabled (--llm-score)")
-        else:
-            llm_evaluator = GeneralEvaluator(
-                base_model=base_model,
-                eval_perspectives=[{
-                    "eval_id": "correct",
-                    "description": "Does the predicted answer contain the correct value? Ignore formatting differences, extra explanation, or markdown. Focus only on whether the core answer value matches.",
-                    "options": ["yes", "no"],
-                }],
-            )
-            eval_logger.info("LLM-based binary evaluator enabled")
-    
-    def _llm_fallback(pred, truth, prior_score=None):
-        """Run LLM evaluator fallback. Returns (correct: bool, score: float|None)."""
-        if llm_eval_mode == "f1":
-            llm_score = llm_evaluator.check_score(pred, truth)
-            final = max(prior_score, llm_score) if prior_score is not None else llm_score
-            return (final == 1.0), final
-        else:
-            return llm_evaluator.check_correct(pred, truth), prior_score
 
-    correct_count = 0
-    eval_scores = []  # Track continuous scores from evaluators that return float
     eval_logger.info("=" * 40)
-    eval_logger.info("Detailed comparison:")
-    for qidx, pred, truth in zip(query_indices, predictions, ground_truths):
-        if is_env_grounded:
-            # Exact string match for env_grounded tasks
-            correct = (pred == truth)
-        elif custom_evaluator:
-            # Use dataset-specific evaluator (e.g., dbbench bool, kgqa F1 float)
-            score = None
-            try:
-                result = custom_evaluator(pred, truth)
-                if isinstance(result, float):
-                    score = result
-                    correct = (score == 1.0)
-                else:
-                    correct = bool(result)
-            except Exception as e:
-                correct = False
-                eval_logger.debug(f"  [{qidx}] custom evaluator failed: {e}")
-            if not correct and llm_evaluator:
-                correct, score = _llm_fallback(pred, truth, score)
-                eval_logger.debug(f"  [{qidx}] LLM fallback: correct={correct}, score={score}")
-            if score is not None:
-                eval_scores.append(score)
-        elif llm_evaluator:
-            # Tool-use without custom evaluator: use LLM directly
-            correct, score = _llm_fallback(pred, truth)
-            eval_logger.debug(f"  [{qidx}] LLM evaluator: correct={correct}, score={score}")
-            if score is not None:
-                eval_scores.append(score)
-        else:
-            # Use eval_output for number comparison in QA tasks
-            try:
-                correct = eval_output(truth, pred, type="number_exact")
-            except (AssertionError, ValueError) as e:
-                # Fallback to exact match if eval_output fails
-                correct = (pred == truth)
-                eval_logger.debug(f"  [{qidx}] eval_output failed: {e}")
-        eval_logger.info(f"  [{qidx}] Pred='{pred}', Truth='{truth}', Correct={correct}")
-        if correct:
-            correct_count += 1
-    eval_logger.info("=" * 40)
-    
-    total_count = len(predictions)
-    accuracy = correct_count / total_count if total_count > 0 else 0.0
-    
-    # Calculate soft accuracy for env_grounded tasks
-    soft_accuracy = None
-    if is_env_grounded and soft_scores:
-        soft_accuracy = sum(soft_scores) / len(soft_scores)
-    
-    # Calculate mean score for evaluators returning float (e.g., F1)
-    mean_score = None
-    if eval_scores:
-        mean_score = sum(eval_scores) / len(eval_scores)
-    
-    # Log detailed results to file
-    eval_logger.info("=" * 80)
-    eval_logger.info(f"Evaluation Results for {result_dir.name}")
-    eval_logger.info(f"Dataset: {dataset_name}")
-    eval_logger.info(f"Total Examples: {total_count}")
-    eval_logger.info(f"Correct: {correct_count}")
-    eval_logger.info(f"Accuracy (exact match): {accuracy:.4f} ({accuracy*100:.2f}%)")
-    if mean_score is not None:
-        eval_logger.info(f"Mean Score: {mean_score:.4f} ({mean_score*100:.2f}%)")
-    if soft_accuracy is not None:
-        eval_logger.info(f"Soft Accuracy (word-level): {soft_accuracy:.4f} ({soft_accuracy*100:.2f}%)")
-    eval_logger.info("=" * 80)
-    
-    # Log token usage metrics from existing inference log
-    eval_logger.info("Token Usage Metrics:")
-    report_kwargs = {}
-    if input_price_per_m is not None:
-        report_kwargs["input_price_per_m"] = input_price_per_m
-    if output_price_per_m is not None:
-        report_kwargs["output_price_per_m"] = output_price_per_m
-    report = generate_report(str(result_dir), **report_kwargs)
-    eval_logger.info(report)
-    
-    # Print concise summary to console
-    print()
-    print("=" * 60)
-    print(f"  Evaluation Results: {result_dir.name}")
-    print("=" * 60)
-    print(f"  Dataset:    {dataset_name}")
-    print(f"  Examples:   {total_count}")
-    print(f"  Correct:    {correct_count}")
-    print(f"  Accuracy:   {accuracy:.4f} ({accuracy*100:.2f}%)")
-    if mean_score is not None:
-        print(f"  Mean Score: {mean_score:.4f} ({mean_score*100:.2f}%)")
-    if soft_accuracy is not None:
-        print(f"  Soft Acc:   {soft_accuracy:.4f} ({soft_accuracy*100:.2f}%)")
-    print("=" * 60)
-    print()
-    print(report)
-    
-    # Save evaluation results
-    eval_results = {
-        'dataset_name': dataset_name,
-        'result_dir': str(result_dir),
-        'total_examples': total_count,
-        'correct_count': correct_count,
-        'accuracy': accuracy,
-        'predictions': predictions,
-        'ground_truths': ground_truths
-    }
-    
-    # Add soft accuracy for env_grounded tasks
-    if soft_accuracy is not None:
-        eval_results['soft_accuracy'] = soft_accuracy
-        eval_results['soft_scores'] = soft_scores
-    
+
+    # --- Aggregate results ---
+    if is_pass_at_n:
+        # Group by example_idx, compute pass@1 (attempt 0) and pass@N (any)
+        from collections import defaultdict
+        groups = defaultdict(list)
+        for pt in eval_points:
+            groups[pt["idx"]].append(pt)
+        for idx in groups:
+            groups[idx].sort(key=lambda p: p["attempt"] if p["attempt"] is not None else 0)
+
+        examples = []
+        n_pass_1 = 0
+        n_pass_n = 0
+        for idx in sorted(groups.keys()):
+            attempts = [p["score"] for p in groups[idx]]
+            p1 = attempts[0] == 1.0 if attempts else False
+            pn = any(s == 1.0 for s in attempts)
+            if p1: n_pass_1 += 1
+            if pn: n_pass_n += 1
+            examples.append({"idx": idx, "attempts": attempts, "pass_at_1": p1, "pass_at_n": pn})
+
+        total = len(groups)
+        eval_results = {
+            "n_attempts": n_attempts,
+            "temperature": None,
+            "pass_at_1": n_pass_1 / total if total else 0,
+            "pass_at_n": n_pass_n / total if total else 0,
+            "examples": examples,
+            "dataset_name": dataset_name,
+            "result_dir": str(result_dir),
+        }
+
+        eval_logger.info("=" * 60)
+        eval_logger.info(f"Pass@N Evaluation Results: {result_dir.name}")
+        eval_logger.info(f"Dataset: {dataset_name}, Examples: {total}, Attempts: {n_attempts}")
+        eval_logger.info(f"pass@1: {eval_results['pass_at_1']:.1%} ({n_pass_1}/{total})")
+        eval_logger.info(f"pass@{n_attempts}: {eval_results['pass_at_n']:.1%} ({n_pass_n}/{total})")
+        eval_logger.info("=" * 60)
+
+        print()
+        print("=" * 60)
+        print(f"  Pass@N Evaluation: {result_dir.name}")
+        print("=" * 60)
+        print(f"  Dataset:    {dataset_name}")
+        print(f"  Examples:   {total}")
+        print(f"  Attempts:   {n_attempts}")
+        print(f"  pass@1:     {eval_results['pass_at_1']:.1%} ({n_pass_1}/{total})")
+        print(f"  pass@{n_attempts}:     {eval_results['pass_at_n']:.1%} ({n_pass_n}/{total})")
+        print("=" * 60)
+
+    else:
+        # Single-attempt: flat accuracy
+        correct_count = sum(1 for p in eval_points if p["correct"])
+        total_count = len(eval_points)
+        accuracy = correct_count / total_count if total_count > 0 else 0.0
+
+        soft_accuracy = (sum(soft_scores) / len(soft_scores)) if (is_env_grounded and soft_scores) else None
+        mean_score = (sum(eval_scores) / len(eval_scores)) if eval_scores else None
+
+        eval_results = {
+            "n_attempts": 1,
+            "temperature": None,
+            "accuracy": accuracy,
+            "examples": [{"idx": p["idx"], "correct": p["correct"], "score": p["score"]} for p in eval_points],
+            "dataset_name": dataset_name,
+            "result_dir": str(result_dir),
+        }
+        if soft_accuracy is not None:
+            eval_results["soft_accuracy"] = soft_accuracy
+        if mean_score is not None:
+            eval_results["mean_score"] = mean_score
+
+        eval_logger.info("=" * 80)
+        eval_logger.info(f"Evaluation Results for {result_dir.name}")
+        eval_logger.info(f"Dataset: {dataset_name}, Examples: {total_count}, Correct: {correct_count}")
+        eval_logger.info(f"Accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
+        if mean_score is not None:
+            eval_logger.info(f"Mean Score: {mean_score:.4f} ({mean_score*100:.2f}%)")
+        if soft_accuracy is not None:
+            eval_logger.info(f"Soft Accuracy: {soft_accuracy:.4f} ({soft_accuracy*100:.2f}%)")
+        eval_logger.info("=" * 80)
+
+        # Token usage report
+        report_kwargs = {}
+        if input_price_per_m is not None:
+            report_kwargs["input_price_per_m"] = input_price_per_m
+        if output_price_per_m is not None:
+            report_kwargs["output_price_per_m"] = output_price_per_m
+        report = generate_report(str(result_dir), **report_kwargs)
+        eval_logger.info(report)
+
+        print()
+        print("=" * 60)
+        print(f"  Evaluation Results: {result_dir.name}")
+        print("=" * 60)
+        print(f"  Dataset:    {dataset_name}")
+        print(f"  Examples:   {total_count}")
+        print(f"  Correct:    {correct_count}")
+        print(f"  Accuracy:   {accuracy:.4f} ({accuracy*100:.2f}%)")
+        if mean_score is not None:
+            print(f"  Mean Score: {mean_score:.4f} ({mean_score*100:.2f}%)")
+        if soft_accuracy is not None:
+            print(f"  Soft Acc:   {soft_accuracy:.4f} ({soft_accuracy*100:.2f}%)")
+        print("=" * 60)
+        print()
+        print(report)
+
+    _save_eval_results(eval_results, result_dir, eval_logger)
     return eval_results
 
 

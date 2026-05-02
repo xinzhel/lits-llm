@@ -7,6 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-02 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)
+
+### Changed
+- `eval_search.py` — refactored eval pipeline: unified single-attempt and pass@N into one eval loop
+- `eval_search.py` — extracted `_parse_checkpoint_filename()`, `_should_include_file()`, `_discover_checkpoint_files()` helpers
+- `eval_search.py` — extracted `_check_answer()` with `(correct, score)` return for shared evaluator logic (custom + LLM fallback)
+- `eval_search.py` — extracted `_create_llm_evaluator()` and `_save_eval_results()` helpers
+- `eval_search.py` — `_should_include_file()` now rejects unknown filename patterns (e.g. `1_a2_incomplete.json`)
+
+### Added
+- `eval_search.py` — `eval_results.json` output for both single-attempt and pass@N runs
+- `eval_search.py` — LLM evaluator support for pass@N (was missing, caused 0% on DBBench)
+- `eval_search.py` — fail-fast on botocore SSO/auth errors (no longer silently produces 0 examples)
+
 ## 2026-04-28 Unreleased (`0302-agentbench-integration/tasks_kg_reflection`)
 
 ### Fixed
