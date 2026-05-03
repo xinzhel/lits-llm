@@ -171,12 +171,20 @@ logger = logging.getLogger(__name__)
 # -- Fact extraction prompt ------------------------------------------------
 
 _FACT_EXTRACTION_PROMPT = """\
-Extract atomic facts from the following text.
-Return a JSON object with a "facts" key containing an array of strings.
-Each fact should be a single, self-contained statement.
-If no facts can be extracted, return {{"facts": []}}.
+Extract reusable environmental knowledge from the following agent trajectory.
 
-Text:
+Focus on what the agent DISCOVERED about the environment, not what actions it took.
+Good facts: table schemas, column names, data values, API responses, error messages, \
+file contents, system configurations.
+Bad facts: "A SQL query was made to...", "The agent listed tables", \
+"The user asked about...".
+
+Return a JSON object with a "facts" key containing an array of strings.
+Each fact should be a single, self-contained statement that would help a \
+future agent skip discovery steps.
+If no reusable knowledge was discovered, return {{"facts": []}}.
+
+Trajectory:
 {text}"""
 
 

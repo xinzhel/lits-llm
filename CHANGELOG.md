@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-03 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)
+
+### Changed
+- `backends.py::_FACT_EXTRACTION_PROMPT` — rewritten to extract reusable environmental knowledge (schemas, column names, query results) instead of generic action descriptions
+
+### Added
+- `docs/cli/debug_guide/pilot_check.md` — pilot verification guide (augmentor output, policy injection, behavior effect)
+- `docs/components/context_augmentor/FACT_MEMORY.md` — FactMemoryAugmentor documentation (recording modes, memory scope, CLI usage)
+
 ## 2026-05-02 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)
 
 ### Changed
