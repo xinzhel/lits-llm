@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-05 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)
+
+### Fixed
+- `search.py` — reflection augmentor wiring for `lits-search` (was missing `base_model`, crashed on `--memory-arg augmentors=reflection`)
+- `search.py` — memory manager only created when fact augmentor is requested (avoids unnecessary LLM init for reflection-only runs)
+
 ## 2026-05-03 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)
 
 ### Changed

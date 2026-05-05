@@ -573,12 +573,24 @@ def main() -> int:
     )
     log_command(run_logger)
 
-    memory_manager = setup_memory_manager(run_logger, memory_kwargs) if memory_kwargs else None
+    # Create memory manager only if fact augmentor is requested
+    augmentor_names = memory_kwargs.get("augmentors", "fact") if memory_kwargs else ""
+    needs_memory_manager = "fact" in augmentor_names
+    memory_manager = setup_memory_manager(run_logger, memory_kwargs) if (memory_kwargs and needs_memory_manager) else None
     # Include memory_llm (via backend._llm) so its token usage is tracked
     memory_llm = getattr(getattr(memory_manager, 'backend', None), '_llm', None)
 
     # Create augmentors from --memory-arg augmentors=fact,reflection (default: fact)
-    augmentors = create_augmentors(memory_manager, memory_kwargs, run_logger=run_logger) if memory_manager else []
+    augmentor_base_model = None
+    if memory_kwargs and "reflection" in augmentor_names:
+        from lits.lm import get_lm as _get_lm
+        model_name = memory_kwargs.get("model", "bedrock/us.anthropic.claude-sonnet-4-6")
+        augmentor_base_model = _get_lm(model_name)
+    augmentors = create_augmentors(
+        memory_manager, memory_kwargs,
+        base_model=augmentor_base_model,
+        run_logger=run_logger,
+    ) if memory_kwargs else []
     inference_logger = setup_inference_logging(
         base_model, eval_model, terminal_model, terminate_ORM, memory_llm,
         root_dir=result_dir, override=config.override_log_result,
