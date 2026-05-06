@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-06 Unreleased
+
+### Added
+- `docs/cli/resume_qa.md` — guide for handling interrupted checkpoints (verifier vs no-verifier `lits-chain` regimes, `_uncomplete` rename recipe, `lits-search` resume behavior, inference log hygiene on resume)
+
 ## 2026-05-05 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)
 
 ### Fixed
