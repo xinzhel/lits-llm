@@ -40,7 +40,7 @@ dependencies = [
 
     # --- Transformers ecosystem ---
     "transformers==4.51.3",
-    "huggingface-hub>=0.30.2",
+    "huggingface-hub>=0.30.2,<1.0",
     "datasets",
     "autoawq; platform_system == 'Linux'",
     "inflect",
@@ -57,7 +57,7 @@ dependencies = [
 
     # --- for memory ---
     "mem0ai",
-    "sentence_transformers",
+    "sentence_transformers>=5.3.0",
     "litellm",
     "boto3",
     "aioboto3",
