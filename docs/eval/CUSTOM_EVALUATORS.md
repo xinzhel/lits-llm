@@ -71,3 +71,23 @@ For `lits-eval` compatibility, dataset loaders should include:
 - `"answer"` key — used by `lits-eval` to look up ground truth
 
 These can be aliases of domain-specific fields (e.g., `"question"` = `"description"`, `"answer"` = `"label"` for DBBench).
+
+## Evaluator Signature Contract
+
+```python
+@register_evaluator("my_dataset")
+def my_evaluator(predicted: str, ground_truth: Any) -> Union[bool, float]:
+    ...
+```
+
+- `predicted` — always a `str` (the agent's committed answer from the checkpoint).
+- `ground_truth` — **the raw value from `example["answer"]`** in your dataset loader. It is passed directly without any type conversion. If your dataset loader returns a dict (e.g., `{"names": [...], "ids": [...]}`), your evaluator receives that dict. If it returns a string, your evaluator receives a string.
+- Return `bool` (correct/incorrect) or `float` (e.g., F1 score where 1.0 = exact match).
+
+This means the evaluator and dataset loader must agree on the `ground_truth` type. For example:
+
+| Dataset | `example["answer"]` type | Evaluator handles |
+|---------|--------------------------|-------------------|
+| KGQA | `dict` (`{"names": [...], "ids": [...]}`) | Extracts IDs, does set comparison after splitting predicted by comma |
+| DBBench | `str` or `list[str]` | Float tolerance, set comparison |
+| Math QA | `str` (numeric) | Exact string match |

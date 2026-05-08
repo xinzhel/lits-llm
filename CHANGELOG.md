@@ -25,6 +25,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `docs/cli/resume_qa.md` — guide for handling interrupted checkpoints (verifier vs no-verifier `lits-chain` regimes, `_uncomplete` rename recipe, `lits-search` resume behavior, inference log hygiene on resume)
 
 ### Changed
+- Fix `lits-eval` passing `str(ground_truth)` to custom evaluators — now passes raw object directly (`eval_search.py`)
+- Document evaluator signature contract: `ground_truth` type matches `example["answer"]` from dataset loader (`docs/eval/CUSTOM_EVALUATORS.md`)
 - Pin `huggingface-hub>=0.30.2,<1.0` and `sentence_transformers>=5.3.0` in `pyproject.toml`
 
 ## 2026-05-05 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)

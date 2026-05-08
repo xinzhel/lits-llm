@@ -206,7 +206,8 @@ def _check_answer(pred: str, truth, custom_evaluator=None, llm_evaluator=None,
 
     Args:
         pred: Predicted answer string.
-        truth: Ground truth (any type — converted to str for fallback).
+        truth: Ground truth (any type — passed directly to custom_evaluator;
+            converted to str only for the fallback exact-match path).
         custom_evaluator: Registered evaluator function, or *None*.
         llm_evaluator: ``GeneralEvaluator`` instance, or *None*.
         llm_eval_mode: ``"binary"`` (yes/no) or ``"f1"`` (float score).
@@ -528,7 +529,7 @@ def evaluate_from_checkpoints(
                 score = None
             elif custom_evaluator or llm_evaluator:
                 correct, score = _check_answer(
-                    answer_pred, str(ground_truth),
+                    answer_pred, ground_truth,
                     custom_evaluator=custom_evaluator,
                     llm_evaluator=llm_evaluator,
                     llm_eval_mode=llm_eval_mode,
