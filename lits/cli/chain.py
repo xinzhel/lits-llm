@@ -426,13 +426,30 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                 log_ctx = {}
                 if n_attempts > 1:
                     log_ctx["attempt"] = attempt
-                with agent.policy.base_model.inference_logger.log_context(**log_ctx) if log_ctx else nullcontext():
-                    state = agent.run(
-                        query=query,
-                        query_idx=attempt_id,
-                        checkpoint_dir=checkpoint_dir,
-                        override=True,  # always fresh for env-stateful tasks (Docker container is new)
-                    )
+                try:
+                    with agent.policy.base_model.inference_logger.log_context(**log_ctx) if log_ctx else nullcontext():
+                        state = agent.run(
+                            query=query,
+                            query_idx=attempt_id,
+                            checkpoint_dir=checkpoint_dir,
+                            override=True,  # always fresh for env-stateful tasks (Docker container is new)
+                        )
+                except RuntimeError as e:
+                    if "validationexception" in str(e).lower():
+                        run_logger.warning(
+                            f"  Attempt {attempt_id} hit ValidationException (garbled LLM output). "
+                            f"Skipping attempt with reward=0. Error: {str(e)[:150]}"
+                        )
+                        # Write reward=0 so resume skips this attempt
+                        if verify_fn is not None or True:
+                            reward_path = os.path.join(checkpoint_dir, f"{attempt_id}_reward.json")
+                            with open(reward_path, "w") as rf:
+                                import json as _json
+                                _json.dump({"example_idx": example_idx, "attempt": attempt,
+                                            "task_id": example.get("task_id", ""),
+                                            "reward": 0.0,
+                                            "_note": "Auto-skipped: ValidationException from garbled LLM output"}, rf)
+                        continue
 
                 # Post-run answer resolution (e.g., KG variable → entity names via SPARQL)
                 if resolve_answer is not None and state is not None:
@@ -452,13 +469,14 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                     try:
                         attempt_reward = verify_fn(example)
                         run_logger.info(f"Verification for {attempt_id}: reward={attempt_reward}")
-                        # Save reward alongside checkpoint
-                        reward_path = os.path.join(checkpoint_dir, f"{attempt_id}_reward.json")
-                        with open(reward_path, "w") as rf:
-                            import json as _json
-                            _json.dump({"example_idx": example_idx, "attempt": attempt, "task_id": example.get("task_id", ""), "reward": attempt_reward}, rf)
                     except Exception as ve:
-                        run_logger.warning(f"Verification failed for {attempt_id}: {ve}")
+                        attempt_reward = 0.0
+                        run_logger.warning(f"Verification failed for {attempt_id}: {ve} (writing reward=0.0)")
+                    # Always write reward file after verify attempt (prevents re-run on resume)
+                    reward_path = os.path.join(checkpoint_dir, f"{attempt_id}_reward.json")
+                    with open(reward_path, "w") as rf:
+                        import json as _json
+                        _json.dump({"example_idx": example_idx, "attempt": attempt, "task_id": example.get("task_id", ""), "reward": attempt_reward}, rf)
 
                 # Extract facts / generate reflections via augmentors for next attempt
                 if augmentors and state is not None:

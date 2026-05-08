@@ -867,25 +867,37 @@ class Policy(ABC, Generic[StateT, StepT]):
         self._log_policy_call_start(state, n_actions)
         
         
-        # Generate actions with error handling
-        try:
-            outputs = self._get_actions(
-                state=state,
-                n_actions=n_actions,
-                temperature=temperature,
-                query=query,
-                at_depth_limit=at_depth_limit,
-                query_idx=query_idx,
-                from_phase=from_phase,
-                existing_siblings=existing_siblings,
-                *args,
-                **kwargs
-            )
-        except Exception as e:
-            if "run aws sso login" in str(e):
-                raise Exception("Run `aws sso login`")
-            
-            raise e
+        # Generate actions with error handling — retry indefinitely on SSO expiry
+        while True:
+            try:
+                outputs = self._get_actions(
+                    state=state,
+                    n_actions=n_actions,
+                    temperature=temperature,
+                    query=query,
+                    at_depth_limit=at_depth_limit,
+                    query_idx=query_idx,
+                    from_phase=from_phase,
+                    existing_siblings=existing_siblings,
+                    *args,
+                    **kwargs
+                )
+                break
+            except Exception as e:
+                err_msg = str(e).lower()
+                is_transient = (
+                    "run aws sso login" in err_msg
+                    or ("expired" in err_msg and "sso" in err_msg)
+                    or "serviceunavailableexception" in err_msg
+                    or "throttlingexception" in err_msg
+                    or "too many requests" in err_msg
+                )
+                if is_transient:
+                    import time as _time
+                    logger.warning(f"Transient error: {str(e)[:150]}. Retrying in 3 min...")
+                    _time.sleep(180)
+                    continue
+                raise e
             # Log the error with full traceback
             # logger.error(
             #     f"Error in {self.__class__.__name__}._get_actions(): {e}",

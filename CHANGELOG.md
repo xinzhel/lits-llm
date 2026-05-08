@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-08 Unreleased
+
+### Added
+- `docs/lm/NATIVE_TOOL_USE_ISSUES.md` — garbled LLM output → ValidationException documentation
+- `TerminalBenchEnv.DEFAULT_CMD_TIMEOUT` (300s) per-command cap in `demos/lits_benchmark/terminal_bench.py`
+- Harbor cache structure docstring in `demos/lits_benchmark/terminal_bench.py`
+
+### Fixed
+- `lits/cli/chain.py`: verify failure now always writes `reward=0.0` (prevents infinite re-run on resume)
+- `lits/cli/chain.py`: catch `ValidationException` from garbled LLM output → auto-skip attempt with reward=0 instead of crashing
+- `lits/components/base.py`: retry loop for transient errors (SSO expired, ServiceUnavailable, Throttling) in `get_actions`
+
 ## 2026-05-06 Unreleased
 
 ### Added

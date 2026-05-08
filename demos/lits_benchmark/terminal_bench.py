@@ -7,6 +7,21 @@ Prerequisites:
     - Docker running locally
     - Harbor installed (``uv tool install harbor --python 3.12``)
     - Tasks cached via ``harbor run --dataset terminal-bench@2.0 ...`` (first run downloads)
+      or ``harbor datasets download terminal-bench@2.0 --cache``
+
+Harbor cache structure::
+
+    ~/.cache/harbor/tasks/
+    ├── 7s8y623XYuDhmBG6ERABwC/     # content-addressable hash (harbor digest)
+    │   └── install-windows-3.11/   # task name (human-readable)
+    │       ├── task.toml           # metadata: docker_image, timeout_sec, difficulty, etc.
+    │       ├── instruction.md      # task prompt (fed to LLM as query)
+    │       ├── environment/        # Dockerfile (if not using prebuilt image)
+    │       ├── solution/           # oracle solution (solve.sh)
+    │       └── tests/              # test.sh + test_*.py (verifier)
+    ├── CGqXnFmcaVcQCTbCZMpg2T/
+    │   └── gpt2-codegolf/
+    ...
 
 Usage::
 
@@ -156,12 +171,19 @@ class TerminalBenchEnv:
         ])
         self._running = True
 
+    # Per-command timeout cap for agent actions. task.toml's agent_timeout_sec is
+    # the *total session* budget, not per-command. Without a cap, a single
+    # foreground-blocking command (e.g. qemu without -daemonize) eats the entire budget.
+    # Note: verify() passes an explicit timeout (verifier_timeout_sec) which bypasses this cap.
+    DEFAULT_CMD_TIMEOUT: int = 300  # 5 minutes — enough for apt-get, gcc, large downloads
+
     def exec_sync(self, command: str, timeout: Optional[int] = None) -> ExecResult:
         """Execute a bash command inside the container.
 
         Args:
             command: Bash command string to execute.
-            timeout: Optional timeout in seconds. Defaults to agent_timeout_sec from task.toml.
+            timeout: Optional timeout in seconds. If provided explicitly (e.g. by verify()),
+                     used as-is. If None, uses min(agent_timeout_sec, DEFAULT_CMD_TIMEOUT).
 
         Returns:
             ExecResult with stdout, stderr, and return_code.
@@ -169,7 +191,12 @@ class TerminalBenchEnv:
         if not self._running:
             raise RuntimeError(f"Container {self.container_name} is not running. Call start() first.")
 
-        timeout = timeout or int(self.config.agent_timeout_sec)
+        if timeout is not None:
+            # Explicit timeout (e.g. verify) — respect it without cap
+            pass
+        else:
+            # Agent shell command — cap to prevent foreground-blocking hangs
+            timeout = min(int(self.config.agent_timeout_sec), self.DEFAULT_CMD_TIMEOUT)
         try:
             result = subprocess.run(
                 ["docker", "exec", self.container_name, "bash", "-c", command],
