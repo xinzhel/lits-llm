@@ -434,7 +434,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                             checkpoint_dir=checkpoint_dir,
                             override=True,  # always fresh for env-stateful tasks (Docker container is new)
                         )
-                except RuntimeError as e:
+                except Exception as e:
                     if "validationexception" in str(e).lower():
                         run_logger.warning(
                             f"  Attempt {attempt_id} hit ValidationException (garbled LLM output). "
@@ -450,6 +450,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
                                             "reward": 0.0,
                                             "_note": "Auto-skipped: ValidationException from garbled LLM output"}, rf)
                         continue
+                    raise
 
                 # Post-run answer resolution (e.g., KG variable → entity names via SPARQL)
                 if resolve_answer is not None and state is not None:
