@@ -47,11 +47,17 @@ class BaseToolUseStep(Step):
     Subclasses:
     - ``ToolUseStep``: text-based (XML tag parsing, ``assistant_message: str``)
     - ``NativeToolUseStep``: native tool use (structured dict, ``assistant_message_dict: dict``)
+
+    The ``think`` field holds free-form assistant reasoning text. For ``ToolUseStep``
+    it is parsed from the ``<think>...</think>`` XML tag; for ``NativeToolUseStep``
+    it is the plain-text portion of a response that also contains a ``tool_calls``
+    block (so reasoning is preserved alongside the tool invocation).
     """
 
     action: Optional[ToolUseAction] = None
     observation: Optional[str] = None
     answer: Optional[str] = None
+    think: Optional[str] = None  # moved from ToolUseStep so NativeToolUseStep inherits
 
     def get_action(self):
         return self.action
@@ -71,6 +77,8 @@ class BaseToolUseStep(Step):
             data["observation"] = self.observation
         if self.answer is not None:
             data["answer"] = self.answer
+        if self.think:
+            data["think"] = self.think
         if self.error is not None:
             data["error"] = self.error
         return data
@@ -83,9 +91,10 @@ class ToolUseStep(BaseToolUseStep):
 
     Uses XML tag extractors to parse ``<think>``, ``<action>``, ``<answer>`` from
     assistant text. This is the original text-based tool use implementation.
+
+    The ``think`` field is inherited from ``BaseToolUseStep``.
     """
 
-    think: str = ""
     assistant_message: Optional[str] = None
 
     _think_extractor: ClassVar[Callable[[str], list]] = _DEFAULT_THINK_EXTRACTOR
@@ -152,13 +161,17 @@ class ToolUseStep(BaseToolUseStep):
         return messages
 
     def to_dict(self) -> dict:
-        """Serialize the step for checkpointing."""
+        """Serialize the step for checkpointing.
+
+        Prefer ``assistant_message`` over ``think`` when both are present, since
+        ``assistant_message`` is the raw LLM output and ``think`` can be
+        reconstructed from it via the configured extractor.
+        """
         data = super().to_dict()
-        # save either assistant_message or think, but not both, because assistant_message can be used to reconstruct think
         if self.assistant_message is not None:
             data["assistant_message"] = self.assistant_message
-        elif self.think:
-            data["think"] = self.think
+            # avoid redundant think field — assistant_message already contains it
+            data.pop("think", None)
         return data
 
     @classmethod
@@ -189,7 +202,7 @@ class ToolUseStep(BaseToolUseStep):
         else:
             action_str = payload.get("action")
             step = cls(
-                think=payload.get("think", ""),
+                think=payload.get("think"),
                 action=ToolUseAction(action_str) if action_str else None,
                 answer=payload.get("answer"),
                 error=payload.get("error"),
@@ -288,6 +301,7 @@ class NativeToolUseStep(BaseToolUseStep):
             action=ToolUseAction(action_str) if action_str else None,
             observation=payload.get("observation"),
             answer=payload.get("answer"),
+            think=payload.get("think"),
             error=payload.get("error"),
             assistant_message_dict=payload.get("assistant_message_dict"),
             user_message=payload.get("user_message"),

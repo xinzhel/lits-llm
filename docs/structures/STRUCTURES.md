@@ -319,16 +319,23 @@ result = bfs(
 
 Tool-use structures are **formulation-specific**—they encode the ReAct-style interleaved reasoning and action pattern.
 
-### ToolUseStep
+The tool-use hierarchy has three classes:
+
+- `BaseToolUseStep` — shared fields (`action`, `observation`, `answer`, `think`, `error`) and base `to_dict()`.
+- `ToolUseStep` — text-based ReAct (XML tag parsing, legacy path). **Maintained for backward compatibility; prefer `NativeToolUseStep` for new work** since most modern providers (Bedrock Claude, OpenAI, Qwen) support native tool use.
+- `NativeToolUseStep` — native tool use API (structured `tool_calls` dict, no regex parsing).
+
+### ToolUseStep (text-based, legacy)
 
 ```python
 @dataclass
-class ToolUseStep(Step):
-    think: str = ""                          # Reasoning before action
-    action: Optional[ToolUseAction] = None   # Tool call (JSON)
-    observation: Optional[str] = None        # Tool execution result
-    answer: Optional[str] = None             # Final answer (terminal)
-    assistant_message: Optional[str] = None  # Raw LLM output for reconstruction
+class ToolUseStep(BaseToolUseStep):
+    # inherited from BaseToolUseStep:
+    #   think: Optional[str] = None             # Reasoning before action (parsed from <think> tag)
+    #   action: Optional[ToolUseAction] = None  # Tool call (JSON)
+    #   observation: Optional[str] = None       # Tool execution result
+    #   answer: Optional[str] = None            # Final answer (terminal)
+    assistant_message: Optional[str] = None     # Raw LLM output for reconstruction
 ```
 
 **Field semantics:**
@@ -336,6 +343,29 @@ class ToolUseStep(Step):
 - `action`: Tool call specification (parsed from LLM output)
 - `observation`: Result from tool execution (filled by Transition)
 - `answer`: Final answer when reasoning is complete (terminal state)
+
+#### Caveat: checkpoint round-trip depends on extractor stability
+
+When `assistant_message` is present, `ToolUseStep.to_dict()` **drops the `think` key** to avoid duplication (the raw message already contains the `<think>` tag). On reload, `from_dict()` calls `from_assistant_message()`, which re-parses `think`/`action`/`answer` via the configured class-level extractors (`_think_extractor` etc.).
+
+This means a save → load round-trip can silently lose or mutate `think` if:
+1. Extractors are reconfigured between save and load (they are `ClassVar`, process-global, and not serialized).
+2. The extractor implementation changes across versions.
+3. `step.think` was manually set post-hoc to something that doesn't appear in `assistant_message`.
+
+In practice this is low-risk because `ToolUseStep` is a legacy path and we do not reconfigure extractors at runtime. `NativeToolUseStep` does **not** have this issue — `think` is serialized verbatim and read back verbatim, with no extractor involved.
+
+### NativeToolUseStep (native tool use)
+
+```python
+@dataclass
+class NativeToolUseStep(BaseToolUseStep):
+    assistant_message_dict: Optional[dict] = None  # Provider-specific raw message (replayed directly)
+    user_message: Optional[str] = None             # Pure user turn text
+    tool_use_id: Optional[str] = None              # Provider-agnostic tool call ID
+```
+
+`assistant_message_dict` stores the LLM's raw assistant message from `ToolCallOutput.raw_message` and is replayed directly in `_build_messages()` — no manual reconstruction, no extractor drift.
 
 ### ToolUseState
 
