@@ -100,14 +100,26 @@ def _response_to_steps(response) -> list[NativeToolUseStep]:
     """
     if isinstance(response, ToolCallOutput) and response.tool_calls:
         steps = []
+        # Preserve reasoning text that accompanies tool_calls. Bedrock/Anthropic
+        # emits this as the text block in the same assistant message, e.g.:
+        #   "Let me check the current weather..."  followed by toolUse block.
+        # Text is attached to the first step only; raw_message already contains
+        # the full response including this text, so round-trip via
+        # assistant_message_dict is self-contained.
+        reasoning = response.text.strip() if response.text else None
         for i, tc in enumerate(response.tool_calls):
             action_str = json.dumps({"action": tc.name, "action_input": tc.input_args})
             steps.append(NativeToolUseStep(
                 action=ToolUseAction(action_str),
+                think=reasoning if i == 0 else None,
                 assistant_message_dict=response.raw_message if i == 0 else None,
                 tool_use_id=tc.id,
             ))
-        logger.debug("NativeToolUsePolicy: %d tool call(s)", len(steps))
+        logger.debug(
+            "NativeToolUsePolicy: %d tool call(s)%s",
+            len(steps),
+            f", think={len(reasoning)} chars" if reasoning else "",
+        )
         return steps
     else:
         logger.debug("NativeToolUsePolicy: final answer (%d chars)", len(response.text))
