@@ -40,6 +40,9 @@ class BaseConfig:
         dataset: Dataset/benchmark name (e.g., "blocksworld", "crosswords", "gsm8k", "math500")
         import_modules: List of custom modules to import for component registration
         dataset_kwargs: Dataset-specific kwargs for load_dataset()
+        native: Use LLM's native tool use API (structured ``tool_calls``) instead of
+            text-based XML tag parsing. Applies to both chain (NativeReAct vs ReActChat)
+            and tree search (NativeToolUsePolicy vs ToolUsePolicy) pipelines.
     """
 
     package_version: str = f"v{PACKAGE_VERSION}"
@@ -54,6 +57,9 @@ class BaseConfig:
     output_dir: Optional[str] = None
     root_dir: Optional[str] = None
     eval_model_name: Optional[str] = None
+    # Tool-use policy selection (shared by ChainConfig and ExperimentConfig).
+    # CLI: --cfg native=True
+    native: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary using dataclass asdict for consistency."""

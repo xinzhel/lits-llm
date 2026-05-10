@@ -18,6 +18,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Added
 - `unit_test/components/test_response_to_steps.py` [T3]
+- `ExperimentConfig.native` + promoted `native` from `ChainConfig` to `BaseConfig` [T4]
 
 ## 2026-05-08 Unreleased
 

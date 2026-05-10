@@ -186,6 +186,14 @@ class ExperimentConfig:
     policy: Optional[str] = None
     transition: Optional[str] = None
     reward: Optional[str] = None
+
+    # === Tool-use policy selection ===
+    # Mirrors `BaseConfig.native` / `ChainConfig.native` so `--cfg native=True`
+    # works identically across lits-chain and lits-search. Wired in
+    # factory.py::create_components_tool_use to pick NativeToolUsePolicy vs
+    # ToolUsePolicy. When ExperimentConfig eventually inherits from BaseConfig
+    # (see spec: 0509-chore-config-save-refactor), this line can be removed.
+    native: bool = False
     
     # === Parameter dicts (from CLI --search-arg and --component-arg) ===
     search_args: Dict[str, Any] = field(default_factory=dict)
