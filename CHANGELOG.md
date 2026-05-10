@@ -15,6 +15,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `NativeToolUsePolicy._get_actions` — loop N times to sample `n_actions` steps [T2]
 - `AsyncNativeToolUsePolicy._get_actions` — `asyncio.gather` for concurrent sampling [T2]
 - `_response_to_steps` — preserve reasoning text alongside tool_calls in `think` [T3]
+- `create_components_tool_use` — select `NativeToolUsePolicy` when `config.native=True` [T5]
 
 ### Added
 - `unit_test/components/test_response_to_steps.py` [T3]

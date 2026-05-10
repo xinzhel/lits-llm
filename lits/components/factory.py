@@ -177,8 +177,26 @@ def create_components_tool_use(
     task_name: str,
     search_args: Dict[str, Any],
     component_args: Dict[str, Any],
+    native: bool = False,
 ) -> Tuple:
-    """Create components for tool use tasks with MCTS support."""
+    """Create components for tool use tasks with MCTS support.
+
+    Args:
+        base_model: LLM for policy generation.
+        eval_base_model: LLM for reward evaluation.
+        tool_use_spec: Dict with ``tools`` and optional ``tool_context``.
+        task_name: Task identifier for prompts.
+        search_args: Search algorithm parameters (n_actions, max_steps, ...).
+        component_args: Component-specific parameters.
+        native: When True, use ``NativeToolUsePolicy`` (native tool_calls API
+            via the LLM provider). When False (default), use ``ToolUsePolicy``
+            (text-based XML tag parsing). Value is threaded from
+            ``ExperimentConfig.native`` (CLI: ``--cfg native=True``) and matches
+            ``ChainConfig.native`` semantics in ``lits-chain``.
+
+    Returns:
+        Tuple of (world_model, policy, evaluator).
+    """
     n_actions = search_args.get("n_actions", 3)
     max_steps = search_args.get("max_steps", 10)
     force_terminating_on_depth_limit = search_args.get("force_terminating_on_depth_limit", False)
@@ -189,13 +207,23 @@ def create_components_tool_use(
     tool_context = tool_use_spec.get("tool_context", "")
     
     world_model = ToolUseTransition(tools=tools)
-    
-    policy = ToolUsePolicy(
-        base_model=base_model, task_prompt_spec=None, task_name=task_name,
-        tools=tools, tool_context=tool_context, n_actions=n_actions, temperature=0.7,
-        force_terminating_on_depth_limit=force_terminating_on_depth_limit,
-        max_steps=max_steps, max_length=max_length,
-    )
+
+    if native:
+        # Lazy import to avoid pulling Bedrock-specific deps when unused.
+        from .policy.native_tool_use import NativeToolUsePolicy
+        policy = NativeToolUsePolicy(
+            base_model=base_model, tools=tools, task_prompt_spec=None,
+            task_name=task_name, n_actions=n_actions, temperature=0.7,
+            force_terminating_on_depth_limit=force_terminating_on_depth_limit,
+            max_steps=max_steps, max_length=max_length,
+        )
+    else:
+        policy = ToolUsePolicy(
+            base_model=base_model, task_prompt_spec=None, task_name=task_name,
+            tools=tools, tool_context=tool_context, n_actions=n_actions, temperature=0.7,
+            force_terminating_on_depth_limit=force_terminating_on_depth_limit,
+            max_steps=max_steps, max_length=max_length,
+        )
     
     evaluator = ToolUsePRM(
         base_model=eval_base_model, tools=tools, task_prompt_spec=None, task_name=task_name,
@@ -487,6 +515,7 @@ def create_components(
         return create_components_tool_use(
             base_model=base_model, eval_base_model=eval_base_model, tool_use_spec=tool_use_spec,
             task_name=task_name, search_args=search_args, component_args=component_args,
+            native=getattr(config, "native", False),
         )
     
     else:
