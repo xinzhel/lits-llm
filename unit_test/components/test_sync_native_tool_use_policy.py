@@ -66,9 +66,41 @@ def test_policy_final_answer():
     breakpoint()  # inspect: steps[0].answer
 
 
+def test_n_actions_returns_n_diverse_steps():
+    """n_actions=3 with temperature>0: policy should return 3 independently sampled steps.
+
+    Verifies Task 2 (MCTS expansion): _get_actions loops N times and collects one
+    step per call, instead of returning a single step regardless of n_actions.
+    native_tool_use.py::NativeToolUsePolicy._get_actions
+    """
+    print("\n=== Test 3: n_actions=3 returns 3 steps ===")
+    model = get_lm("bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
+    policy = NativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
+
+    state = ToolUseState()
+    state.append(NativeToolUseStep(user_message="Pick any city and check its weather."))
+    steps = policy._get_actions(
+        query="Pick any city and check its weather.",
+        state=state,
+        n_actions=3,
+        temperature=1.0,
+    )
+
+    print(f"Steps returned: {len(steps)} (expected 3)")
+    cities = []
+    for i, s in enumerate(steps):
+        print(f"  [{i}] action={s.action}")
+        if s.action:
+            import json as _json
+            cities.append(_json.loads(str(s.action)).get("action_input", {}).get("city"))
+    print(f"  cities sampled: {cities}")
+    breakpoint()  # inspect: len(steps) == 3, diversity of cities across steps
+
+
 def main():
     test_policy_tool_call()
     test_policy_final_answer()
+    test_n_actions_returns_n_diverse_steps()
     print("\n✓ All tests done")
 
 if __name__ == "__main__":

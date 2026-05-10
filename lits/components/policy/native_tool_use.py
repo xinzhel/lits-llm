@@ -20,6 +20,7 @@ Hierarchy::
             └── AsyncNativeToolUsePolicy     ← async _get_actions + _get_actions_stream
 """
 
+import asyncio
 import json
 import logging
 from typing import Optional
@@ -255,11 +256,27 @@ class NativeToolUsePolicy(_BaseNativeToolUsePolicy):
         existing_siblings: list = None,
         **kwargs,
     ) -> list[NativeToolUseStep]:
-        """Generate next step using native tool use API (sync)."""
+        """Generate ``n_actions`` next steps using native tool use API (sync).
+
+        Calls the LLM ``n_actions`` times sequentially, collecting one step per
+        call. Each call samples independently (controlled by ``temperature``),
+        so MCTS expansion gets N diverse candidate steps per node.
+
+        Note:
+            In the rare case the LLM returns multiple tool calls in a single
+            response (parallel tool use), ``_response_to_steps`` yields >1
+            steps. We still only need ``n_actions`` total, so we truncate.
+        """
         messages = self._build_messages(query, state)
         logger.debug("NativeToolUsePolicy messages: %d messages", len(messages))
-        response = self._call_model(messages, temperature=temperature, tools=self.tool_schemas)
-        return _response_to_steps(response)
+        steps: list[NativeToolUseStep] = []
+        for _ in range(n_actions):
+            response = self._call_model(messages, temperature=temperature, tools=self.tool_schemas)
+            steps.extend(_response_to_steps(response))
+            if len(steps) >= n_actions:
+                break
+        logger.info(f"NativeToolUsePolicy: generated {len(steps)}/{n_actions} steps")
+        return steps[:n_actions]
 
 
 class AsyncNativeToolUsePolicy(_BaseNativeToolUsePolicy):
@@ -296,8 +313,28 @@ class AsyncNativeToolUsePolicy(_BaseNativeToolUsePolicy):
         existing_siblings: list = None,
         **kwargs,
     ) -> list[NativeToolUseStep]:
-        """Generate next step using native tool use API (async)."""
+        """Generate ``n_actions`` next steps using native tool use API (async).
+
+        Dispatches ``n_actions`` concurrent LLM calls via ``asyncio.gather``,
+        collecting one step per call. Each call samples independently, so MCTS
+        expansion gets N diverse candidate steps per node.
+
+        Note:
+            In the rare case the LLM returns multiple tool calls in a single
+            response (parallel tool use), ``_response_to_steps`` yields >1
+            steps. We still only need ``n_actions`` total, so we truncate.
+        """
         messages = self._build_messages(query, state)
         logger.debug("NativeToolUsePolicy messages: %d messages", len(messages))
-        response = await self._call_model(messages, temperature=temperature, tools=self.tool_schemas)
-        return _response_to_steps(response)
+        tasks = [
+            self._call_model(messages, temperature=temperature, tools=self.tool_schemas)
+            for _ in range(n_actions)
+        ]
+        responses = await asyncio.gather(*tasks)
+        steps: list[NativeToolUseStep] = []
+        for response in responses:
+            steps.extend(_response_to_steps(response))
+            if len(steps) >= n_actions:
+                break
+        logger.info(f"NativeToolUsePolicy: generated {len(steps)}/{n_actions} steps")
+        return steps[:n_actions]

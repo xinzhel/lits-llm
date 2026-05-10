@@ -12,6 +12,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Changed
 - `BaseToolUseStep.think` [T1]
 - `docs/structures/STRUCTURES.md` — tool-use hierarchy + round-trip caveat [T1]
+- `NativeToolUsePolicy._get_actions` — loop N times to sample `n_actions` steps [T2]
+- `AsyncNativeToolUsePolicy._get_actions` — `asyncio.gather` for concurrent sampling [T2]
 
 ## 2026-05-08 Unreleased
 

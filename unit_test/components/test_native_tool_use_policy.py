@@ -126,11 +126,47 @@ async def test_get_actions_stream():
     breakpoint()  # inspect: events
 
 
+async def test_n_actions_runs_concurrently_returns_n_steps():
+    """n_actions=3 with temperature>0: policy should dispatch 3 concurrent LLM calls and return 3 steps.
+
+    Verifies Task 2 (async MCTS expansion): _get_actions uses asyncio.gather to
+    sample N steps in parallel, instead of returning a single step.
+    native_tool_use.py::AsyncNativeToolUsePolicy._get_actions
+    """
+    print("\n=== Test: n_actions=3 returns 3 steps (concurrent) ===")
+    model = get_lm("async-bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0")
+    policy = AsyncNativeToolUsePolicy(base_model=model, tools=[WeatherTool()])
+
+    state = ToolUseState()
+    state.append(NativeToolUseStep(user_message="Pick any city and check its weather."))
+
+    import time
+    t0 = time.time()
+    steps = await policy._get_actions(
+        query="Pick any city and check its weather.",
+        state=state,
+        n_actions=3,
+        temperature=1.0,
+    )
+    elapsed = time.time() - t0
+
+    print(f"Steps returned: {len(steps)} (expected 3)  elapsed={elapsed:.2f}s")
+    cities = []
+    for i, s in enumerate(steps):
+        print(f"  [{i}] action={s.action}")
+        if s.action:
+            import json as _json
+            cities.append(_json.loads(str(s.action)).get("action_input", {}).get("city"))
+    print(f"  cities sampled: {cities}")
+    breakpoint()  # inspect: len(steps) == 3, elapsed (concurrent ≈ single call latency)
+
+
 async def main():
     await test_policy_tool_call()
     await test_policy_final_answer()
     await test_policy_multi_turn()
     await test_get_actions_stream()
+    await test_n_actions_runs_concurrently_returns_n_steps()
     print("\n✓ All tests done")
 
 if __name__ == "__main__":
