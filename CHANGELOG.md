@@ -11,6 +11,10 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Fixed
 - `NativeToolUsePolicy._build_messages` — seed query as first user message when state is empty (MCTS root node) [T2]
+- `ToolUsePRM` — accept `BaseToolUseStep` (both `ToolUseStep` and `NativeToolUseStep`) in `_fast_reward` and `_complete_trajectory` [T6]
+
+### Added
+- `BaseToolUseStep` and `NativeToolUseStep` exported from `lits.structures` [T6]
 
 ## 2026-05-10 Unreleased (`lits_mem/0509-major-mcts-native-tool-use`)
 

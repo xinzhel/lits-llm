@@ -286,10 +286,10 @@ class ToolUsePRM(RewardModel):
         rollout_state.extend(copy.deepcopy(state))
         
         # Handle the proposed step
-        from ...structures import ToolUseStep
-        
-        assert isinstance(step_or_action, ToolUseStep), \
-            f"ToolUsePRM requires ToolUseStep, got {type(step_or_action)}"
+        from ...structures import BaseToolUseStep
+
+        assert isinstance(step_or_action, BaseToolUseStep), \
+            f"ToolUsePRM requires BaseToolUseStep (ToolUseStep or NativeToolUseStep), got {type(step_or_action)}"
         
         step = step_or_action
         
@@ -372,10 +372,10 @@ class ToolUsePRM(RewardModel):
         Returns:
             Score between 0 and 1 indicating step quality
         """
-        from ...structures import ToolUseStep
-        
-        assert isinstance(step_or_action, ToolUseStep), \
-            f"ToolUsePRM requires ToolUseStep, got {type(step_or_action)}"
+        from ...structures import BaseToolUseStep
+
+        assert isinstance(step_or_action, BaseToolUseStep), \
+            f"ToolUsePRM requires BaseToolUseStep (ToolUseStep or NativeToolUseStep), got {type(step_or_action)}"
         
         # Check cache first
         cache_key = self._create_cache_key(query, state, step_or_action)
