@@ -33,13 +33,18 @@ need to set the flag manually.
 def fast_reward(
     self,
     state: ToolUseState,
-    step_or_action: ToolUseStep,
+    step_or_action: BaseToolUseStep,  # accepts ToolUseStep or NativeToolUseStep
     query_or_goals: str,
     query_idx: Optional[int] = None,
     from_phase: str = ""
 ) -> Tuple[float, dict]
 ```
 Scores a proposed step. Returns `(score, details)` where score ∈ [0, 1].
+Accepts either `ToolUseStep` (text-based ReAct, XML tag parsing) or
+`NativeToolUseStep` (native tool_calls API) — both are subclasses of
+`BaseToolUseStep` and share the fields the reward model reads
+(`action`, `answer`, `observation`, `error`, `think`). The only runtime check is
+`isinstance(step_or_action, BaseToolUseStep)`.
 
 ```python
 def reward(
@@ -116,7 +121,7 @@ _world_modeling(child):
 
 So `fast_reward` always receives:
 - `state` = **parent state** (trajectory history before this step), not the post-transition state
-- `step_or_action` = the current `ToolUseStep`, whose `observation` field is already populated by the transition
+- `step_or_action` = the current step (a `BaseToolUseStep` subclass — `ToolUseStep` for text-based ReAct, `NativeToolUseStep` for native tool_calls), whose `observation` field is already populated by the transition
 
 Inside `_fast_reward` (direct scoring mode), the scoring context is constructed as:
 ```python
