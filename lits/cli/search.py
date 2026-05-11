@@ -57,17 +57,11 @@ def setup_result_savers(search_algorithm: str, result_dir: str, override: bool):
 
     Both MCTS and BFS use TreeToJsonl to save paths consistently.
     MCTS additionally saves unselected simulation paths.
-    If override is True, cleans the entire result directory via
-    ``clean_result_dir()`` before creating savers.
-    """
-    if override:
-        from lits.cli import clean_result_dir
-        clean_result_dir(result_dir)
-        # Recreate checkpoints dir (setup_directories only creates result_dir)
-        import os
-        os.makedirs(os.path.join(result_dir, "checkpoints"), exist_ok=True)
-        os.makedirs(os.path.join(result_dir, "terminal_nodes"), exist_ok=True)
 
+    Note: directory cleanup (``clean_result_dir``) is done by the CLI
+    caller BEFORE ``setup_logging`` so that the execution.log file handler
+    is not orphaned by a later ``rmtree``.
+    """
     result_saver = TreeToJsonl(run_id='', root_dir=result_dir, override=override)
 
     # MCTS saves unselected simulation paths as a secondary output
@@ -520,6 +514,16 @@ def main() -> int:
     # Setup directories and save config
     configure_hf_model_logging()
     run_id, result_dir = config.setup_directories(is_running_in_jupyter())
+
+    # Clean result dir if override is set — must happen BEFORE setup_logging so the
+    # execution.log file handler isn't orphaned by a later rmtree (setup_result_savers
+    # used to call clean_result_dir, but that deleted the already-created execution.log).
+    if cli_args.override:
+        from lits.cli import clean_result_dir
+        clean_result_dir(result_dir)
+        import os as _os
+        _os.makedirs(_os.path.join(result_dir, "checkpoints"), exist_ok=True)
+        _os.makedirs(_os.path.join(result_dir, "terminal_nodes"), exist_ok=True)
 
     # Store import_modules and dataset_kwargs in config for reproducibility
     if cli_args.import_modules:

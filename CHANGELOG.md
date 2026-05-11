@@ -12,6 +12,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Fixed
 - `NativeToolUsePolicy._build_messages` — seed query as first user message when state is empty (MCTS root node) [T2]
 - `ToolUsePRM` — accept `BaseToolUseStep` (both `ToolUseStep` and `NativeToolUseStep`) in `_fast_reward` and `_complete_trajectory` [T6]
+- `lits-search` — move `clean_result_dir` before `setup_logging` so `execution.log` file handler is not orphaned by a later `rmtree`
 
 ### Added
 - `BaseToolUseStep` and `NativeToolUseStep` exported from `lits.structures` [T6]
