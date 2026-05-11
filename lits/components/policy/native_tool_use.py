@@ -164,8 +164,13 @@ class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
     def _build_messages(self, query: str, state: ToolUseState) -> list[dict]:
         """Build Converse API message list from state.
 
-        Note: ``query`` parameter is unused — kept for interface compatibility.
-        The user query is already in state as ``NativeToolUseStep(user_message=...)``.
+        The user query is seeded as the first user message when state doesn't
+        already contain one. In ``lits-chain``, the state is initialized with
+        a ``NativeToolUseStep(user_message=query)`` before any action is taken,
+        so the first step carries the query. In ``lits-search``, MCTS starts
+        from a root node with empty state — we must prepend the query as the
+        first user message so the Bedrock Converse API contract (conversation
+        must start with a user message) is satisfied.
 
         Handles parallel tool calls: one assistant message may contain multiple
         toolUse blocks. The corresponding tool results are grouped into a single
@@ -184,6 +189,15 @@ class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
         messages = []
         state_list = list(state)
         skip_indices: set[int] = set()
+
+        # Seed with query if state doesn't already have a user_message step
+        # (MCTS root node has empty state; chain agent pre-seeds via user_message)
+        has_seeded_query = any(
+            isinstance(s, NativeToolUseStep) and s.user_message
+            for s in state_list
+        )
+        if not has_seeded_query and query:
+            messages.append({"role": "user", "content": [{"text": query}]})
 
         for idx, step in enumerate(state_list):
             if idx in skip_indices:

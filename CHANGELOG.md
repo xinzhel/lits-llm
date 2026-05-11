@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-11 Unreleased (`lits_mem/0509-major-mcts-native-tool-use`)
+
+### Fixed
+- `NativeToolUsePolicy._build_messages` — seed query as first user message when state is empty (MCTS root node) [T2]
+
 ## 2026-05-10 Unreleased (`lits_mem/0509-major-mcts-native-tool-use`)
 
 ### Changed
