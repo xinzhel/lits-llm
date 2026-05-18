@@ -214,19 +214,43 @@ def _select(w_exp: float, node: MCTSNode, max_steps: int, force_terminating_on_d
     """
     log_phase(logger, "Select", "Begin")
     def _uct_select(w_exp: float, node: MCTSNode, return_detail=False) -> MCTSNode:
+        """UCB1-aligned selection.
+
+        - Unvisited children (``visit_count == 0`` and empty ``cum_rewards``)
+          receive ``+inf`` priority; they are sampled before any visited sibling.
+        - Visited children are scored as ``Q + w_exp * sqrt(ln(N_p_tilde) / N_c)``
+          where ``N_p_tilde = max(2, num_trials_parent)`` is a surrogate that
+          keeps ``ln(N_p_tilde) >= ln(2) > 0`` when the parent has been
+          backpropagated through at least once. See ``design.md`` of
+          ``.kiro/specs/lits_mem/0511-minor-mcts-uct-fix/`` for the derivation.
+        """
         best_child = None
         best_score = -np.inf
-        num_trials_parent = node.visit_count if node.visit_count > 0 else len(node.cum_rewards)
         best_detail = ""
-        for i, child in enumerate(node.children):
+
+        num_trials_parent = node.visit_count if node.visit_count > 0 else len(node.cum_rewards)
+        # Surrogate: keeps ln(.) strictly positive once any child is visited.
+        log_parent = np.log(max(2, num_trials_parent))
+
+        for child in node.children:
             num_trials_cur = child.visit_count if child.visit_count > 0 else len(child.cum_rewards)
-            exploration_score = np.sqrt(np.log(num_trials_parent) / max(1, num_trials_cur))
-            score = child.Q + w_exp * exploration_score
-            
+
+            if num_trials_cur == 0:
+                # UCB1 convention: try every action at least once.
+                exploration_score = float("inf")
+                score = float("inf")
+            else:
+                exploration_score = np.sqrt(log_parent / num_trials_cur)
+                score = child.Q + w_exp * exploration_score
+
             if score > best_score:
                 best_score = score
                 best_child = child
-                best_detail = f"(ID: {child.id}) - Q: {child.Q:.3f}, Exploration: {exploration_score:.3f}, Score: {score:.3f})"
+                best_detail = (
+                    f"(ID: {child.id}) - Q: {child.Q:.3f}, "
+                    f"Exploration: {exploration_score:.3f}, "
+                    f"Score: {score:.3f})"
+                )
         if return_detail:
             return best_child, best_detail
         return best_child
