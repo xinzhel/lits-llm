@@ -189,7 +189,12 @@ def create_augmentors(
                 raise ValueError(
                     "ReflectionAugmentor requires base_model but none was provided"
                 )
-            augmentors.append(ReflectionAugmentor(base_model=base_model))
+            refl_kwargs = {}
+            if memory_kwargs and "reward_threshold" in memory_kwargs:
+                refl_kwargs["reward_threshold"] = float(memory_kwargs["reward_threshold"])
+            if memory_kwargs and "task_type" in memory_kwargs:
+                refl_kwargs["task_type"] = memory_kwargs["task_type"]
+            augmentors.append(ReflectionAugmentor(base_model=base_model, **refl_kwargs))
         else:
             raise ValueError(
                 f"Unknown augmentor '{name}'. Supported: fact, reflection"

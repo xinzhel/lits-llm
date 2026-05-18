@@ -456,6 +456,9 @@ def _parse_value(value_str: str, old_value: Any) -> Any:
                 return items
     
     if old_value is None:
+        # Handle None/null literal first
+        if value_str.lower() in ('none', 'null'):
+            return None
         # Try int, float, then string
         try:
             return int(value_str)
@@ -467,7 +470,11 @@ def _parse_value(value_str: str, old_value: Any) -> Any:
                 if value_str.lower() in ('true', 'false', 'yes', 'no'):
                     return value_str.lower() in ('true', 'yes')
                 return value_str
-    
+
+    # Allow explicit None override for any typed field
+    if value_str.lower() in ('none', 'null'):
+        return None
+
     if isinstance(old_value, bool):
         return value_str.lower() in ('true', '1', 'yes')
     elif isinstance(old_value, int):

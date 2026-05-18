@@ -723,10 +723,11 @@ class MCTSSearch(BaseTreeSearch):
         augmentor_query_context = None
         if hasattr(self, 'augmentors') and self.augmentors:
             augmentor_query_context = {
-                'policy_model_name': getattr(self.config, 'policy_model_name', ''),
-                'task_type': getattr(self.config, 'task_type', ''),
+                'policy_model_name': getattr(self.policy.base_model, 'model_name', 'unknown'),
+                'task_type': getattr(self.policy, 'TASK_TYPE', 'tool_use'),
                 'query_or_goals': query,
                 'query_idx': query_idx,
+                'save_dir': getattr(self, 'checkpoint_dir', None),
             }
             on_step_complete, on_trajectory_complete = setup_augmentors(
                 self.policy, self.augmentors, query_context=augmentor_query_context)

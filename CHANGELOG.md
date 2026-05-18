@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-18 Unreleased
+
+### Added
+- `_parse_value` — accept `None`/`null` as literal Python `None` for `--search-arg`/`--component-arg`/`--cfg`
+
+### Fixed
+- `create_augmentors` — forward `reward_threshold` and `task_type` from `--memory-arg` to `ReflectionAugmentor`
+- MCTS augmentor wiring — `augmentor_query_context` now reads `policy_model_name` from `self.policy.base_model.model_name` and `task_type` from `self.policy.TASK_TYPE` (fixes `store() skipped` bug)
+- `NativeToolUsePolicy.TASK_TYPE` — corrected from `"native_tool_use"` to `"tool_use"`
+
 ## 2026-05-11 Unreleased (`lits_mem/0511-minor-mcts-uct-fix`)
 
 ### Fixed

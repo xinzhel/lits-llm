@@ -133,7 +133,7 @@ class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
     ``AsyncNativeToolUsePolicy`` (async).
     """
 
-    TASK_TYPE: str = "native_tool_use"
+    TASK_TYPE: str = "tool_use"
 
     def __init__(self, base_model, tools, task_prompt_spec=None, **kwargs):
         self.tools = tools
