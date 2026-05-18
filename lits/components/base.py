@@ -761,6 +761,8 @@ class Policy(ABC, Generic[StateT, StepT]):
             if not notes:
                 return ""
             
+            if isinstance(notes, list):
+                notes = "\n".join(notes)
             return f"\n\nAdditional Notes:\n{notes}"
         except Exception as e:
             logger.error(f"Error retrieving dynamic notes: {e}", exc_info=True)

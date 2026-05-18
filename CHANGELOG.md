@@ -16,6 +16,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `create_augmentors` — forward `reward_threshold` and `task_type` from `--memory-arg` to `ReflectionAugmentor`
 - MCTS augmentor wiring — `augmentor_query_context` now reads `policy_model_name` from `self.policy.base_model.model_name` and `task_type` from `self.policy.TASK_TYPE` (fixes `store() skipped` bug)
 - `NativeToolUsePolicy.TASK_TYPE` — corrected from `"native_tool_use"` to `"tool_use"`
+- `Policy._get_dynamic_notes` — join `List[str]` with newline before injection (removes spurious `["..."]` brackets in system prompt)
 
 ## 2026-05-11 Unreleased (`lits_mem/0511-minor-mcts-uct-fix`)
 
