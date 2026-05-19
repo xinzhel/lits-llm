@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-19 Unreleased (`0519-minor-bedrock-validation-fix`)
+
+### Fixed
+- `_response_to_steps` — split parallel tool calls into per-step `assistant_message_dict` (each with one `toolUse` block) to fix "missing toolResult" ValidationException (`lits/components/policy/native_tool_use.py`) [T1]
+
+### Docs
+- `docs/agents/NativeReAct.md` — updated parallel tool calls section to reflect per-step splitting design [T1]
+
+
 ## 2026-05-19 Unreleased
 
 ### Added

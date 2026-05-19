@@ -15,7 +15,7 @@ Two variants sharing all logic except the LLM call:
 Hierarchy::
 
     Policy (ABC)
-      └── _BaseNativeToolUsePolicy   ← shared: __init__, _build_messages, _collect_tool_results, ...
+      └── _BaseNativeToolUsePolicy   ← shared: __init__, _build_messages, ...
             ├── NativeToolUsePolicy          ← sync _get_actions
             └── AsyncNativeToolUsePolicy     ← async _get_actions + _get_actions_stream
 """
@@ -57,6 +57,58 @@ def _tools_to_schemas(tools) -> list[dict]:
     return schemas
 
 
+def _split_raw_message(raw_message: dict) -> tuple[list[dict], dict[str, dict]]:
+    """Split a raw Converse API assistant message into text blocks and toolUse blocks.
+
+    Args:
+        raw_message: Raw assistant message dict from ``ToolCallOutput.raw_message``.
+
+    Returns:
+        (text_blocks, tool_use_by_id): text content blocks, and a mapping from
+        toolUseId to the corresponding toolUse content block.
+    """
+    raw_content = raw_message.get("content", []) if raw_message else []
+    text_blocks = [b for b in raw_content if "text" in b]
+    tool_use_by_id = {
+        b["toolUse"]["toolUseId"]: b
+        for b in raw_content if "toolUse" in b
+    }
+    return text_blocks, tool_use_by_id
+
+
+def _make_step_message(tc_id: str, tc_name: str, tc_input: dict,
+                       text_blocks: list[dict], tool_use_by_id: dict[str, dict],
+                       include_text: bool) -> dict:
+    """Build a per-step assistant_message_dict with exactly one toolUse block.
+
+    Bedrock requires every toolUse in an assistant message to have a matching
+    toolResult in the next user message. By giving each step its own message
+    with a single toolUse, we avoid "missing toolResult" ValidationException
+    when steps are used independently (MCTS siblings) or truncated.
+
+    Args:
+        tc_id: Tool call ID.
+        tc_name: Tool name.
+        tc_input: Tool input arguments.
+        text_blocks: Text content blocks from the original response.
+        tool_use_by_id: Mapping from toolUseId to raw toolUse block.
+        include_text: Whether to include text blocks (True for first step only).
+
+    Returns:
+        Assistant message dict with role and content.
+    """
+    content = []
+    if include_text and text_blocks:
+        content.extend(text_blocks)
+    tool_block = tool_use_by_id.get(tc_id)
+    if tool_block:
+        content.append(tool_block)
+    else:
+        # Fallback: reconstruct from ToolCall fields
+        content.append({"toolUse": {"toolUseId": tc_id, "name": tc_name, "input": tc_input}})
+    return {"role": "assistant", "content": content}
+
+
 def _response_to_steps(response) -> list[NativeToolUseStep]:
     """Convert LLM response to NativeToolUseStep list (shared by sync and async).
 
@@ -73,11 +125,13 @@ def _response_to_steps(response) -> list[NativeToolUseStep]:
             - ``text``: the answer string
 
     Returns:
-        List of NativeToolUseStep. For parallel tool calls (N > 1), only the
-        first step carries ``assistant_message_dict`` (the raw response with
-        all toolUse blocks). Subsequent steps have ``assistant_message_dict=None``
-        so that ``_build_messages`` groups them correctly into one assistant
-        message + one user message with all toolResults.
+        List of NativeToolUseStep. Each step carries its own
+        ``assistant_message_dict`` containing only that step's ``toolUse``
+        block (plus any text blocks on the first step). This ensures each
+        step is self-contained — Bedrock requires every ``toolUse`` in an
+        assistant message to have a matching ``toolResult`` in the next user
+        message, so splitting parallel calls into per-step messages avoids
+        the "missing toolResult" ValidationException.
 
     Example (parallel tool calls)::
 
@@ -95,24 +149,30 @@ def _response_to_steps(response) -> list[NativeToolUseStep]:
             ]},
         )
         steps = _response_to_steps(response)
-        # steps[0]: assistant_message_dict=raw_message, tool_use_id="tc_1"
-        # steps[1]: assistant_message_dict=None,        tool_use_id="tc_2"
+        # steps[0]: assistant_message_dict={"role": "assistant", "content": [
+        #               {"text": "I'll run two commands"},
+        #               {"toolUse": {"toolUseId": "tc_1", ...}}
+        #           ]}, tool_use_id="tc_1"
+        # steps[1]: assistant_message_dict={"role": "assistant", "content": [
+        #               {"toolUse": {"toolUseId": "tc_2", ...}}
+        #           ]}, tool_use_id="tc_2"
     """
     if isinstance(response, ToolCallOutput) and response.tool_calls:
-        steps = []
-        # Preserve reasoning text that accompanies tool_calls. Bedrock/Anthropic
-        # emits this as the text block in the same assistant message, e.g.:
-        #   "Let me check the current weather..."  followed by toolUse block.
-        # Text is attached to the first step only; raw_message already contains
-        # the full response including this text, so round-trip via
-        # assistant_message_dict is self-contained.
         reasoning = response.text.strip() if response.text else None
+        text_blocks, tool_use_by_id = _split_raw_message(response.raw_message)
+
+        steps = []
         for i, tc in enumerate(response.tool_calls):
             action_str = json.dumps({"action": tc.name, "action_input": tc.input_args})
+            step_msg = _make_step_message(
+                tc.id, tc.name, tc.input_args,
+                text_blocks, tool_use_by_id,
+                include_text=(i == 0),
+            )
             steps.append(NativeToolUseStep(
                 action=ToolUseAction(action_str),
                 think=reasoning if i == 0 else None,
-                assistant_message_dict=response.raw_message if i == 0 else None,
+                assistant_message_dict=step_msg,
                 tool_use_id=tc.id,
             ))
         logger.debug(
@@ -172,23 +232,25 @@ class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
         first user message so the Bedrock Converse API contract (conversation
         must start with a user message) is satisfied.
 
-        Handles parallel tool calls: one assistant message may contain multiple
-        toolUse blocks. The corresponding tool results are grouped into a single
-        user message (Bedrock Converse API requirement).
+        Each tool call step has its own ``assistant_message_dict`` containing
+        exactly one ``toolUse`` block. This ensures each step is self-contained
+        and avoids the "missing toolResult" ValidationException that occurs when
+        an assistant message has N toolUse blocks but fewer than N toolResults.
 
-        State layout for parallel tool calls::
+        State layout (each step is independent)::
 
-            step[i]:   assistant_message_dict={2 toolUse blocks}, tool_use_id="a", observation="..."
-            step[i+1]: assistant_message_dict=None,                tool_use_id="b", observation="..."
+            step[i]:   assistant_message_dict={1 toolUse block for "a"}, tool_use_id="a", observation="..."
+            step[i+1]: assistant_message_dict={1 toolUse block for "b"}, tool_use_id="b", observation="..."
 
         Produces::
 
-            messages[j]:   {"role": "assistant", "content": [{toolUse: a}, {toolUse: b}]}
-            messages[j+1]: {"role": "user", "content": [{toolResult: a}, {toolResult: b}]}
+            messages[j]:   {"role": "assistant", "content": [{text: ...}, {toolUse: a}]}
+            messages[j+1]: {"role": "user", "content": [{toolResult: a}]}
+            messages[j+2]: {"role": "assistant", "content": [{toolUse: b}]}
+            messages[j+3]: {"role": "user", "content": [{toolResult: b}]}
         """
         messages = []
         state_list = list(state)
-        skip_indices: set[int] = set()
 
         # Seed with query if state doesn't already have a user_message step
         # (MCTS root node has empty state; chain agent pre-seeds via user_message)
@@ -200,9 +262,6 @@ class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
             messages.append({"role": "user", "content": [{"text": query}]})
 
         for idx, step in enumerate(state_list):
-            if idx in skip_indices:
-                continue
-
             if not isinstance(step, NativeToolUseStep):
                 raise TypeError(
                     f"NativeToolUsePolicy expects NativeToolUseStep, got {type(step).__name__} at index {idx}"
@@ -212,53 +271,16 @@ class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
                 messages.append({"role": "user", "content": [{"text": step.user_message}]})
             elif step.assistant_message_dict:
                 messages.append(step.assistant_message_dict)
-                tool_results = self._collect_tool_results(state_list, idx, skip_indices)
-                if tool_results:
-                    messages.append({"role": "user", "content": tool_results})
+                # Each step has exactly one toolUse block → one toolResult
+                if step.observation is not None and step.tool_use_id:
+                    tool_result = self.base_model.format_tool_result(
+                        step.tool_use_id, step.observation
+                    )["content"][0]
+                    messages.append({"role": "user", "content": [tool_result]})
             elif step.answer:
                 messages.append({"role": "assistant", "content": [{"text": step.answer}]})
 
         return messages
-
-    def _collect_tool_results(
-        self, state_list: list, start_idx: int, skip_indices: set[int]
-    ) -> list[dict]:
-        """Collect tool results for a tool call group starting at ``start_idx``.
-
-        A tool call group = one assistant message with N toolUse blocks, stored as:
-        - step[start_idx]: has ``assistant_message_dict``, ``tool_use_id``, ``observation``
-        - step[start_idx+1..]: has ``tool_use_id`` + ``observation`` but NO ``assistant_message_dict``
-
-        Returns list of toolResult content blocks for a single user message.
-        """
-        results = []
-
-        # First step's tool result
-        step = state_list[start_idx]
-        if step.observation is not None and step.tool_use_id:
-            results.append(
-                self.base_model.format_tool_result(step.tool_use_id, step.observation)["content"][0]
-            )
-
-        # Subsequent steps in the same group (parallel tool calls)
-        for next_idx in range(start_idx + 1, len(state_list)):
-            next_step = state_list[next_idx]
-            if (isinstance(next_step, NativeToolUseStep)
-                    and next_step.tool_use_id
-                    and next_step.observation is not None
-                    and not next_step.assistant_message_dict
-                    and not next_step.user_message
-                    and not next_step.answer):
-                results.append(
-                    self.base_model.format_tool_result(
-                        next_step.tool_use_id, next_step.observation
-                    )["content"][0]
-                )
-                skip_indices.add(next_idx)
-            else:
-                break
-
-        return results
 
     def _create_error_steps(self, n_actions: int, error_msg: str) -> list[NativeToolUseStep]:
         return [NativeToolUseStep(error=error_msg) for _ in range(n_actions)]

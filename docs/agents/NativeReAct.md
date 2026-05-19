@@ -59,7 +59,7 @@ Policy hierarchy:
 
 ```
 Policy (ABC)
-  └── _BaseNativeToolUsePolicy       ← shared: __init__, _build_messages, _collect_tool_results,
+  └── _BaseNativeToolUsePolicy       ← shared: __init__, _build_messages,
         │                               set_system_prompt, _build_system_prompt, _create_error_steps
         ├── NativeToolUsePolicy      ← sync _get_actions (uses Policy._call_model)
         └── AsyncNativeToolUsePolicy ← async _call_model, _get_actions, _get_actions_stream
@@ -93,23 +93,46 @@ Text-based `ToolUsePolicy` takes a different approach: `state.to_messages(query)
 
 ### Why `format_tool_result()` lives on the LM class
 
-The tool result format is provider-specific (Bedrock: `toolResult` block, OpenAI: `tool` role message). Policy calls `self.base_model.format_tool_result()` so it stays provider-agnostic. This is why `_collect_tool_results` is in the policy (it has `self.base_model`), not in `NativeToolUseStep.to_messages()`.
+The tool result format is provider-specific (Bedrock: `toolResult` block, OpenAI: `tool` role message). Policy calls `self.base_model.format_tool_result()` so it stays provider-agnostic. This is why tool result formatting is in `_build_messages` (it has `self.base_model`), not in `NativeToolUseStep.to_messages()`.
 
 ### Why `assistant_message_dict` is stored as raw dict
 
-The LLM's assistant response in native tool use contains provider-specific blocks (`toolUse` with `toolUseId`, `input`, etc.). Reconstructing this from parsed fields would be fragile and provider-coupled. Instead, `ToolCallOutput.raw_message` is stored as-is in `NativeToolUseStep.assistant_message_dict` and replayed directly in `_build_messages()`. No reconstruction needed.
+The LLM's assistant response in native tool use contains provider-specific blocks (`toolUse` with `toolUseId`, `input`, etc.). Reconstructing this from parsed fields would be fragile and provider-coupled. Instead, `_response_to_steps` builds a per-step `assistant_message_dict` from the raw response blocks and stores it on `NativeToolUseStep`. Each step's dict contains exactly one `toolUse` block (split from the original response), replayed directly in `_build_messages()`. No reconstruction needed at message-build time.
 
 ### Parallel tool calls
 
-The LLM may return multiple `toolUse` blocks in a single assistant message (parallel tool calls). Each iteration of the ReAct loop (`NativeReAct.run`) processes one LLM response through three stages:
+The LLM may return multiple `toolUse` blocks in a single assistant message (parallel tool calls).
 
-1. **Parse** — `_response_to_steps` (`native_tool_use.py`): Creates one `NativeToolUseStep` per tool call. Only the first step carries `assistant_message_dict` (the raw response with all toolUse blocks). Subsequent steps have `assistant_message_dict=None`.
+**Splitting strategy**: `_response_to_steps` splits the raw message so each step gets its own `assistant_message_dict` containing exactly one `toolUse` block. Text blocks (LLM reasoning) are attached to the first step only. This ensures each step is self-contained — it can be used independently in any trajectory (MCTS siblings) or truncated (chain `n_actions=1`) without causing a "missing toolResult" ValidationException.
 
-2. **Execute** — `_process_steps` (`native_react.py::_BaseNativeReAct`): Executes all tool calls sequentially via `transition.step()`. Each step gets its `observation` populated.
+```
+Original LLM response:
+  {"role": "assistant", "content": [
+    {"text": "I'll check both"},
+    {"toolUse": {"toolUseId": "tc_1", ...}},
+    {"toolUse": {"toolUseId": "tc_2", ...}}
+  ]}
 
-3. **Rebuild** (next iteration) — `_build_messages` + `_collect_tool_results` (`native_tool_use.py`): Reconstructs the conversation for the next LLM call. The first step's `assistant_message_dict` becomes one assistant message. `_collect_tool_results` groups all tool results (from the first step and subsequent `assistant_message_dict=None` steps) into one user message with multiple `toolResult` blocks.
+After _response_to_steps splits:
+  step[0].assistant_message_dict = {"role": "assistant", "content": [
+    {"text": "I'll check both"},
+    {"toolUse": {"toolUseId": "tc_1", ...}}
+  ]}
+  step[1].assistant_message_dict = {"role": "assistant", "content": [
+    {"toolUse": {"toolUseId": "tc_2", ...}}
+  ]}
+```
 
-**`raw_message` is the source of truth** for the assistant message. The `text` field in `ToolCallOutput` (LLM's reasoning before tool calls) is already inside `raw_message["content"]` and does not need a separate field on `NativeToolUseStep`. Step fields (`action`, `tool_use_id`) are convenience extractions for transition execution; `_build_messages` uses only `assistant_message_dict` and `observation`.
+**Behavior by agent mode**:
+
+| Mode | `n_actions` | What happens with 2 parallel calls |
+|------|-------------|-------------------------------------|
+| MCTS | 3 | Both steps become child nodes (saves 1 LLM call). Each node's trajectory has 1 `toolUse` → 1 `toolResult`. |
+| Chain | 1 | `steps[:1]` truncates to step[0] only. Step[1] is discarded — LLM will regenerate it next turn after seeing step[0]'s result. No mismatch because step[0]'s message only contains its own `toolUse`. |
+
+**Why chain truncation is acceptable**: Chain mode is sequential reasoning — one action per turn, observe, decide next. The LLM's parallel suggestion is treated as a hint; after seeing the first tool's result, it may choose a different second action. The cost is one extra LLM call, but the logic stays simple and correct.
+
+**`_build_messages` reconstruction**: Since each step has exactly one `toolUse` block, `_build_messages` simply emits one assistant message + one user message (with one `toolResult`) per step. No grouping logic needed.
 
 ## Usage
 
