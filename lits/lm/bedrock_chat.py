@@ -507,17 +507,6 @@ class BedrockChatModel(LanguageModel):
                 concise_msg = error_msg[:200] + "..." if len(error_msg) > 200 else error_msg
             
             logging.error(f"Bedrock Converse API call failed: {concise_msg}")
-
-            # Recoverable validation errors: return empty text so the caller
-            # can treat this step as a failed/low-reward node rather than
-            # crashing the entire search run.
-            if "ValidationException" in error_msg:
-                logging.warning(
-                    f"Returning empty response for ValidationException "
-                    f"(search will assign low reward to this node)"
-                )
-                return ("", 0, 0)
-
             raise RuntimeError(f"Bedrock Converse API call failed: {concise_msg}")
         
         # Parse response — check for tool use
