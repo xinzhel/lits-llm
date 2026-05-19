@@ -23,6 +23,7 @@ Hierarchy::
 import asyncio
 import json
 import logging
+import re
 from typing import Optional
 
 from lits.components.base import Policy
@@ -109,6 +110,17 @@ def _make_step_message(tc_id: str, tc_name: str, tc_input: dict,
     return {"role": "assistant", "content": content}
 
 
+# Bedrock Converse API constraint on toolUse.name: alphanumeric + underscore,
+# must start with a letter, max 64 chars. Matches BedrockChatModel.TOOL_NAME_PATTERN.
+# This is the strictest provider constraint — valid here implies valid for all providers.
+_VALID_TOOL_NAME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
+
+
+def _is_valid_tool_name(name: str) -> bool:
+    """Check if a tool name satisfies Bedrock Converse API constraints."""
+    return bool(_VALID_TOOL_NAME_RE.match(name))
+
+
 def _response_to_steps(response) -> list[NativeToolUseStep]:
     """Convert LLM response to NativeToolUseStep list (shared by sync and async).
 
@@ -163,6 +175,20 @@ def _response_to_steps(response) -> list[NativeToolUseStep]:
 
         steps = []
         for i, tc in enumerate(response.tool_calls):
+            # Validate tool name — LLM hallucinations (e.g., "sql_db_\n_query")
+            # cause ValidationException on the *next* API call when the tainted
+            # assistant message is replayed in conversation history.
+            if not _is_valid_tool_name(tc.name):
+                logger.warning(
+                    "NativeToolUsePolicy: invalid tool name %r from LLM (tool_use_id=%s). "
+                    "Returning error step.",
+                    tc.name, tc.id,
+                )
+                steps.append(NativeToolUseStep(
+                    error=f"LLM hallucinated invalid tool name: {tc.name!r}",
+                ))
+                continue
+
             action_str = json.dumps({"action": tc.name, "action_input": tc.input_args})
             step_msg = _make_step_message(
                 tc.id, tc.name, tc.input_args,

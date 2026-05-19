@@ -1,4 +1,4 @@
-import time, json, os, logging
+import time, json, os, logging, re
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from typing import List, Optional, Dict, Any, Union
@@ -56,6 +56,10 @@ class BedrockChatModel(LanguageModel):
     Wrapper for AWS Bedrock chat/inference models (Anthropic Claude, Amazon Nova, Mistral, etc.)
     following the LiTS unified LanguageModel interface.
     """
+
+    # Bedrock Converse API constraint on toolUse.name:
+    # alphanumeric + underscore, must start with a letter, max 64 chars.
+    TOOL_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
 
     def __init__(
         self,

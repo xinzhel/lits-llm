@@ -11,6 +11,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Fixed
 - `_response_to_steps` — split parallel tool calls into per-step `assistant_message_dict` (each with one `toolUse` block) to fix "missing toolResult" ValidationException (`lits/components/policy/native_tool_use.py`) [T1]
+- `_response_to_steps` — validate tool names against Bedrock constraint; hallucinated names (e.g., `sql_db_\n_query`) produce error steps instead of tainting conversation history [T2]
 
 ### Docs
 - `docs/agents/NativeReAct.md` — updated parallel tool calls section to reflect per-step splitting design [T1]

@@ -29,6 +29,7 @@ Usage:
 import json
 import logging
 import os
+import re
 from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 
 import aioboto3
@@ -57,6 +58,10 @@ class AsyncBedrockChatModel:
         max_new_tokens: Default max tokens for generation.
         verbose: Enable verbose logging.
     """
+
+    # Bedrock Converse API constraint on toolUse.name:
+    # alphanumeric + underscore, must start with a letter, max 64 chars.
+    TOOL_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,63}$")
 
     def __init__(
         self,
