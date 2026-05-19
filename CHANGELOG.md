@@ -30,6 +30,8 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - MCTS augmentor wiring — `augmentor_query_context` now reads `policy_model_name` from `self.policy.base_model.model_name` and `task_type` from `self.policy.TASK_TYPE` (fixes `store() skipped` bug)
 - `NativeToolUsePolicy.TASK_TYPE` — corrected from `"native_tool_use"` to `"tool_use"`
 - `Policy._get_dynamic_notes` — join `List[str]` with newline before injection (removes spurious `["..."]` brackets in system prompt)
+- `BedrockChatModel._converse_api` — catch `ValidationException` and return empty response instead of crashing the run (graceful degradation for malformed tool-call histories)
+- `BedrockChatModel._converse_api` — return empty response on `ValidationException` instead of crashing (resilience for malformed tool calls from LLM hallucination)
 
 ## 2026-05-11 Unreleased (`lits_mem/0511-minor-mcts-uct-fix`)
 
