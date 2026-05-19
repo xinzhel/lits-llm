@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-19 Unreleased
+
+### Fixed
+- `setup_inference_logging` in `lits/cli/search.py` — also attach the logger to `augmentor_base_model` (reflection LLM); previously only `memory_llm` was registered, causing reflection LLM costs to be silently missing from `inferencelogger.log`
+
+### Docs
+- `docs/cli/debug_guide/pilot_check.md` — added cost coverage check (verify `inferencelogger.log` records every paid LLM before scaling pilots)
+
+
 ## 2026-05-18 Unreleased
 
 ### Added

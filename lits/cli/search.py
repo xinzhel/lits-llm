@@ -600,8 +600,12 @@ def main() -> int:
         base_model=augmentor_base_model,
         run_logger=run_logger,
     ) if memory_kwargs else []
+    # Include both memory_llm (fact backend) AND augmentor_base_model (reflection)
+    # so all augmentor-side LLM calls are tracked. setup_inference_logging
+    # ignores None entries.
     inference_logger = setup_inference_logging(
-        base_model, eval_model, terminal_model, terminate_ORM, memory_llm,
+        base_model, eval_model, terminal_model, terminate_ORM,
+        memory_llm, augmentor_base_model,
         root_dir=result_dir, override=config.override_log_result,
     )
 

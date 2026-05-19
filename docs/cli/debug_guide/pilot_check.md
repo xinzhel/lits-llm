@@ -1,16 +1,40 @@
 # Pilot Check Guide
 
-After running a pilot (1-3 examples), verify three things before scaling to the full dataset:
+After running a pilot (1-3 examples), verify these things before scaling to the full dataset:
 
-1. **Augmentor output** — are reflections/facts being generated?
-2. **Policy injection** — are they reaching the LLM's system prompt?
-3. **Effect on behavior** — do later attempts improve?
+1. **Cost coverage** — does `inferencelogger.log` capture every paid LLM?
+2. **Augmentor output** — are reflections/facts being generated?
+3. **Policy injection** — are they reaching the LLM's system prompt?
+4. **Effect on behavior** — do later attempts improve?
 
-## Example: Reflection Pilot on DBBench (Haiku 3.5)
+## 0. Cost coverage check (do this first)
 
-Run dir: `dbbench_wikisql_chain_reflection/run_v0.3.2`
+Before any analysis, confirm `inferencelogger.log` records every model that costs money. If a model is missing, the cost report at the end of the full run will under-report by 5–20% — and you cannot recover the missing data without rerunning.
 
-### 1. Check augmentor output
+```bash
+python3 -c "
+import json
+from collections import Counter
+c = Counter()
+with open('<run_dir>/inferencelogger.log') as f:
+    for line in f:
+        c[json.loads(line)['role'].split('_')[0]] += 1
+for k, v in sorted(c.items()): print(f'{k}: {v}')
+"
+```
+
+Expected role prefixes by configuration:
+
+| Configuration | Required prefixes |
+|---|---|
+| No memory | `policy`, `evaluator` |
+| `--memory-arg augmentors=fact` | `policy`, `evaluator`, `memory` |
+| `--memory-arg augmentors=reflection` | `policy`, `evaluator`, `augmentor` |
+| `--memory-arg augmentors=fact,reflection` | `policy`, `evaluator`, `memory`, `augmentor` |
+
+If any required prefix is missing with non-zero calls, **stop and fix `setup_inference_logging` in `lits/cli/search.py` before proceeding to the full run** — the augmentor's `base_model.inference_logger` is not being attached.
+
+## 1. Augmentor output check
 
 Reflections are saved to `augmentor/resultdicttojsonl_*.jsonl` (one JSON object per reflection):
 
