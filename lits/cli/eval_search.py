@@ -507,7 +507,34 @@ def evaluate_from_checkpoints(
                 terminal_nodes = data['terminal_nodes']
                 _query = data['query']
                 ground_truth = full_dataset[query_idx]['answer']
-                answer_pred = retrieve_answer(terminal_nodes[0], _query) if terminal_nodes else ""
+                # Select PRM-best terminal by mean(cum_rewards) — the same
+                # Q-value MCTS uses for UCT selection during search
+                # (MCTSNode.DEFAULT_Q_FUNC = np.mean). This generalises to
+                # both cumulative backprop (mean over rollouts that reached
+                # this terminal) and decay backprop (mean of the singleton
+                # cum_rewards list, i.e. the decayed Q). Falls back to -inf
+                # for nodes with empty cum_rewards (e.g. simulate-only or
+                # depth-limit-truncated terminals), which correctly ranks
+                # them below any real rollout.
+                #
+                # Previously this branch used terminal_nodes[0] which is
+                # save-order dependent and could pick a degenerate root
+                # placeholder over a high-Q SQL trajectory; see
+                # paper/lits_memory/results/summary_wikisql.md case study
+                # "example 12" for the failure mode this fixes.
+                if terminal_nodes:
+                    import numpy as _np
+                    def _q_value(node):
+                        cr = getattr(node, 'cum_rewards', None)
+                        if not cr:
+                            return -float('inf')
+                        if isinstance(cr, list):
+                            return float(_np.mean(cr))
+                        return float(cr)
+                    best_node = max(terminal_nodes, key=_q_value)
+                    answer_pred = retrieve_answer(best_node, _query)
+                else:
+                    answer_pred = ""
                 if "mapeval" in dataset_name:
                     ground_truth = "Option " + str(ground_truth)
             else:

@@ -10,6 +10,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ## 2026-05-19 Unreleased
 
 ### Fixed
+- `lits/cli/eval_search.py` `is_tool_use` branch — select PRM-best terminal (highest `max(cum_rewards)`) instead of `terminal_nodes[0]` (save-order dependent). Previously, MCTS runs that saved a degenerate root-thinking placeholder before deeper SQL trajectories had their accuracy under-reported by 8–14 percentage points (verified on three WikiSQL runs)
 - `setup_inference_logging` in `lits/cli/search.py` — also attach the logger to `augmentor_base_model` (reflection LLM); previously only `memory_llm` was registered, causing reflection LLM costs to be silently missing from `inferencelogger.log`
 
 ### Docs
