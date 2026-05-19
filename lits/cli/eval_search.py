@@ -314,6 +314,58 @@ def _save_eval_results(results: dict, result_dir: "Path", eval_logger):
     eval_logger.info(f"Evaluation results saved to {path}")
 
 
+def _select_tool_use_terminal(terminal_nodes, strategy: str):
+    """Pick which terminal node's answer to evaluate for tool_use tasks.
+
+    Strategies:
+      - "first":   terminal_nodes[0] (legacy save-order behaviour).
+      - "q-max":   argmax over max(cum_rewards) per node — best single
+                   rollout that reached this terminal.
+      - "q-mean":  argmax over mean(cum_rewards) per node — matches
+                   MCTSNode.DEFAULT_Q_FUNC (np.mean), i.e. the same
+                   Q-value MCTS uses for UCT during search.
+
+    Why "q-*" and not "prm-*": the values in `cum_rewards` are per-rollout
+    returns (per-step PRM scores aggregated along the path by
+    `backprop_reward_func`), not raw PRM scores. Across rollouts they're
+    aggregated into the node's Q-value by `cross_rollout_q_func`. So the
+    correct MCTS terminology for "rank terminals by their accumulated
+    score" is "rank by Q-value".
+
+    Empty `cum_rewards` is treated as -inf, so any node with at least one
+    rollout will outrank a never-visited terminal.
+
+    Returns:
+        The selected node, or None if `terminal_nodes` is empty.
+    """
+    if not terminal_nodes:
+        return None
+    if strategy == "first":
+        return terminal_nodes[0]
+
+    import numpy as _np
+    if strategy == "q-max":
+        def _score(n):
+            cr = getattr(n, "cum_rewards", None)
+            if not cr:
+                return -float("inf")
+            return float(max(cr) if isinstance(cr, list) else cr)
+    elif strategy == "q-mean":
+        def _score(n):
+            cr = getattr(n, "cum_rewards", None)
+            if not cr:
+                return -float("inf")
+            if isinstance(cr, list):
+                return float(_np.mean(cr))
+            return float(cr)
+    else:
+        raise ValueError(
+            f"Unknown terminal_selection={strategy!r}; "
+            "expected one of 'first', 'q-max', 'q-mean'"
+        )
+    return max(terminal_nodes, key=_score)
+
+
 def evaluate_from_checkpoints(
     result_dir: str,
     dataset_name: str,
@@ -325,6 +377,7 @@ def evaluate_from_checkpoints(
     output_price_per_m: float = None,
     verbose: bool = False,
     llm_eval_mode: str = "binary",
+    terminal_selection: str = "q-mean",
 ):
     """
     Evaluate tree search results from checkpoint files.
@@ -337,6 +390,16 @@ def evaluate_from_checkpoints(
         limit: Dataset limit used during search
         dataset_kwargs: Dataset-specific arguments (loaded from config)
         verbose: If True, print detailed output to console
+        terminal_selection: How to pick which terminal node's answer to evaluate
+            for tool_use tasks. One of:
+              - "first":   terminal_nodes[0] (legacy save-order behaviour;
+                           reproduces pre-fix evals)
+              - "q-max":   argmax over max(cum_rewards) — best single rollout Q
+              - "q-mean":  argmax over mean(cum_rewards)  (default)
+                           matches MCTSNode.DEFAULT_Q_FUNC = np.mean,
+                           i.e. the same Q-value MCTS uses for UCT
+            See `paper/lits_memory/results/summary_wikisql.md` for empirical
+            comparison of selection strategies on WikiSQL MCTS.
     """
     result_dir = Path(result_dir)
     
@@ -507,34 +570,13 @@ def evaluate_from_checkpoints(
                 terminal_nodes = data['terminal_nodes']
                 _query = data['query']
                 ground_truth = full_dataset[query_idx]['answer']
-                # Select PRM-best terminal by mean(cum_rewards) — the same
-                # Q-value MCTS uses for UCT selection during search
-                # (MCTSNode.DEFAULT_Q_FUNC = np.mean). This generalises to
-                # both cumulative backprop (mean over rollouts that reached
-                # this terminal) and decay backprop (mean of the singleton
-                # cum_rewards list, i.e. the decayed Q). Falls back to -inf
-                # for nodes with empty cum_rewards (e.g. simulate-only or
-                # depth-limit-truncated terminals), which correctly ranks
-                # them below any real rollout.
-                #
-                # Previously this branch used terminal_nodes[0] which is
-                # save-order dependent and could pick a degenerate root
-                # placeholder over a high-Q SQL trajectory; see
-                # paper/lits_memory/results/summary_wikisql.md case study
-                # "example 12" for the failure mode this fixes.
-                if terminal_nodes:
-                    import numpy as _np
-                    def _q_value(node):
-                        cr = getattr(node, 'cum_rewards', None)
-                        if not cr:
-                            return -float('inf')
-                        if isinstance(cr, list):
-                            return float(_np.mean(cr))
-                        return float(cr)
-                    best_node = max(terminal_nodes, key=_q_value)
-                    answer_pred = retrieve_answer(best_node, _query)
-                else:
-                    answer_pred = ""
+                # Select which terminal's answer to evaluate. Strategy is
+                # configurable via --terminal_selection (default prm-mean).
+                # See `_select_tool_use_terminal` docstring and the
+                # "Eval pipeline bug" section in
+                # paper/lits_memory/results/summary_wikisql.md for context.
+                best_node = _select_tool_use_terminal(terminal_nodes, terminal_selection)
+                answer_pred = retrieve_answer(best_node, _query) if best_node is not None else ""
                 if "mapeval" in dataset_name:
                     ground_truth = "Option " + str(ground_truth)
             else:
@@ -749,6 +791,15 @@ Examples:
     parser.add_argument("-v", "--verbose", action="store_true", help="Print detailed output to console (default: progress bar + summary only)")
     parser.add_argument("--llm-eval", choices=["binary", "f1", "none"], default="binary",
                         help="LLM fallback evaluator mode: 'binary' (default, yes/no), 'f1' (float F1 score), 'none' (disable LLM fallback)")
+    parser.add_argument("--terminal_selection", choices=["first", "q-max", "q-mean"],
+                        default="q-mean",
+                        help=("How to pick which terminal node's answer to evaluate "
+                              "for tool_use tasks. 'first' = legacy save-order behaviour "
+                              "(terminal_nodes[0]); 'q-max' = argmax over max(cum_rewards); "
+                              "'q-mean' (default) = argmax over mean(cum_rewards), matches "
+                              "MCTSNode.DEFAULT_Q_FUNC. See "
+                              "paper/lits_memory/results/summary_wikisql.md for the "
+                              "empirical comparison on WikiSQL MCTS."))
     
     args = parser.parse_args()
     
@@ -810,6 +861,7 @@ Examples:
             output_price_per_m=args.output_price,
             verbose=args.verbose,
             llm_eval_mode=args.llm_eval,
+            terminal_selection=args.terminal_selection,
         )
     except Exception as e:
         print(f"Error during evaluation: {e}", file=sys.stderr)

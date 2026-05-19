@@ -9,8 +9,11 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ## 2026-05-19 Unreleased
 
+### Added
+- `lits-eval --terminal_selection {first|q-max|q-mean}` flag — controls which terminal node's answer is evaluated for tool_use tasks. Default `q-mean` matches `MCTSNode.DEFAULT_Q_FUNC` (np.mean) used during UCT. `q-max` uses argmax over max(cum_rewards). `first` reproduces the legacy save-order-dependent behaviour (`terminal_nodes[0]`)
+
 ### Fixed
-- `lits/cli/eval_search.py` `is_tool_use` branch — select PRM-best terminal (highest `max(cum_rewards)`) instead of `terminal_nodes[0]` (save-order dependent). Previously, MCTS runs that saved a degenerate root-thinking placeholder before deeper SQL trajectories had their accuracy under-reported by 8–14 percentage points (verified on three WikiSQL runs)
+- `lits/cli/eval_search.py` `is_tool_use` branch — replace `terminal_nodes[0]` (save-order dependent) with PRM-best selection. Previously, MCTS runs that saved a degenerate root-thinking placeholder before deeper SQL trajectories had their accuracy under-reported by 8–14 percentage points (verified on three WikiSQL runs)
 - `setup_inference_logging` in `lits/cli/search.py` — also attach the logger to `augmentor_base_model` (reflection LLM); previously only `memory_llm` was registered, causing reflection LLM costs to be silently missing from `inferencelogger.log`
 
 ### Docs
