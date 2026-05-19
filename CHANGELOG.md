@@ -15,6 +15,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Docs
 - `docs/agents/NativeReAct.md` — updated parallel tool calls section to reflect per-step splitting design [T1]
+- `unit_test/components/test_response_to_steps.py` — rewritten with full coverage for parallel calls, tool name validation, and _build_messages [T4]
 
 
 ## 2026-05-19 Unreleased
