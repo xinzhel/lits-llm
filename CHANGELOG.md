@@ -28,6 +28,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Added
 - `lits-eval --terminal_selection {first|q-max|q-mean}` flag — controls which terminal node's answer is evaluated for tool_use tasks. Default `q-mean` matches `MCTSNode.DEFAULT_Q_FUNC` (np.mean) used during UCT. `q-max` uses argmax over max(cum_rewards). `first` reproduces the legacy save-order-dependent behaviour (`terminal_nodes[0]`)
+- `BaseTreeSearch.save_full_tree()` — serializes the entire search tree (all nodes incl. un-simulated siblings) to `full_tree/full_tree_{query_idx}.json` after search completes. Called automatically in MCTS; no-op when checkpointing is disabled (`lits_mem/0520-minor-save-full-tree`)
 
 ### Fixed
 - `lits/cli/eval_search.py` `is_tool_use` branch — replace `terminal_nodes[0]` (save-order dependent) with PRM-best selection. Previously, MCTS runs that saved a degenerate root-thinking placeholder before deeper SQL trajectories had their accuracy under-reported by 8–14 percentage points (verified on three WikiSQL runs)

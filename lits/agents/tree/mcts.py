@@ -927,6 +927,7 @@ class MCTSSearch(BaseTreeSearch):
             log_event(logger, "CHECKPOINT", f"Saved result: {result_file}", level="debug")
 
         terminal_nodes_collected = self.collect_terminal_nodes()
+        self.save_full_tree(query_idx)
         log_event(logger, "MCTS", f"Total terminal nodes: {len(terminal_nodes_collected)}", level="debug")
         log_phase(logger, "MCTS", f"End (example={query_idx})")
 

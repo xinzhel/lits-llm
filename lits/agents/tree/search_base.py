@@ -261,6 +261,32 @@ class BaseTreeSearch(ABC):
             _walk(self.root)
         return terminals
 
+    def save_full_tree(self, query_idx: int) -> None:
+        """Serialize the entire search tree (all nodes incl. un-simulated siblings).
+
+        Walks ``self.root`` recursively and writes every node to a single
+        JSON file. Each node includes its ``children`` list (as nested
+        serialized nodes), preserving the full tree structure.
+
+        Output: ``{result_dir}/full_tree/full_tree_{query_idx}.json``
+
+        No-op when checkpoint directory was not configured.
+        """
+        if self._checkpoint_path is None:
+            return
+        from ...structures.trace import _serialize_obj
+
+        def _node_to_dict(node: SearchNode) -> dict:
+            d = node.to_dict()
+            d["children"] = [_node_to_dict(c) for c in (node.children or [])]
+            return d
+
+        tree_dir = self._checkpoint_path.parent / "full_tree"
+        tree_dir.mkdir(parents=True, exist_ok=True)
+        filepath = tree_dir / f"full_tree_{query_idx}.json"
+        with open(filepath, "w") as f:
+            json.dump(_node_to_dict(self.root), f, indent=2, ensure_ascii=False)
+
     def save_checkpoint(self, query_idx, iter_idx, data):
         """Serialise *data* to a checkpoint JSON file.
 
