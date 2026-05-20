@@ -893,6 +893,14 @@ class Policy(ABC, Generic[StateT, StepT]):
                     or "serviceunavailableexception" in err_msg
                     or "throttlingexception" in err_msg
                     or "too many requests" in err_msg
+                    # Transient network failures (e.g. wifi drop → DNS resolution failure).
+                    # boto3 raises EndpointConnectionError wrapping urllib3
+                    # NameResolutionError wrapping socket.gaierror. See
+                    # `chore/aws/bedrock/debug/dns_resolution_failure.md` for the
+                    # 2026-05-20 KGQA MCTS incident this fix addresses.
+                    or "could not connect to the endpoint" in err_msg
+                    or "nameresolutionerror" in err_msg
+                    or "nodename nor servname" in err_msg
                 )
                 if is_transient:
                     import time as _time

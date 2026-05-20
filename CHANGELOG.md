@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-20 Unreleased
+
+### Fixed
+- `Policy._get_actions` transient-error retry — also retry on transient network failures (`EndpointConnectionError`, `NameResolutionError`, `socket.gaierror`); previously these terminated long runs after a wifi drop. See `chore/aws/bedrock/debug/dns_resolution_failure.md`
+
+
 ## 2026-05-19 Unreleased (`0519-minor-bedrock-validation-fix`)
 
 ### Fixed
