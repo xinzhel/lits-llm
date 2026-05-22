@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-22 Unreleased (`x-0522-0522-minor-tool-failure-circuit-breaker`)
+
+### Added
+- `ToolServerDownError` exception (`lits/tools/utils.py`, exported from `lits.tools`)
+- Tool backend circuit breaker in `ToolUseTransition` (`tool_failure_threshold`, default 3)
+- Server-down classification in `execute_tool_action` (whitelist of network exceptions + string-marker fallback)
+
+### Changed
+- `execute_tool_action` — removed `raise_on_error` parameter; signature is `(action_data, tools)`
+- `lits/agents/chain/native_react.py` — chain caller now catches `ToolServerDownError` explicitly and surfaces as observation
+
+
 ## 2026-05-20 Unreleased
 
 ### Fixed

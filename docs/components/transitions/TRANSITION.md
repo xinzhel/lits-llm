@@ -178,13 +178,14 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseAction]):
 
 ### ToolUseTransition Interface Methods
 
-#### `__init__(tools, observation_on_error)`
+#### `__init__(tools, observation_on_error, tool_failure_threshold)`
 
 Initialize the transition with available tools.
 
 **Parameters:**
 - `tools` (list): List of tool instances (e.g., `BaseTool` subclasses)
-- `observation_on_error` (str): Error message prefix when tool execution fails (default: "Tool execution failed.")
+- `observation_on_error` (str): Error message prefix when tool execution fails (default: `"Tool execution failed."`)
+- `tool_failure_threshold` (int): Circuit breaker threshold (default: 3). Number of `ToolServerDownError`s that must accumulate across the run before `step()` re-raises to abort the run. The counter increments on `ToolServerDownError`, resets on a successful tool call, and is unaffected by other exceptions or by `init_state()`.
 
 **Example:**
 ```python
@@ -194,9 +195,25 @@ from lits.tools import CalculatorTool, SearchTool
 tools = [CalculatorTool(), SearchTool()]
 transition = ToolUseTransition(
     tools=tools,
-    observation_on_error="Tool execution failed."
+    observation_on_error="Tool execution failed.",
+    tool_failure_threshold=3,
 )
 ```
+
+#### Circuit breaker (tool backend health)
+
+When a tool's backend appears unreachable, `execute_tool_action` raises `ToolServerDownError` (see `lits.tools`). `ToolUseTransition.step()` counts these:
+
+- **Below threshold**: writes a `"Tool server unreachable (attempt N/M)"` observation to the step, appends to state, returns. The LLM sees the failure and may attempt different actions.
+- **At threshold**: writes a `"Final attempt before circuit-breaker abort"` observation, appends, then re-raises. The exception propagates uncaught, terminating the Python process with a clear traceback and exit code 1.
+
+The counter is **cross-example, not per-example** — failures spread across different examples still accumulate. A successful tool call is positive evidence the backend is alive and resets the counter.
+
+Why immediate abort: all examples in a run share the same backend, so continuing after a confirmed outage just burns LLM budget on garbage trajectories.
+
+**Logging**:
+- INFO from `lits.tools.utils` on every classification (one line per failed attempt).
+- WARNING from `lits.components.transition.tool_use` only on the trip event, with `example=N TRIPPED after K consecutive failures (cross-example), tool=..., last_reason=...`.
 
 #### `init_state() -> ToolUseState`
 

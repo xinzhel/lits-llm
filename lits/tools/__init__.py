@@ -1,6 +1,6 @@
 import os
 from .base import BaseTool
-from .utils import execute_tool_action
+from .utils import execute_tool_action, ToolServerDownError
 
 def build_tools(
     benchmark_name: str,

@@ -28,6 +28,7 @@ from ...structures.tool_use import (
     ToolUseState,
 )
 from ...tools.utils import execute_tool_action
+from ...tools import ToolServerDownError
 
 logger = logging.getLogger(__name__)
 
@@ -388,7 +389,16 @@ class AsyncNativeReAct(_BaseNativeReAct):
                 observations = {}
                 for tc in tool_calls_this_turn:
                     action_str = json.dumps({"action": tc.name, "action_input": tc.input_args})
-                    observation = execute_tool_action(action_str, self.transition.tools, raise_on_error=False)
+                    # Chain semantics: single-trajectory ReAct, no circuit
+                    # breaker. We surface a backend-down condition as an
+                    # observation so the LLM can react (e.g. retry or give
+                    # up gracefully) instead of aborting the run. Tree-search
+                    # callers (`ToolUseTransition`) propagate the typed
+                    # exception to the circuit breaker instead.
+                    try:
+                        observation = execute_tool_action(action_str, self.transition.tools)
+                    except ToolServerDownError as e:
+                        observation = f"Tool server appears unreachable: {e}"
                     if not isinstance(observation, str):
                         observation = str(observation)
                     observations[tc.id] = observation

@@ -6,6 +6,7 @@ from ..base import Transition
 from ...structures import ToolUseState, ToolUseStep, ToolUseAction, log_state
 from ...structures.tool_use import BaseToolUseStep
 from ...tools.utils import execute_tool_action
+from ...tools import ToolServerDownError
 from ...log import log_event
 
 logger = logging.getLogger(__name__)
@@ -19,12 +20,34 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseAction]):
     the observation to append to the state.
     """
 
-    def __init__(self, tools: list, observation_on_error: str = "Tool execution failed."):
+    def __init__(
+        self,
+        tools: list,
+        observation_on_error: str = "Tool execution failed.",
+        tool_failure_threshold: int = 3,
+    ):
+        """Args:
+            tools: Available tool instances.
+            observation_on_error: Observation surfaced to the LLM when a tool
+                raises a non-network exception.
+            tool_failure_threshold: Number of `ToolServerDownError`s that
+                must accumulate before `step()` re-raises to abort the run.
+                The counter increments on `ToolServerDownError`, resets on a
+                successful tool call, and is unaffected by other exceptions
+                or by `init_state()`.
+        """
         self.tools = tools
         self.observation_on_error = observation_on_error
+        self.tool_failure_threshold = tool_failure_threshold
+        self.consecutive_server_down: int = 0
 
     def init_state(self, **kwargs) -> ToolUseState:
-        """Start each search trace with an empty tool-use history."""
+        """Return a fresh empty trajectory.
+
+        Note: does not reset `consecutive_server_down`. The counter persists
+        across examples so that an unhealthy backend (visible only as
+        intermittent failures spread across examples) still trips the breaker.
+        """
         return ToolUseState()
 
     def step(
@@ -100,9 +123,42 @@ class ToolUseTransition(Transition[ToolUseState, ToolUseAction]):
                     tool.pre_step(new_state)
             try:
                 observation = execute_tool_action(str(action), self.tools)
+            except ToolServerDownError as e:
+                self.consecutive_server_down += 1
+                counter = self.consecutive_server_down
+                threshold = self.tool_failure_threshold
+                reason_repr = repr(e.original_exc) if e.original_exc is not None else str(e)
+
+                if counter >= threshold:
+                    log_event(
+                        logger,
+                        "TOOL_SERVER_DOWN",
+                        f"example={query_idx} TRIPPED after {counter} consecutive failures (cross-example), "
+                        f"tool={e.tool_name} last_reason={reason_repr}",
+                        level="warning",
+                    )
+                    step.observation = (
+                        f"Tool server unreachable. Final attempt before circuit-breaker "
+                        f"abort. Reason: {e.original_exc or e}"
+                    )
+                    new_state.append(step)
+                    log_state(logger, new_state, header="ToolUseTransition.step (server-down trip)")
+                    raise
+                else:
+                    step.observation = (
+                        f"Tool server unreachable (attempt {counter}/{threshold}). "
+                        f"Reason: {e.original_exc or e}"
+                    )
+                    new_state.append(step)
+                    log_state(logger, new_state, header="ToolUseTransition.step (server-down)")
+                    return new_state, {"confidence": 0.0}
             except Exception as exc:
+                # Counter unchanged: not evidence of backend health either way.
                 logger.exception("Tool execution failed for example %s: %s", query_idx, exc)
                 observation = f"{self.observation_on_error} Reason: {exc}"
+            else:
+                # Successful call resets the counter.
+                self.consecutive_server_down = 0
             if not isinstance(observation, str):
                 observation = str(observation)
         
