@@ -233,6 +233,39 @@ Tool-use benchmarks (KGQA, mapeval-sql, etc.) register two optional hooks via th
 
 `prepare_tool_state` runs unconditionally per example today, even on skip. This is harmless (its SPARQL calls are cached) but represents a small per-skipped-example cost during resume; tracked as future work.
 
+#### Per-example trace on resume
+
+For an example whose terminal_nodes file already exists from a prior run:
+
+```python
+for query_idx, example in tqdm(indexed_dataset):
+    # ① Per-example tool state setup
+    if prepare_tool_state is not None:
+        prepare_tool_state(example)                      # SPARQL: entity → ID lookup
+                                                         #   ~1s, results cached
+
+    # ② Snapshot existence before search; gates ③ below
+    tn_existed_before = tn_file.exists()                 # True for already-completed examples
+
+    # ③ Search itself
+    run_tree_search(query_idx=query_idx, ...)
+    # ↳ run_tree_search internally:
+    #     if tn_file.exists():
+    #         logger.info(f"[{query_idx}] terminal_nodes already exists, skipping")
+    #         return                                     # ← early return on resume
+    #     ... otherwise: run MCTS/Beam, write tn_file ...
+
+    # ④ Post-search answer resolution
+    if resolve_answer is not None and not tn_existed_before:
+        # ← gated: skipped on resume because tn_existed_before is True.
+        # On a fresh example: load tn_file, walk every terminal node,
+        # call resolve_answer to convert "#N" → "m.0xxx" via SPARQL,
+        # rewrite tn_file if any answer changed.
+        ...
+```
+
+Without the `not tn_existed_before` gate (the framework's prior behavior), step ④ ran on every example regardless of skip — re-walking every terminal of every already-completed example, doing 3-7 SPARQL calls per terminal to rebuild `KGState`, and re-emitting the same warnings for any unresolvable answers. That accounted for the bulk of the per-example cost during resume.
+
 ### Unresolvable Answers ("variable #N not found")
 
 Agents sometimes hallucinate variable references that were never created — e.g., the LLM writes `<answer>#3</answer>` after only producing `#0..#2` via `get_neighbors`. `resolve_answer` cannot resolve such answers and emits:
@@ -242,6 +275,35 @@ WARNING resolve_answer: variable #3 not found (only 3 variables)
 ```
 
 The raw `#3` is left in the saved file unchanged, so downstream evaluators see the literal `#3` and score it as wrong. This is an agent-quality signal, not a framework bug; the warnings appear in the original run's log, not just on resume.
+
+### Worked example: hallucinated `#3` in KGQA example 14
+
+A concrete trace of why the warning appears, using a real terminal node from a KGQA MCTS run.
+
+The agent's saved trajectory has 5 steps:
+
+```python
+step 0: get_relations("Kodak EasyShare M753")
+step 1: get_neighbors("Kodak EasyShare M753", "iso_setting")  → creates #0
+step 2: get_neighbors("canon, inc.", "cameras")               → creates #1
+step 3: get_neighbors("#1", "iso_setting")                    → creates #2
+step 4: <answer>#3</answer>   # ← agent skipped intersection, jumped to a non-existent variable
+```
+
+`resolve_answer` then runs:
+
+```python
+raw_answer = "#3"                # last step's answer
+match = re.search(r'#(\d+)', "#3")
+var_idx = 3
+kg_state.rebuild(state)          # replays steps 1, 2, 3 → 3 variables (#0, #1, #2)
+
+if 3 >= 3:                       # var_idx out of range
+    logger.warning("resolve_answer: variable #3 not found (only 3 variables)")
+    return raw_answer            # returns "#3" unchanged → file not rewritten
+```
+
+The agent's last `<think>` block confirms the hallucination: *"The intersection gives us... Variable #3 is the final answer."* — but no `intersection` action was issued, so `#3` was never bound. The terminal is then scored as wrong by `evaluate_kgqa` because the literal string `"#3"` doesn't match any gold entity.
 
 ## QA
 
