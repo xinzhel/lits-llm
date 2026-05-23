@@ -50,77 +50,23 @@ strictly a *transport-layer* failure?" before adding it. HTTP-protocol-level
 errors need finer code-range checks; only treat them as server-down when the
 status indicates the server is actually impaired.
 
-## Gotcha 2: SSH Tunnels Drop Silently During Sleep / Network Hiccups
+## Gotcha 2: Backend Tunnels Can Drop Silently
 
-The Freebase SPARQL endpoint runs on an EC2 instance reached via SSH tunnel
-(school wifi only permits port 22 outbound, so we forward `localhost:3001` to
-the EC2 instance's `3001`). When the host Mac sleeps, hibernates, or the
-network briefly drops, the tunnel goes down silently and the next SPARQL call
-fails with `URLError("connection refused")`. The breaker correctly trips, but
-the run aborts even if the underlying server is healthy.
+When the tool backend lives behind an SSH tunnel or any other long-lived
+network shim, the tunnel can go down silently during host sleep/wake, network
+hiccups, or peer disconnects. The next call fails with `URLError("connection
+refused")`, the breaker correctly classifies it as server-down, and the run
+aborts after 3 consecutive trips — even though the underlying server is
+healthy and would be reachable if the tunnel were up.
 
-**Symptom (observed 2026-05-22 to 2026-05-23):** Overnight run died around
-4-5am when the tunnel dropped. After re-establishing the tunnel manually the
-next morning, the agent ran for ~30 more minutes before the tunnel dropped
-again and the breaker tripped permanently.
+This is operational tooling, not a `lits` library concern. Mitigation is
+deployment-specific: configure your tunnel with auto-reconnect (e.g., a
+keepalive-driven supervisor) and prevent host sleep during long runs.
 
-**Recommended fix: `autossh` with SSH keepalives**
-
-Replace the plain `ssh -fN -L ...` tunnel:
-
-```bash
-ssh -fN -L 3001:localhost:3001 -i ~/.ssh/race_lits_server_us.pem ubuntu@<ec2-ip>
-```
-
-with `autossh`, which auto-reconnects when the tunnel dies:
-
-```bash
-brew install autossh   # one-time
-
-autossh -M 0 -fN \
-  -o "ServerAliveInterval=30" \
-  -o "ServerAliveCountMax=3" \
-  -o "ExitOnForwardFailure=yes" \
-  -L 3001:localhost:3001 \
-  -i ~/.ssh/race_lits_server_us.pem \
-  ubuntu@<ec2-ip>
-```
-
-What each flag does:
-
-- `-M 0`: disable autossh's own monitor port (modern best practice; uses SSH
-  keepalives instead).
-- `-fN`: background, no remote command (same as the original `ssh -fN`).
-- `ServerAliveInterval=30 + ServerAliveCountMax=3`: SSH sends a heartbeat
-  every 30s; after 3 missed heartbeats (~90s), the SSH client exits, which
-  triggers autossh to spawn a fresh connection. Without these, the OS-default
-  keepalive is hours and the tunnel stays half-broken.
-- `ExitOnForwardFailure=yes`: if port 3001 can't be bound (e.g., previous
-  tunnel still holding it), exit immediately rather than hanging.
-
-**Verify the setup:**
-
-```bash
-# Should show one autossh + one ssh child
-ps aux | grep -E "autossh|ssh.*3001" | grep -v grep
-
-# Test resilience: kill the underlying ssh, autossh should respawn it
-pkill -f "ssh.*3001:localhost:3001"
-sleep 6
-ps aux | grep -E "ssh.*3001" | grep -v grep   # new PID should appear
-```
-
-**Additional belt-and-suspenders:**
-
-1. **`caffeinate -dimsu &`** before leaving the machine: prevents idle sleep,
-   the most common cause of tunnel drops on macOS.
-2. **AWS SSO refresh** if your runs use Bedrock: a `crontab` job that runs
-   `aws sso login --sso-session <name>` every 8 hours to keep credentials
-   fresh (Bedrock calls fail silently if SSO expires mid-run).
-
-A more robust fix would be a tool-side reconnection retry (e.g., on
-`URLError`, re-establish the tunnel via `subprocess` and retry once before
-raising `ToolServerDownError`). Not implemented yet; tracked as future work.
+A future improvement on the library side could be a tool-level reconnection
+retry: on `URLError`, attempt to re-establish the tunnel via `subprocess`
+and retry once before raising `ToolServerDownError`. Not implemented; tracked
+as future work.
 
 ## Diagnosing a Trip
 
