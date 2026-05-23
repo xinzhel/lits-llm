@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-23 Unreleased
+
+### Fixed
+- Circuit breaker false-positive on HTTP 4xx — `_classify_as_server_down` now skips `urllib.error.HTTPError(code in 400..499)` while still classifying 5xx and chained underlying network errors as server-down (`lits/tools/utils.py`)
+
+### Added
+- `docs/components/transitions/CIRCUIT_BREAKER.md` — documentation of classification logic, the HTTP 4xx gotcha, autossh-based tunnel recovery
+- Regression tests `case_i_http_4xx_is_not_server_down`, `case_j_http_5xx_is_server_down` in `unit_test/components/transition/test_tool_server_down_classify.py`
+
+
 ## 2026-05-22 Unreleased (`x-0522-0522-minor-tool-failure-circuit-breaker`)
 
 ### Added

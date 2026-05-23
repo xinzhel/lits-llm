@@ -24,6 +24,11 @@ g. A tool that returns a normal observation string (e.g. ``"Result: 5 rows"``)
 h. A tool that returns a string containing the broad word "connect" but no
    error vocabulary (e.g. ``"Step 1: connect to the database"``) is returned
    unchanged — the proximity heuristic prevents false positives (subtask 1.4).
+i. An HTTP 4xx error (e.g. SPARQLWrapper's ``QueryBadFormed`` chained from
+   ``urllib.error.HTTPError(code=400)``) is **not** classified as server-down.
+   These are client errors (malformed query from the LLM), not network failures.
+j. An HTTP 5xx error (e.g. ``HTTPError(code=503)``) IS classified as server-down
+   — the server is reachable but failing.
 
 Run (no breakpoints, batch-friendly):
 
@@ -200,6 +205,55 @@ def case_h_string_return_with_connect_word_but_no_error_vocab_is_observation():
     raise SystemExit(1)
 
 
+def case_i_http_4xx_is_not_server_down():
+    """HTTP 4xx (client error like 400 Bad Request from malformed SPARQL) must
+    NOT be classified as server-down. The original bug: SPARQLWrapper raises
+    `QueryBadFormed` on Virtuoso syntax errors with the underlying
+    `urllib.error.HTTPError(code=400)` in the exception chain. Without this
+    guard, the chain-walker matched `URLError` (parent of `HTTPError`) and
+    incorrectly tripped the circuit breaker on agent-side LLM bugs.
+    """
+    class _FakeQueryBadFormed(Exception):
+        pass
+
+    # Pre-build the exception chain: HTTPError(400) → QueryBadFormed.
+    try:
+        try:
+            raise urllib.error.HTTPError("http://endpoint", 400, "Bad Request", {}, None)
+        except urllib.error.HTTPError as he:
+            raise _FakeQueryBadFormed(
+                "QueryBadFormed: A bad request has been sent to the endpoint"
+            ) from he
+    except _FakeQueryBadFormed as built:
+        chained = built
+
+    tool = _FakeTool("kgqa_sparql", chained)
+    out = execute_tool_action(_action("kgqa_sparql"), [tool])
+
+    # Expectation: falls through to legacy string return (not ToolServerDownError),
+    # because HTTP 400 is a client error, not a server-down condition.
+    if isinstance(out, str) and PREFIX_FOR_ERROR_OBSERVATION in out:
+        print("[case i] OK — HTTP 400 fell through to legacy string return:", out[:80])
+        return
+    print("[case i] FAIL — expected legacy string return, got:", repr(out))
+    raise SystemExit(1)
+
+
+def case_j_http_5xx_is_server_down():
+    """HTTP 5xx (server error like 503 Service Unavailable) must still be
+    classified as server-down — the server is reachable but failing.
+    """
+    http_503 = urllib.error.HTTPError("http://endpoint", 503, "Service Unavailable", {}, None)
+    tool = _FakeTool("kgqa_sparql", http_503)
+    try:
+        execute_tool_action(_action("kgqa_sparql"), [tool])
+    except ToolServerDownError as e:
+        print("[case j] OK — HTTP 503 classified as server-down:", e)
+        return
+    print("[case j] FAIL — expected ToolServerDownError on HTTP 503")
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
     case_a_urllib_url_error_is_server_down()
     case_b_value_error_is_legacy_string()
@@ -209,4 +263,6 @@ if __name__ == "__main__":
     case_f_string_return_with_network_marker_is_server_down()
     case_g_string_return_no_marker_is_observation()
     case_h_string_return_with_connect_word_but_no_error_vocab_is_observation()
+    case_i_http_4xx_is_not_server_down()
+    case_j_http_5xx_is_server_down()
     print("\nALL CASES PASSED")
