@@ -680,6 +680,9 @@ def main() -> int:
         if prepare_tool_state is not None:
             prepare_tool_state(example)
 
+        tn_file = Path(result_dir) / "terminal_nodes" / f"terminal_nodes_{query_idx}.json"
+        tn_existed_before = tn_file.exists()
+
         run_tree_search(
             query_or_goals=query_or_goals,
             query_idx=query_idx,
@@ -697,8 +700,8 @@ def main() -> int:
             run_logger=run_logger,
         )
 
-        # Post-run answer resolution on saved terminal nodes (e.g., KG #N → entity names)
-        if resolve_answer is not None:
+        # Skip resolve on resume (search was a no-op). See docs/cli/search.md.
+        if resolve_answer is not None and not tn_existed_before:
             tn_file = Path(result_dir) / "terminal_nodes" / f"terminal_nodes_{query_idx}.json"
             if tn_file.exists():
                 with open(tn_file) as f:

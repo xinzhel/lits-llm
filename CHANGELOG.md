@@ -11,6 +11,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Fixed
 - Circuit breaker false-positive on HTTP 4xx — `_classify_as_server_down` now skips `urllib.error.HTTPError(code in 400..499)` while still classifying 5xx and chained underlying network errors as server-down (`lits/tools/utils.py`)
+- `lits-search` resume no longer re-runs `resolve_answer` on already-completed examples — saves SPARQL calls and silences spurious "variable #N not found" warnings during resume (`lits/cli/search.py`)
 
 ### Added
 - `docs/components/transitions/CIRCUIT_BREAKER.md` — documentation of classification logic, the HTTP 4xx gotcha, autossh-based tunnel recovery

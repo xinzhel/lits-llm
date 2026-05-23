@@ -218,6 +218,31 @@ python eval_search.py \
 | `env_grounded` | blocksworld, crosswords | Goal satisfaction checking |
 | `tool_use` | mapeval, mapeval-sql, clue | Answer extraction from tool outputs |
 
+## Tool-Use Task Hooks: `prepare_tool_state` and `resolve_answer`
+
+Tool-use benchmarks (KGQA, mapeval-sql, etc.) register two optional hooks via the dataset's `tool_use_spec` dict:
+
+| Hook | When it runs | Purpose | SPARQL/IO side effects |
+|------|--------------|---------|------------------------|
+| `prepare_tool_state(example)` | Once per example, before search | Inject example-specific context into a shared tool state (e.g., resolve KGQA entity names → Freebase IDs and seed the `KGState.entities` map) | Yes (entity lookup queries) |
+| `resolve_answer(raw_answer, state)` | After search, on each terminal node | Convert symbolic answer references like `#3` to concrete entity names by replaying the trajectory and executing the symbolic program | Yes (`final_execute` SPARQL per terminal) |
+
+### Resume Behavior
+
+`lits-search` skips an example whose `terminal_nodes/terminal_nodes_<idx>.json` already exists. In that case `resolve_answer` is also skipped — the saved file is already in its final form from the original run, so re-resolving would be wasted SPARQL traffic and would re-emit the same warnings for any unresolvable answers (see "Unresolvable answers" below).
+
+`prepare_tool_state` runs unconditionally per example today, even on skip. This is harmless (its SPARQL calls are cached) but represents a small per-skipped-example cost during resume; tracked as future work.
+
+### Unresolvable Answers ("variable #N not found")
+
+Agents sometimes hallucinate variable references that were never created — e.g., the LLM writes `<answer>#3</answer>` after only producing `#0..#2` via `get_neighbors`. `resolve_answer` cannot resolve such answers and emits:
+
+```
+WARNING resolve_answer: variable #3 not found (only 3 variables)
+```
+
+The raw `#3` is left in the saved file unchanged, so downstream evaluators see the literal `#3` and score it as wrong. This is an agent-quality signal, not a framework bug; the warnings appear in the original run's log, not just on resume.
+
 ## QA
 
 ### Question 1: How is a component argument passed to `Policy.from_config`?
