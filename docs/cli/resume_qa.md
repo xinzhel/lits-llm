@@ -189,11 +189,12 @@ from iter 0 with a fresh tree.
    If you don't archive, the rerun overwrites `{idx}_{iter}.json`
    iter-by-iter — no error, just lost partial data.
 
-5. **Split execution.log and inferencelogger.log at the boundary** of
-   the partially-searched query. The killed run's records for query
-   `{idx}` are stale (the rerun produces new ones); leaving them in
-   place would double-count token usage. See Procedure 4 for the exact
-   commands.
+5. **Split inference logs at the boundary** of the partially-searched
+   query. The killed run's records for query `{idx}` are stale (the
+   rerun produces new ones); leaving them in place would double-count
+   token usage in `inferencelogger.log` and `llm_calls.jsonl`, and
+   pollute `execution.log` for downstream agent analysis. See
+   Procedure 4 for the exact commands (covers all three log files).
 
 6. **Re-run the same `lits-search` command with `--output-dir` (NOT
    `--root-dir`)** pointing at the same directory.
@@ -210,87 +211,149 @@ from iter 0 with a fresh tree.
 
 ## Procedure 4 — Inference log hygiene (universal)
 
-`inferencelogger.log` (and `llm_calls.jsonl` for `lits-search`) is
-opened in **append mode**. Skipped queries / attempts have their old
-records preserved correctly. **Re-run** queries / attempts append new
-records on top of the old (now-stale) ones. Without action, the log
-double-counts the re-run trajectories' LLM calls.
+`inferencelogger.log`, `llm_calls.jsonl` (`lits-search` only), and
+`execution.log` are all opened in **append mode**. Skipped queries /
+attempts have their old records preserved correctly. **Re-run** queries
+/ attempts append new records on top of the old (now-stale) ones.
+Without action, downstream tools either double-count token usage or
+read inconsistent state.
 
 This matters for: paper cost tables, `lits-eval --input-price` totals,
-any `cost_per_example` analysis.
+any `cost_per_example` analysis, and any agent re-reading `execution.log`
+to diagnose past behavior.
+
+For each crashed/trip query, four files may need splitting:
+
+| File | What's stale | Boundary signal | Cleanup priority |
+|---|---|---|---|
+| `inferencelogger.log` | LLM-call records carrying token counts | First record whose `role` contains `_<idx>_` | **Required** (drives cost analysis) |
+| `llm_calls.jsonl` | LLM-call records (lits-search only) | First record with `query_idx == <idx>` | **Required** if used for diversity / per-call analysis |
+| `execution.log` | Verbose run log | First line matching `Begin (example=<idx>)` | **Recommended** for downstream agent analysis (large file but cleanup is fast) |
+| `treetojsonl*.jsonl` | Per-trajectory serialized paths | Records keyed by example_idx | Usually nothing to clean — these only write on trajectory completion, so a trip example before completion has no entries |
 
 ### Steps (apply BEFORE re-running, after Procedures 1–3 above)
 
-1. **Identify the boundary.** Find the first record belonging to the
-   query/attempt you re-ran. Records carry `trajectory_key` and
-   `iteration` fields, and `role` follows patterns like
-   `policy_{idx}_expand`, `evaluator_tooluse_{idx}_simulate`,
-   `memory_{idx}_*`. Use the `{idx}` in the role to find the boundary.
+1. **Identify the boundary in `inferencelogger.log`.** Find the first
+   record whose `role` contains `_<idx>_`. The role format varies
+   (`policy_{idx}_expand`, `evaluator_tooluse_{idx}_simulate`,
+   `memory_{idx}_*`, `augmentor_{idx}_*`), so use a generic int-extractor:
 
    ```bash
-   /Users/xinzheli/miniconda3/envs/lits/bin/python <<'EOF'
+   python3 <<'EOF'
    import json
    path = '<result_dir>/inferencelogger.log'
-   target_idx = 3   # the example you're re-running
+   target_idx = 93   # the example you're re-running
+   marker = f"_{target_idx}_"
    with open(path) as f:
        for i, line in enumerate(f, 1):
-           r = json.loads(line)
-           role = r.get('role', '')
-           parts = role.split('_')
-           idx_pos = parts.index('tooluse') + 1 if 'tooluse' in parts else 1
-           if idx_pos < len(parts):
-               try:
-                   if int(parts[idx_pos]) == target_idx:
-                       print(f'first ex-{target_idx} record at line {i}: {r["timestamp"]} {role}')
-                       break
-               except ValueError:
-                   pass
+           try:
+               r = json.loads(line)
+           except json.JSONDecodeError:
+               continue
+           if marker in r.get("role", ""):
+               print(f"first ex-{target_idx} record at line {i}: role={r.get('role')}")
+               break
    EOF
    ```
 
 2. **Move stale records out of `inferencelogger.log`** into a stale-tagged
    sibling file. (`HEAD_LINES` = the line number from step 1, minus 1.)
+   Use `>>` (append) so repeat cleanups stack correctly per Procedure 5.
 
    ```bash
-   HEAD_LINES=666   # everything BEFORE the first stale record stays
+   HEAD_LINES=9979   # everything BEFORE the first stale record stays
    STALE_FILE=<result_dir>/inferencelogger_stale_ex<idx>.log
    tail -n +$((HEAD_LINES + 1)) <result_dir>/inferencelogger.log >> "$STALE_FILE"
    head -n "$HEAD_LINES" <result_dir>/inferencelogger.log > /tmp/inferencelogger.new
    mv /tmp/inferencelogger.new <result_dir>/inferencelogger.log
    ```
 
-   If `inferencelogger_stale_ex<idx>.log` already exists from a prior
-   cleanup, the `>>` appends — that's correct (they're all stale,
-   chronological order doesn't matter for downstream filtering).
-
-3. **Repeat for `execution.log`** (only relevant for `lits-search`,
-   where execution.log is large):
+   **Pre-flight check (recommended):** before doing the split, count how
+   many distinct `idx` values appear in the records you're about to move.
+   You expect exactly one (the trip idx). If more appear, the boundary
+   line is wrong:
 
    ```bash
-   # Find the line "[MCTS] Begin (example=<idx>)" — the start of the
-   # killed query's records.
+   tail -n +$((HEAD_LINES + 1)) <result_dir>/inferencelogger.log | \
+     python3 -c "
+   import json, sys, collections
+   c = collections.Counter()
+   for ln in sys.stdin:
+       try: r = json.loads(ln)
+       except: continue
+       for p in r.get('role', '').split('_'):
+           if p.isdigit(): c[int(p)] += 1; break
+   print(dict(sorted(c.items())))"
+   ```
+
+3. **Repeat for `llm_calls.jsonl`** (`lits-search` only). Boundary signal
+   is `query_idx == <idx>` rather than role-string parsing:
+
+   ```bash
+   python3 <<'EOF'
+   import json
+   path = '<result_dir>/llm_calls.jsonl'
+   target_idx = 93
+   with open(path) as f:
+       lines = f.readlines()
+   for i, ln in enumerate(lines, 1):
+       try: r = json.loads(ln)
+       except: continue
+       if r.get("query_idx") == target_idx:
+           print(f"first ex-{target_idx} record at line {i}")
+           break
+   EOF
+   # then split with head/tail same as step 2, into llm_calls_stale_ex<idx>.jsonl
+   ```
+
+4. **Split `execution.log`** at the trip example's start marker.
+   `lits/agents/tree/mcts.py` emits `[MCTS] Begin (example=<idx>)` once
+   per query, so:
+
+   ```bash
+   # Find the boundary line
    grep -n "Begin (example=<idx>)" <result_dir>/execution.log | head -1
-   # Then split at that line:
-   START_LINE=47451
+   # Output: <START_LINE>:[2026-...] [INFO] [lits.agents.tree.mcts] [MCTS] Begin (example=<idx>)
+
+   # Sanity check: confirm only the trip example begins after this line.
+   # (The run died at the trip, so this should be the case — but if you
+   # see other "Begin (example=N)" lines after, the trip wasn't where
+   # you thought it was.)
+   tail -n +<START_LINE> <result_dir>/execution.log | grep "Begin (example=" | head
+
+   # Split
+   START_LINE=846644
    head -n $((START_LINE - 1)) <result_dir>/execution.log > /tmp/execution.new
-   tail -n +$START_LINE <result_dir>/execution.log > <result_dir>/execution_stale_ex<idx>_v2.log
+   tail -n +$START_LINE <result_dir>/execution.log > <result_dir>/execution_stale_ex<idx>.log
    mv /tmp/execution.new <result_dir>/execution.log
    ```
 
-4. **(Optional) Repeat for `llm_calls.jsonl`** if `lits-search`. Same
-   pattern — split by `query_idx` field.
-
-5. **Verify**: the cleaned `inferencelogger.log` should NOT contain any
-   records with `role` containing `_<idx>_`:
+5. **Verify the cleaned files.** None should contain records for the
+   trip idx:
 
    ```bash
-   grep -c '"role": *"[^"]*_<idx>_' <result_dir>/inferencelogger.log
-   # Expected: 0
+   echo "inferencelogger: $(grep -c "\"role\": *\"[^\"]*_<idx>_" <result_dir>/inferencelogger.log)"  # expect 0
+   echo "llm_calls:      $(grep -c "\"query_idx\": *<idx>\b" <result_dir>/llm_calls.jsonl)"          # expect 0
+   echo "execution:      $(grep -c "example=<idx>" <result_dir>/execution.log)"                      # expect 0
    ```
 
 6. **Now run the re-run command from Procedure 1/2/3.** New records for
-   the re-run will be appended to the cleaned `inferencelogger.log`,
-   correctly representing only the kept work.
+   the re-run will be appended to the cleaned files, correctly
+   representing only the kept work.
+
+### Multi-example trip cleanup
+
+If multiple examples need cleanup (e.g., several trip events spread
+across the run), iterate the procedure once per `<idx>`. The
+`inferencelogger_stale_ex<idx>.log` files stay separate per idx so
+provenance is clear.
+
+For batched cleanup, write a small Python helper that iterates
+`TARGETS = [{"idx": 93, ...}, {"idx": 86, ...}]` and applies steps 1–5
+per target. The framework's skip logic (`^(\d+)(_a\d+)?\.json$` for
+checkpoints) is filename-pattern-based and ignores anything with `_stale`
+in the name, so the cleanup is safe to run repeatedly without breaking
+resume.
 
 ### Alternative: nuclear-reset cost log
 

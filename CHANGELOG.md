@@ -16,6 +16,9 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `docs/components/transitions/CIRCUIT_BREAKER.md` — documentation of classification logic, the HTTP 4xx gotcha, autossh-based tunnel recovery
 - Regression tests `case_i_http_4xx_is_not_server_down`, `case_j_http_5xx_is_server_down` in `unit_test/components/transition/test_tool_server_down_classify.py`
 
+### Changed
+- `docs/cli/resume_qa.md` Procedure 4 expanded to cover all four append-mode files (`inferencelogger.log`, `llm_calls.jsonl`, `execution.log`, `treetojsonl*.jsonl`), with pre-flight idx-counts sanity check and multi-example batched cleanup pattern
+
 
 ## 2026-05-22 Unreleased (`x-0522-0522-minor-tool-failure-circuit-breaker`)
 
