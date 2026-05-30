@@ -48,10 +48,28 @@ from ...components.context_augmentor import (
 logger = logging.getLogger(__name__)
 
 # Augmentor classes triggered after each step (transition complete)
-_PER_STEP_TYPES = (CriticAugmentor, SQLValidator, FactMemoryAugmentor)
+_PER_STEP_TYPES = (CriticAugmentor, SQLValidator)
 
 # Augmentor classes triggered after a full trajectory completes
 _PER_TRAJECTORY_TYPES = (ReflectionAugmentor, SQLErrorProfiler)
+
+
+def _classify_augmentor(aug) -> str:
+    """Return 'step' or 'trajectory' for routing into the right callback.
+
+    FactMemoryAugmentor supports both modes via its `trigger_mode` attribute:
+    - 'per_step' (default): triggered after each transition step (cross-branch sharing)
+    - 'per_trajectory': triggered after a full trajectory completes (cross-iteration sharing)
+    """
+    if isinstance(aug, _PER_STEP_TYPES):
+        return "step"
+    if isinstance(aug, _PER_TRAJECTORY_TYPES):
+        return "trajectory"
+    if isinstance(aug, FactMemoryAugmentor):
+        mode = getattr(aug, "trigger_mode", "per_step")
+        return "step" if mode == "per_step" else "trajectory"
+    # Default: per-step (backward compat)
+    return "step"
 
 
 
@@ -137,8 +155,8 @@ def build_search_callbacks(
     if not augmentors:
         return _noop_step, _noop_trajectory
 
-    step_augmentors = [a for a in augmentors if isinstance(a, _PER_STEP_TYPES)]
-    traj_augmentors = [a for a in augmentors if isinstance(a, _PER_TRAJECTORY_TYPES)]
+    step_augmentors = [a for a in augmentors if _classify_augmentor(a) == "step"]
+    traj_augmentors = [a for a in augmentors if _classify_augmentor(a) == "trajectory"]
 
     logger.info(
         f"build_search_callbacks: {len(step_augmentors)} per-step, "
@@ -178,12 +196,16 @@ def build_search_callbacks(
         )
         for aug in traj_augmentors:
             try:
+                # FactMemoryAugmentor in per_trajectory mode needs batch=True
+                # to extract facts from all steps, not just the last one.
+                extra = {"batch": True} if isinstance(aug, FactMemoryAugmentor) else {}
                 aug.analyze(
                     traj_state,
                     query_idx=query_idx,
                     query_or_goals=query_or_goals,
                     trajectory_key=traj_key_str,
                     reward=reward,
+                    **extra,
                     **kwargs,
                 )
             except Exception as e:

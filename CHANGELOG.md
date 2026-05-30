@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-05-30 Unreleased
+
+### Added
+- `FactMemoryAugmentor.trigger_mode` parameter (`per_step` | `per_trajectory`) — controls whether fact extraction runs after each transition step (cross-branch sharing) or after each MCTS iteration completes (cross-iteration sharing)
+- CLI flag `--memory-arg fact_trigger=per_trajectory` to select per-trajectory mode under `lits-search`
+
+### Changed
+- `augmentor_setup.py`: augmentor classification now uses `_classify_augmentor()` function instead of hardcoded type tuples; `FactMemoryAugmentor` routed based on `trigger_mode`
+- `on_trajectory_complete` passes `batch=True` to `FactMemoryAugmentor` so all trajectory steps are extracted in one call
+
+
 ## 2026-05-23 Unreleased
 
 ### Fixed

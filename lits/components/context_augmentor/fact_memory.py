@@ -129,6 +129,7 @@ class FactMemoryAugmentor(ContextAugmentor):
         persist=True,
         include_inherited: bool = False,
         skip_similarity_filtering: bool = False,
+        trigger_mode: str = "per_step",
         **kwargs,
     ):
         super().__init__(
@@ -139,6 +140,7 @@ class FactMemoryAugmentor(ContextAugmentor):
         self.memory_manager = memory_manager
         self.include_inherited = include_inherited
         self.skip_similarity_filtering = skip_similarity_filtering
+        self.trigger_mode = trigger_mode  # "per_step" or "per_trajectory"
 
     # ------------------------------------------------------------------
     # analyze: override directly (NOT _analyze)
