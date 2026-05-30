@@ -12,6 +12,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Added
 - `FactMemoryAugmentor.trigger_mode` parameter (`per_step` | `per_trajectory`) — controls whether fact extraction runs after each transition step (cross-branch sharing) or after each MCTS iteration completes (cross-iteration sharing)
 - CLI flag `--memory-arg fact_trigger=per_trajectory` to select per-trajectory mode under `lits-search`
+- Per-example memory persistence in `lits-search`: `backend.save()` called after each example, writing facts to `memory/{query_idx}/` for post-hoc inspection
 
 ### Changed
 - `augmentor_setup.py`: augmentor classification now uses `_classify_augmentor()` function instead of hardcoded type tuples; `FactMemoryAugmentor` routed based on `trigger_mode`

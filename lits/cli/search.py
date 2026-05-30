@@ -737,6 +737,14 @@ def main() -> int:
                         json.dump(tn_data, f, indent=2)
                     run_logger.info(f"[{query_idx}] Resolved answers in terminal nodes")
 
+        # Save memory backend per-example (facts persist for inspection/debugging)
+        if memory_manager is not None and hasattr(memory_manager, 'backend'):
+            memory_dir = os.path.join(result_dir, "memory", str(query_idx))
+            try:
+                memory_manager.backend.save(memory_dir)
+            except Exception as e:
+                run_logger.warning(f"[{query_idx}] Failed to save memory: {e}")
+
     end_time = time.time()
     run_logger.info(f"Total time: {end_time - begin_time}")
 
@@ -748,7 +756,6 @@ def main() -> int:
         if hasattr(aug, 'flush_buffer'):
             aug.flush_buffer(policy_model_name=config.policy_model_name or "",
                              task_type=task_name or "")
-
     # Log diversity report to file
     if llm_calls_path:
         try:
