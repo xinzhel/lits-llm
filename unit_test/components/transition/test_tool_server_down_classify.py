@@ -29,6 +29,12 @@ i. An HTTP 4xx error (e.g. SPARQLWrapper's ``QueryBadFormed`` chained from
    These are client errors (malformed query from the LLM), not network failures.
 j. An HTTP 5xx error (e.g. ``HTTPError(code=503)``) IS classified as server-down
    — the server is reachable but failing.
+k. An HTTP 500 carrying an application/query-level error marker (e.g. Virtuoso's
+   ``S0022 Error SQ200`` returned for a valid-but-complex SPARQL query, wrapped
+   as ``EndPointInternalError``) is **not** classified as server-down — the
+   server is healthy but could not process this specific request.
+l. An HTTP 500 with no application-error marker IS still classified as
+   server-down (genuine internal failure / overload).
 
 Run (no breakpoints, batch-friendly):
 
@@ -254,6 +260,55 @@ def case_j_http_5xx_is_server_down():
     raise SystemExit(1)
 
 
+def case_k_http_500_application_query_error_is_not_server_down():
+    """HTTP 500 carrying an application/query-level error marker must NOT be
+    classified as server-down. Virtuoso returns HTTP 500 with
+    `S0022 Error SQ200: No column ...` when its SQL planner cannot compile a
+    valid-but-complex SPARQL query (a query-side failure, not server impairment).
+    SPARQLWrapper wraps this as `EndPointInternalError` with the chained
+    `urllib.error.HTTPError(code=500)`. The agent should receive this as an
+    error observation and try a different path, not trip the breaker.
+    """
+    class _FakeEndPointInternalError(Exception):
+        pass
+
+    virtuoso_body = (
+        "EndPointInternalError: The endpoint returned the HTTP status code 500. "
+        'Response: b"Virtuoso S0022 Error SQ200: No column s_18_9.x '
+        "SPARQL query: SELECT DISTINCT ?rel WHERE { ?x ?rel ?obj . }\""
+    )
+    try:
+        try:
+            raise urllib.error.HTTPError("http://endpoint", 500, "Internal Server Error", {}, None)
+        except urllib.error.HTTPError as he:
+            raise _FakeEndPointInternalError(virtuoso_body) from he
+    except _FakeEndPointInternalError as built:
+        chained = built
+
+    tool = _FakeTool("kgqa_sparql", chained)
+    out = execute_tool_action(_action("kgqa_sparql"), [tool])
+    if isinstance(out, str) and PREFIX_FOR_ERROR_OBSERVATION in out:
+        print("[case k] OK — Virtuoso 500 query error fell through to legacy string:", out[:80])
+        return
+    print("[case k] FAIL — expected legacy string return, got:", repr(out))
+    raise SystemExit(1)
+
+
+def case_l_http_500_no_application_marker_is_server_down():
+    """HTTP 500 WITHOUT an application-error marker must still be classified as
+    server-down (genuine internal server failure / overload).
+    """
+    http_500 = urllib.error.HTTPError("http://endpoint", 500, "Internal Server Error", {}, None)
+    tool = _FakeTool("kgqa_sparql", http_500)
+    try:
+        execute_tool_action(_action("kgqa_sparql"), [tool])
+    except ToolServerDownError as e:
+        print("[case l] OK — bare HTTP 500 classified as server-down:", e)
+        return
+    print("[case l] FAIL — expected ToolServerDownError on bare HTTP 500")
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
     case_a_urllib_url_error_is_server_down()
     case_b_value_error_is_legacy_string()
@@ -265,4 +320,6 @@ if __name__ == "__main__":
     case_h_string_return_with_connect_word_but_no_error_vocab_is_observation()
     case_i_http_4xx_is_not_server_down()
     case_j_http_5xx_is_server_down()
+    case_k_http_500_application_query_error_is_not_server_down()
+    case_l_http_500_no_application_marker_is_server_down()
     print("\nALL CASES PASSED")

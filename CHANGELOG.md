@@ -12,6 +12,13 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Changed
 - `bedrock_chat.py`: Converse API routing now includes Qwen, MiniMax, Moonshot, Z.AI models (previously only Anthropic/Amazon/Meta/Mistral/Cohere/AI21) [T1]
 
+### Fixed
+- Circuit breaker false-positive on application-level HTTP 5xx — `_classify_as_server_down` now excludes 5xx responses whose body indicates a query/application error (e.g. Virtuoso `S0022 Error SQ200` on complex SPARQL) while still classifying bare 5xx and transport failures as server-down (`lits/tools/utils.py`)
+
+### Added
+- Regression tests `case_k_http_500_application_query_error_is_not_server_down`, `case_l_http_500_no_application_marker_is_server_down` (`unit_test/components/transition/test_tool_server_down_classify.py`)
+- `docs/components/transitions/CIRCUIT_BREAKER.md` Gotcha 3 — application-level HTTP 500 vs genuine server-down
+
 ## 2026-05-30 Unreleased
 
 ### Added

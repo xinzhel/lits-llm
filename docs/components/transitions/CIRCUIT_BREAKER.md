@@ -18,7 +18,7 @@ Exceptions are sorted into three buckets:
 | **Server-down** | `urllib.error.URLError("connection refused")`, `botocore.exceptions.EndpointConnectionError`, `psycopg2.OperationalError("could not connect")` | Wrapped as `ToolServerDownError` and propagated. Increments breaker counter. |
 | **Bad action / agent error** | `ValueError("variable must be a relation")`, `sqlite3.OperationalError("no such table: foo")` | Returned to the agent as `Error executing tool. Error report: ...`. Counter unchanged. |
 | **HTTP 4xx (client error)** | `urllib.error.HTTPError(code=400)` from a malformed SPARQL query | **Excluded** from server-down classification (see "Gotcha 1" below). Falls through to bucket 2. |
-| **HTTP 5xx (server error)** | `urllib.error.HTTPError(code=503)` | Classified as server-down. |
+| **HTTP 5xx (server error)** | `urllib.error.HTTPError(code=503)` | Classified as server-down — *unless* the response body carries an application/query-level error marker (see "Gotcha 3"). |
 
 The classifier (`_classify_as_server_down`) walks the `__cause__` /
 `__context__` chain so that exceptions wrapping a network failure underneath
@@ -49,6 +49,41 @@ i (4xx) and j (5xx).
 strictly a *transport-layer* failure?" before adding it. HTTP-protocol-level
 errors need finer code-range checks; only treat them as server-down when the
 status indicates the server is actually impaired.
+
+## Gotcha 3: Not Every HTTP 500 Means the Server Is Down
+
+Some backends return HTTP 500 for *application/query-level* failures while the
+server itself is perfectly healthy. The canonical case is Virtuoso's SQL
+planner: a valid-but-complex SPARQL query can exceed its query-compiler limits
+and come back as `HTTP 500` with a body like
+`Virtuoso S0022 Error SQ200: No column s_18_9.x`. SPARQLWrapper wraps this as
+`EndPointInternalError` with the underlying `urllib.error.HTTPError(code=500)`
+in the exception chain.
+
+**Symptom (first observed 2026-06-01):** KGQA MCTS (Qwen3-Coder-Next policy)
+died at example 11. The agent repeatedly issued `get_attributes` on a numeric
+variable `#6`; MCTS branches converged on the same query, so the identical
+Virtuoso 500 fired three times in a row with no intervening successful call.
+The breaker counted three consecutive "server-down" events and aborted — even
+though the endpoint was reachable and answering other queries fine. (The same
+500 had appeared once in earlier Sonnet runs but a subsequent successful call
+reset the counter before it reached the threshold, masking the issue.)
+
+**Fix:** `_classify_as_server_down` now treats an HTTP 5xx as a *query error*
+(not server-down) when the exception chain text matches
+`_HTTP_5XX_APPLICATION_ERROR_MARKERS` (e.g. `s0022`, `sq200`, `virtuoso`,
+`sparql query:`, `syntax error`, `parse error`, `bad formed`, `malformed`).
+The marker scan walks the whole `__cause__`/`__context__` chain because the
+status code lives on the inner `HTTPError` while the descriptive body lives on
+the outer wrapper. Bare 5xx with no application marker (e.g. a plain 502/503)
+remain server-down. Regression tests:
+`unit_test/components/transition/test_tool_server_down_classify.py` cases
+k (Virtuoso 500 → query error) and l (bare 500 → server-down).
+
+**Takeaway:** 5xx is a *hint*, not proof, that the server is impaired. When the
+body identifies an application/query-compilation failure, the right response is
+to hand the error back to the agent so it can try a different query — not to
+trip the breaker and burn the whole run.
 
 ## Gotcha 2: Backend Tunnels Can Drop Silently
 
@@ -97,7 +132,8 @@ If `last_reason` mentions:
 |---|---|
 | `URLError('connection refused')` or `(URLError)` with no HTTP code | Genuine network/tunnel issue. Check tunnel + SSO. |
 | `URLError` wrapping `HTTPError(...,code=4xx,...)` | Should NOT trip after the 2026-05-22 patch. If you see this, the patch may have regressed. |
-| `URLError` wrapping `HTTPError(...,code=5xx,...)` | Server overloaded or restarting. Wait, then resume. |
+| `URLError` wrapping `HTTPError(...,code=5xx,...)` with no application marker | Server overloaded or restarting. Wait, then resume. |
+| HTTP 5xx with application marker (`S0022`, `Virtuoso`, `SPARQL query:`, etc.) | Query-side failure on a healthy server. Should NOT trip after the 2026-06-01 patch; surfaced to the agent as an error observation. |
 | `OperationalError` with "could not connect" / "server has gone away" | DB endpoint dropped. |
 
 ## Resuming After a Trip

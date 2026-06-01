@@ -108,6 +108,24 @@ _RESULT_ERROR_VOCAB: tuple[str, ...] = (
     "unreachable",
 )
 
+# Case-insensitive substrings that, when present in an HTTP 5xx response body,
+# indicate an application/query-level failure (the server is reachable and
+# healthy, but rejected this specific request) rather than server impairment.
+# Example: Virtuoso returns HTTP 500 with "S0022 Error SQ200: No column ..."
+# when its SQL planner cannot compile a valid-but-complex SPARQL query. Such a
+# failure should be surfaced to the agent as an error observation so it can try
+# a different query, NOT counted toward the server-down circuit breaker.
+_HTTP_5XX_APPLICATION_ERROR_MARKERS: tuple[str, ...] = (
+    "s0022",          # Virtuoso SQL state: compilation error
+    "sq200",          # Virtuoso SQL error code
+    "virtuoso",       # Virtuoso engine error banner
+    "sparql query:",  # endpoint echoes back the offending query
+    "syntax error",
+    "parse error",
+    "bad formed",
+    "malformed",
+)
+
 
 def _classify_result_as_server_down(result: str) -> bool:
     """Return True if a string-typed tool result looks like a backend-down message.
@@ -127,6 +145,30 @@ def _classify_result_as_server_down(result: str) -> bool:
     return False
 
 
+def _iter_exception_chain(exc: BaseException):
+    """Yield ``exc`` and each exception in its ``__cause__``/``__context__`` chain."""
+    seen: set[int] = set()
+    cur: Optional[BaseException] = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        yield cur
+        cur = cur.__cause__ if cur.__cause__ is not None else cur.__context__
+
+
+def _is_application_level_5xx(exc: BaseException) -> bool:
+    """Return True if any message in ``exc``'s chain carries an HTTP 5xx
+    application/query-level error marker.
+
+    The HTTP status code (5xx) is typically on a chained
+    ``urllib.error.HTTPError``, while the descriptive body (e.g. Virtuoso's
+    ``S0022 Error SQ200: No column ...``) is on an outer wrapper such as
+    ``SPARQLWrapper.EndPointInternalError``. We therefore scan the combined
+    text of the entire chain rather than a single frame.
+    """
+    combined = " ".join(str(e) for e in _iter_exception_chain(exc)).lower()
+    return any(marker in combined for marker in _HTTP_5XX_APPLICATION_ERROR_MARKERS)
+
+
 def _classify_as_server_down(exc: BaseException) -> bool:
     """Return True if `exc` (or its `__cause__` / `__context__` chain) looks
     like a backend-unreachable condition.
@@ -140,6 +182,14 @@ def _classify_as_server_down(exc: BaseException) -> bool:
     incorrectly trips the circuit breaker on agent-side bugs. HTTP 5xx (and
     plain `URLError` with no response code, e.g. connection refused) remain
     classified as server-down.
+
+    HTTP 5xx exception: a 5xx whose error text indicates an *application/query*
+    failure (e.g. a Virtuoso SQL-planner error `S0022 Error SQ200` returned as
+    HTTP 500 for a valid-but-complex SPARQL query) is NOT server-down. The
+    server is healthy; it just could not process this particular request. Such
+    a 5xx is excluded so the failure is surfaced to the agent as an error
+    observation rather than tripping the breaker. Genuine infrastructure 5xx
+    (e.g. 502/503 with no application-error marker) remain server-down.
     """
     seen: set[int] = set()
     cur: Optional[BaseException] = exc
@@ -154,6 +204,16 @@ def _classify_as_server_down(exc: BaseException) -> bool:
             if code is not None and 400 <= code < 500:
                 cur = cur.__cause__ if cur.__cause__ is not None else cur.__context__
                 continue
+            # HTTP 5xx carrying an application/query-level error marker: the
+            # server is reachable but rejected this specific request. Skip this
+            # frame so it falls through to a non-server-down classification.
+            # Scan from the original exception so an outer wrapper's body (e.g.
+            # EndPointInternalError's Virtuoso text) is visible, not just this
+            # inner HTTPError frame.
+            if code is not None and 500 <= code < 600:
+                if _is_application_level_5xx(exc):
+                    cur = cur.__cause__ if cur.__cause__ is not None else cur.__context__
+                    continue
 
         if _NETWORK_EXC_TYPES and isinstance(cur, _NETWORK_EXC_TYPES):
             return True
