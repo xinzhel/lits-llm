@@ -205,8 +205,8 @@ class BedrockChatModel(LanguageModel):
         stop = [s for s in stop if s.strip()]
         
 
-        # Anthropic, Amazon Nova, Titan, Meta, Mistral, Cohere, AI21 → use converse API
-        if any(k in self.model_name.lower() for k in ["anthropic", "claude", "nova", "titan", "meta", "mistral", "cohere", "ai21"]):
+        # Anthropic, Amazon Nova, Titan, Meta, Mistral, Cohere, AI21, Qwen, MiniMax, Moonshot, Z.AI → use converse API
+        if any(k in self.model_name.lower() for k in ["anthropic", "claude", "nova", "titan", "meta", "mistral", "cohere", "ai21", "qwen", "minimax", "moonshot", "zai", "glm"]):
             messages, system_prompt = self._format_messages(prompt, embed_system_prompt=False)
             result = self._converse_api(messages, max_new_tokens, temperature, top_p, stop, system_prompt, tools=tools)
         else:

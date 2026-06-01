@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-06-01 Unreleased (`0527-minor-cross-model-replication`)
+
+### Changed
+- `bedrock_chat.py`: Converse API routing now includes Qwen, MiniMax, Moonshot, Z.AI models (previously only Anthropic/Amazon/Meta/Mistral/Cohere/AI21) [T1]
+
 ## 2026-05-30 Unreleased
 
 ### Added
