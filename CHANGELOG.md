@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-06-04 Unreleased (`0527-minor-cross-model-replication`)
+
+### Fixed
+- `bedrock_chat.py`: Bedrock client now uses adaptive retries (`max_attempts=5`) so transient `ReadTimeoutError`/throttling/5xx no longer crash a run mid-experiment
+
 ## 2026-06-01 Unreleased (`0527-minor-cross-model-replication`)
 
 ### Changed

@@ -95,7 +95,12 @@ class BedrockChatModel(LanguageModel):
         self.client = session.client(
             "bedrock-runtime",
             region_name=region,
-            config=BotoConfig(read_timeout=300),  # 5 min — long code generation can exceed 60s default
+            config=BotoConfig(
+                read_timeout=300,  # 5 min — long code generation can exceed 60s default
+                # Adaptive retries absorb transient Bedrock failures (ReadTimeoutError,
+                # throttling, 5xx) with exponential backoff instead of crashing the run.
+                retries={"max_attempts": 5, "mode": "adaptive"},
+            ),
         )
 
         self.model_name = model_name
