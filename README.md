@@ -214,6 +214,64 @@ lits-search --include lits_benchmark.mapeval \
 
 No component flags needed — the framework auto-selects tool-use components.
 
+### Chain-in-Tree: collapse redundant branches with a BN evaluator
+
+When sampled candidate actions agree, tree search wastes LLM calls exploring
+identical children. The **Branching Necessity (BN) evaluator** gates a
+continuation phase: it chains forward greedily while the policy agrees, and only
+branches when genuine diversity appears. Selectable via `--search-arg bn_method`:
+
+```bash
+# Exact string self-consistency — no extra LLM calls (best for tool-use / env-grounded)
+lits-search --include lits_benchmark.math_qa --dataset math500 \
+    --search-arg add_continuation=true bn_method=sc_exact reward_gamma=0.5
+
+# LLM-based variants: sc (semantic self-consistency), entropy (clustering), direct (1–4 score)
+lits-search --include lits_benchmark.math_qa --dataset math500 \
+    --search-arg add_continuation=true bn_method=entropy n_actions_for_bne=3 reward_gamma=0.5
+```
+
+See the [BN Evaluator guide](docs/components/bn_evaluator/BN_EVALUATOR.md) for the
+four methods, task-type compatibility, and the `--bn-model` flag.
+
+### Cross-trajectory memory: learn from prior attempts
+
+LiTS agents can carry knowledge across trajectories of the same task — extracting
+atomic **facts** (environmental knowledge: schemas, API responses) or strategy-level
+**reflections** from completed trajectories and injecting them into the policy prompt
+on later attempts. Enabled with `--memory-arg`:
+
+```bash
+# Cross-trajectory fact memory (pass@5 ReAct) — facts extracted by Sonnet, shared across attempts
+lits-chain --include lits_benchmark.dbbench --dataset dbbench \
+    --cfg n_attempts=5 --cfg temperature=0.9 \
+    --memory-arg backend=local augmentors=fact skip_similarity_filtering=true batch=true \
+    --memory-arg model=bedrock/us.anthropic.claude-sonnet-4-6
+
+# Reflection memory (LATS-style) — reflect on failed trajectories, inject lessons
+lits-chain --include lits_benchmark.dbbench --dataset dbbench \
+    --cfg n_attempts=5 --cfg temperature=0.9 \
+    --memory-arg augmentors=reflection model=bedrock/us.anthropic.claude-sonnet-4-6
+```
+
+### Sibling-aware expansion: cross-branch diversity in one tree
+
+Within a single MCTS/BFS tree, **sibling-aware** expansion injects each sibling's
+prior actions into the next sibling's prompt, biasing candidates away from
+redundant (or give-up) actions — a cross-branch memory that costs no extra LLM calls:
+
+```bash
+lits-search --include lits_benchmark.dbbench --dataset dbbench --dataset-arg database=wikisql \
+    --cfg search_algorithm=mcts_sibling_aware \
+    --search-arg n_actions=3 n_iters=5
+```
+
+These features are studied in
+[*When Does Memory Help Multi-Trajectory Inference for Tool-Use LLM Agents?*](https://arxiv.org/abs/2605.28224)
+(see [Context Augmentor](docs/components/context_augmentor/CONTEXT_AUGMENTOR.md),
+[Fact Memory](docs/components/context_augmentor/FACT_MEMORY.md), and
+[Reflection](docs/components/context_augmentor/REFLECTION.md)).
+
 
 ## Quick Start — Python API
 
@@ -409,7 +467,9 @@ docs/                    # Documentation
 - [CLI–Registry Protocol](docs/cli/protocol.md) — dataset, resource, and evaluator contracts (including stateful tools)
 - [ReAct Agent](docs/agents/ReAct.md)
 - [Component API](docs/components/)
-- [Context Augmentor](docs/components/context_augmentor/CONTEXT_AUGMENTOR.md)
+- [BN Evaluator (Chain-in-Tree continuation)](docs/components/bn_evaluator/BN_EVALUATOR.md)
+- [Context Augmentor](docs/components/context_augmentor/CONTEXT_AUGMENTOR.md) — cross-trajectory memory framework
+  - [Fact Memory](docs/components/context_augmentor/FACT_MEMORY.md) · [Reflection](docs/components/context_augmentor/REFLECTION.md)
 - [Learning Loop](docs/components/context_augmentor/LEARNING_LOOP.md)
 - [Custom Evaluators](docs/eval/CUSTOM_EVALUATORS.md)
 - [Tree Visualization](docs/TREE_VISUALIZATION.md)
@@ -425,6 +485,23 @@ docs/                    # Documentation
       archivePrefix={arXiv},
       primaryClass={cs.AI},
       url={https://arxiv.org/abs/2603.00631}, 
+}
+
+<!-- Chain-in-Tree -->
+@inproceedings{li2026chainintree,
+  title={Chain-in-Tree: Back to Sequential Reasoning in {LLM} Tree Search},
+  author={Li, Xinzhe},
+  booktitle={Findings of the Association for Computational Linguistics: ACL 2026},
+  year={2026},
+  url={https://openreview.net/forum?id=l4YrnqAogl}
+}
+
+<!-- Cross-Trajectory Memory -->
+@article{li2026does,
+  title={When Does Memory Help Multi-Trajectory Inference for Tool-Use LLM Agents?},
+  author={Li, Xinzhe and Tao, Yaguang},
+  journal={arXiv preprint arXiv:2605.28224},
+  year={2026}
 }
 ```
 

@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-06-04 Unreleased
+
+### Milestone
+- Consolidated the `dev/context-augmentor` line into `main` and published to the public `origin` (github.com/xinzhel/lits-llm); retired the temporary `lits-mem` remote. This brings cross-trajectory memory, native ReAct, KGQA/Terminal-Bench integration, the BN-evaluator continuation, and the tool-failure circuit breaker into the public release line.
+
+### Added
+- README now surfaces three previously-undocumented features with copy-paste CLI examples and doc links: BN-evaluator Chain-in-Tree continuation (`bn_method`), cross-trajectory memory (`--memory-arg augmentors=fact|reflection`), and sibling-aware expansion (`search_algorithm=mcts_sibling_aware`)
+
+
 ## 2026-06-04 Unreleased (`0527-minor-cross-model-replication`)
 
 ### Fixed
