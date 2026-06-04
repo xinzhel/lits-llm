@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
-## 2026-06-04 Unreleased
+## 2026-06-04 0.4.0
 
 ### Milestone
 - Consolidated the `dev/context-augmentor` line into `main` and published to the public `origin` (github.com/xinzhel/lits-llm); retired the temporary `lits-mem` remote. This brings cross-trajectory memory, native ReAct, KGQA/Terminal-Bench integration, the BN-evaluator continuation, and the tool-failure circuit breaker into the public release line.
@@ -16,12 +16,12 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - README now surfaces three previously-undocumented features with copy-paste CLI examples and doc links: BN-evaluator Chain-in-Tree continuation (`bn_method`), cross-trajectory memory (`--memory-arg augmentors=fact|reflection`), and sibling-aware expansion (`search_algorithm=mcts_sibling_aware`)
 
 
-## 2026-06-04 Unreleased (`0527-minor-cross-model-replication`)
+## 2026-06-04 0.4.0 (`0527-minor-cross-model-replication`)
 
 ### Fixed
 - `bedrock_chat.py`: Bedrock client now uses adaptive retries (`max_attempts=5`) so transient `ReadTimeoutError`/throttling/5xx no longer crash a run mid-experiment
 
-## 2026-06-01 Unreleased (`0527-minor-cross-model-replication`)
+## 2026-06-01 0.4.0 (`0527-minor-cross-model-replication`)
 
 ### Changed
 - `bedrock_chat.py`: Converse API routing now includes Qwen, MiniMax, Moonshot, Z.AI models (previously only Anthropic/Amazon/Meta/Mistral/Cohere/AI21) [T1]
@@ -33,7 +33,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Regression tests `case_k_http_500_application_query_error_is_not_server_down`, `case_l_http_500_no_application_marker_is_server_down` (`unit_test/components/transition/test_tool_server_down_classify.py`)
 - `docs/components/transitions/CIRCUIT_BREAKER.md` Gotcha 3 — application-level HTTP 500 vs genuine server-down
 
-## 2026-05-30 Unreleased
+## 2026-05-30 0.4.0
 
 ### Added
 - `FactMemoryAugmentor.trigger_mode` parameter (`per_step` | `per_trajectory`) — controls whether fact extraction runs after each transition step (cross-branch sharing) or after each MCTS iteration completes (cross-iteration sharing)
@@ -45,7 +45,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `on_trajectory_complete` passes `batch=True` to `FactMemoryAugmentor` so all trajectory steps are extracted in one call
 
 
-## 2026-05-23 Unreleased
+## 2026-05-23 0.4.0
 
 ### Fixed
 - Circuit breaker false-positive on HTTP 4xx — `_classify_as_server_down` now skips `urllib.error.HTTPError(code in 400..499)` while still classifying 5xx and chained underlying network errors as server-down (`lits/tools/utils.py`)
@@ -59,7 +59,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `docs/cli/resume_qa.md` Procedure 4 expanded to cover all four append-mode files (`inferencelogger.log`, `llm_calls.jsonl`, `execution.log`, `treetojsonl*.jsonl`), with pre-flight idx-counts sanity check and multi-example batched cleanup pattern
 
 
-## 2026-05-22 Unreleased (`x-0522-0522-minor-tool-failure-circuit-breaker`)
+## 2026-05-22 0.4.0 (`x-0522-0522-minor-tool-failure-circuit-breaker`)
 
 ### Added
 - `ToolServerDownError` exception (`lits/tools/utils.py`, exported from `lits.tools`)
@@ -71,13 +71,13 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `lits/agents/chain/native_react.py` — chain caller now catches `ToolServerDownError` explicitly and surfaces as observation
 
 
-## 2026-05-20 Unreleased
+## 2026-05-20 0.4.0
 
 ### Fixed
 - `Policy._get_actions` transient-error retry — also retry on transient network failures (`EndpointConnectionError`, `NameResolutionError`, `socket.gaierror`); previously these terminated long runs after a wifi drop. See `chore/aws/bedrock/debug/dns_resolution_failure.md`
 
 
-## 2026-05-19 Unreleased (`0519-minor-bedrock-validation-fix`)
+## 2026-05-19 0.4.0 (`0519-minor-bedrock-validation-fix`)
 
 ### Fixed
 - `_response_to_steps` — split parallel tool calls into per-step `assistant_message_dict` (each with one `toolUse` block) to fix "missing toolResult" ValidationException (`lits/components/policy/native_tool_use.py`) [T1]
@@ -88,7 +88,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `unit_test/components/test_response_to_steps.py` — rewritten with full coverage for parallel calls, tool name validation, and _build_messages [T4]
 
 
-## 2026-05-19 Unreleased
+## 2026-05-19 0.4.0
 
 ### Added
 - `lits-eval --terminal_selection {first|q-max|q-mean}` flag — controls which terminal node's answer is evaluated for tool_use tasks. Default `q-mean` matches `MCTSNode.DEFAULT_Q_FUNC` (np.mean) used during UCT. `q-max` uses argmax over max(cum_rewards). `first` reproduces the legacy save-order-dependent behaviour (`terminal_nodes[0]`)
@@ -102,7 +102,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `docs/cli/debug_guide/pilot_check.md` — added cost coverage check (verify `inferencelogger.log` records every paid LLM before scaling pilots)
 
 
-## 2026-05-18 Unreleased
+## 2026-05-18 0.4.0
 
 ### Added
 - `_parse_value` — accept `None`/`null` as literal Python `None` for `--search-arg`/`--component-arg`/`--cfg`
@@ -114,12 +114,12 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `Policy._get_dynamic_notes` — join `List[str]` with newline before injection (removes spurious `["..."]` brackets in system prompt)
 - `BedrockChatModel._converse_api` — return empty response on `ValidationException` instead of crashing (resilience for malformed tool calls from LLM hallucination)
 
-## 2026-05-11 Unreleased (`lits_mem/0511-minor-mcts-uct-fix`)
+## 2026-05-11 0.4.0 (`lits_mem/0511-minor-mcts-uct-fix`)
 
 ### Fixed
 - `_uct_select` — unvisited children now receive +∞ priority; `ln(N_p)` clamped via `max(2, N_p)` [T1]
 
-## 2026-05-11 Unreleased (`lits_mem/0509-major-mcts-native-tool-use`)
+## 2026-05-11 0.4.0 (`lits_mem/0509-major-mcts-native-tool-use`)
 
 ### Fixed
 - `NativeToolUsePolicy._build_messages` — seed query as first user message when state is empty (MCTS root node) [T2]
@@ -129,7 +129,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Added
 - `BaseToolUseStep` and `NativeToolUseStep` exported from `lits.structures` [T6]
 
-## 2026-05-10 Unreleased (`lits_mem/0509-major-mcts-native-tool-use`)
+## 2026-05-10 0.4.0 (`lits_mem/0509-major-mcts-native-tool-use`)
 
 ### Changed
 - `BaseToolUseStep.think` [T1]
@@ -143,7 +143,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `unit_test/components/test_response_to_steps.py` [T3]
 - `ExperimentConfig.native` + promoted `native` from `ChainConfig` to `BaseConfig` [T4]
 
-## 2026-05-08 Unreleased
+## 2026-05-08 0.4.0
 
 ### Added
 - `docs/lm/NATIVE_TOOL_USE_ISSUES.md` — garbled LLM output → ValidationException documentation
@@ -155,7 +155,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `lits/cli/chain.py`: catch `ValidationException` from garbled LLM output → auto-skip attempt with reward=0 instead of crashing
 - `lits/components/base.py`: retry loop for transient errors (SSO expired, ServiceUnavailable, Throttling) in `get_actions`
 
-## 2026-05-06 Unreleased
+## 2026-05-06 0.4.0
 
 ### Added
 - `docs/cli/resume_qa.md` — guide for handling interrupted checkpoints (verifier vs no-verifier `lits-chain` regimes, `_uncomplete` rename recipe, `lits-search` resume behavior, inference log hygiene on resume)
@@ -165,13 +165,13 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Document evaluator signature contract: `ground_truth` type matches `example["answer"]` from dataset loader (`docs/eval/CUSTOM_EVALUATORS.md`)
 - Pin `huggingface-hub>=0.30.2,<1.0` and `sentence_transformers>=5.3.0` in `pyproject.toml`
 
-## 2026-05-05 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)
+## 2026-05-05 0.4.0 (`0302-agentbench-integration/tasks_dbbench_reflection`)
 
 ### Fixed
 - `search.py` — reflection augmentor wiring for `lits-search` (was missing `base_model`, crashed on `--memory-arg augmentors=reflection`)
 - `search.py` — memory manager only created when fact augmentor is requested (avoids unnecessary LLM init for reflection-only runs)
 
-## 2026-05-03 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)
+## 2026-05-03 0.4.0 (`0302-agentbench-integration/tasks_dbbench_reflection`)
 
 ### Changed
 - `backends.py::_FACT_EXTRACTION_PROMPT` — rewritten to extract reusable environmental knowledge (schemas, column names, query results) instead of generic action descriptions
@@ -180,7 +180,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `docs/cli/debug_guide/pilot_check.md` — pilot verification guide (augmentor output, policy injection, behavior effect)
 - `docs/components/context_augmentor/FACT_MEMORY.md` — FactMemoryAugmentor documentation (recording modes, memory scope, CLI usage)
 
-## 2026-05-02 Unreleased (`0302-agentbench-integration/tasks_dbbench_reflection`)
+## 2026-05-02 0.4.0 (`0302-agentbench-integration/tasks_dbbench_reflection`)
 
 ### Changed
 - `eval_search.py` — refactored eval pipeline: unified single-attempt and pass@N into one eval loop
@@ -194,12 +194,12 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `eval_search.py` — LLM evaluator support for pass@N (was missing, caused 0% on DBBench)
 - `eval_search.py` — fail-fast on botocore SSO/auth errors (no longer silently produces 0 examples)
 
-## 2026-04-28 Unreleased (`0302-agentbench-integration/tasks_kg_reflection`)
+## 2026-04-28 0.4.0 (`0302-agentbench-integration/tasks_kg_reflection`)
 
 ### Fixed
 - `chain.py` — resume logic: when no `verify_fn`, checkpoint existence = complete (was re-running no-answer completions)
 
-## 2026-04-27 Unreleased (`0302-agentbench-integration/tasks_kg_reflection`)
+## 2026-04-27 0.4.0 (`0302-agentbench-integration/tasks_kg_reflection`)
 
 ### Changed
 - `reflection.py::_build_reflection_message` — neutral prompt language when `reward=None` (no verifier)
@@ -216,7 +216,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `.kiro/specs/lits_mem/0302-agentbench-integration/tasks_kg_reflection.md`
 - `.kiro/specs/lits_mem/0302-agentbench-integration/tasks_dbbench_reflection.md`
 
-## 2026-04-25 Unreleased (`0421-minor-terminalbench-memory-exploration/tasks_reflection`)
+## 2026-04-25 0.4.0 (`0421-minor-terminalbench-memory-exploration/tasks_reflection`)
 
 ### Changed
 - `create_augmentors()` — `memory_manager` now optional (reflection-only mode) [T1.1]
@@ -240,7 +240,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Augmentor persistence to `result_dir/augmentor/` via `save_dir` in `query_context`
 - `query_context` now sets `policy_model_name` and `task_type` in chain (enables jsonl persistence)
 
-## 2026-04-23 Unreleased (`0421-minor-terminalbench-memory-exploration`)
+## 2026-04-23 0.4.0 (`0421-minor-terminalbench-memory-exploration`)
 
 ### Fixed
 - Memory LLM InferenceLogger wired to same log file as policy model in `lits-chain`
@@ -253,7 +253,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Per-attempt memory snapshots saved to `{result_dir}/memory/{idx}_a{attempt}/`
 - Memory resume from disk on process restart
 
-## 2026-04-22 Unreleased (`0421-minor-terminalbench-memory-exploration`)
+## 2026-04-22 0.4.0 (`0421-minor-terminalbench-memory-exploration`)
 
 ### Changed
 - `setup_memory_manager()` — removed `config` parameter and `enable_memory` check; pure factory function
@@ -271,7 +271,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `--override` in `lits-chain` now cleans the entire result directory (shared `clean_result_dir` with `lits-search`)
 - `NativeReAct.run()` — use `policy.get_actions()` instead of `policy._get_actions()` (was bypassing `set_system_prompt`, memory injection, logging)
 
-## 2026-04-19 Unreleased (`0419-minor-pass-at-n`)
+## 2026-04-19 0.4.0 (`0419-minor-pass-at-n`)
 
 ### Added
 - `n_attempts` field on `ChainConfig` — pass@N evaluation via `--cfg n_attempts=5`
@@ -282,7 +282,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Skip completed attempts on resume: checks checkpoint for answer before re-running
 - `NativeReAct.run()`: set `policy._query_idx` before calling `_get_actions` (fixes missing example ID in inferencelogger.log role field)
 
-## 2026-04-19 Unreleased (`0418-minor-sync-native-react`)
+## 2026-04-19 0.4.0 (`0418-minor-sync-native-react`)
 
 ### Added
 - `NativeReAct` (sync) via `_BaseNativeReAct` shared base (`lits/agents/chain/native_react.py`)
@@ -302,7 +302,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `_run_tool_use`: inline verification after agent.run() — calls `verify` callback while container is alive, saves reward to `{idx}_reward.json`
 - `load_terminal_bench_resource`: added `verify` callback that runs `test.sh` in container
 
-## 2026-04-18 Unreleased (`0418-minor-sync-native-react`)
+## 2026-04-18 0.4.0 (`0418-minor-sync-native-react`)
 
 ### Added
 - Native tool use support for sync `BedrockChatModel`: `tools` param on `__call__`/`_converse_api`, `_build_tool_config()`, `format_tool_result()`
@@ -318,7 +318,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `aioboto3` added to `pyproject.toml`
 - Fixed empty-state bug in `unit_test/components/test_native_tool_use_policy.py` (pre-existing from `f8a1b27`)
 
-## 2026-04-18 Unreleased (`0415-terminalbench-integration`)
+## 2026-04-18 0.4.0 (`0415-terminalbench-integration`)
 
 ### Added
 - `TerminalBenchEnv` (`demos/lits_benchmark/terminal_bench.py`) — Docker container lifecycle for Terminal-Bench 2.0 tasks
@@ -334,7 +334,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `@register_resource("terminal_bench")` — resource registration wiring ShellTool + TerminalBenchEnv
 - `unit_test/tools/test_terminal_bench.py`
 
-## 2026-04-16 Unreleased
+## 2026-04-16 0.4.0
 
 ### Added
 - `AsyncNativeReAct` (`lits/agents/chain/native_react.py`) — async/streaming ReAct agent with `from_tools()` factory, `run_async()`, `stream()`
@@ -349,7 +349,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `_build_messages()` no longer appends query at end (query is already in state as `NativeToolUseStep(user_message=...)`)
 - `stream()` text accumulation bug: text before tool calls no longer treated as final answer
 
-## 2026-04-15 Unreleased
+## 2026-04-15 0.4.0
 
 ### Added
 - `AsyncBedrockChatModel` (`lits/lm/async_bedrock.py`) — async Bedrock client with native tool use and streaming via `converse_stream()`
@@ -363,7 +363,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `ToolUseTransition.step()` assert updated: `isinstance(step, BaseToolUseStep)` (accepts both ToolUseStep and NativeToolUseStep)
 - `AsyncNativeToolUsePolicy` (`lits/components/policy/native_tool_use.py`) — policy using native tool use API with structured tool calls
 
-## 2026-04-10 - 04-15  Unreleased (`0316-major-interleaved-expand`)
+## 2026-04-10 - 04-15  0.4.0 (`0316-major-interleaved-expand`)
 
 ### Added
 - `existing_siblings` parameter to `Policy.get_actions()` / `_get_actions()` for sibling-aware expansion
@@ -383,7 +383,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Sibling-aware `_do_expand` skips interleaved for `from_phase="continuation"` (preserves BN-SC agreement)
 - `docs/agents/tree/mcts/MCTS_SEARCH_LOOP.md` — safeguard analysis, extension guide, memory coupling
 
-## 2026-04-06 Unreleased (`0302-agentbench-integration`)
+## 2026-04-06 0.4.0 (`0302-agentbench-integration`)
 
 ### Added
 - `docs/log/EXECUTION_LOG.md`: execution log monitoring guide (tree viz, node flags, progress tracking)
@@ -392,7 +392,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `cli/search.py`: `resolve_answer` crash on tree search terminal nodes — `node["state"]` is a dict with `"steps"` key, not a list
 - `cli/search.py`: `resolve_answer` now also updates `node.step.answer` (eval reads this first, was returning unresolved `#N`)
 
-## 2026-04-05 Unreleased (`x-0405-minor-mcts-tree-log`)
+## 2026-04-05 0.4.0 (`x-0405-minor-mcts-tree-log`)
 
 ### Added
 - `lits/visualize.py`: runtime ASCII tree renderer (`visualize_tree`, `_format_action`)
@@ -401,7 +401,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `lits/agents/tree/mcts.py`: tree snapshot at INFO level after each iteration and early termination
 - `lits/agents/tree/bfs.py`: tree snapshot at INFO level after each depth layer
 
-## 2026-04-05 Unreleased (`x-0405-major-bn-evaluator-refactor`)
+## 2026-04-05 0.4.0 (`x-0405-major-bn-evaluator-refactor`)
 
 ### Added
 - `components/bn_evaluator/base.py`: `BNEvaluatorBase` ABC with `evaluate()` and `state_verbalizer`
@@ -418,7 +418,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Removed
 - `components/bn_evaluator/bn_evaluator_qa.py`: monolithic `BNEvaluator` wrapper class
 
-## 2026-04-05 Unreleased (`x-0404-0405-minor-general-evaluator-float-score`)
+## 2026-04-05 0.4.0 (`x-0404-0405-minor-general-evaluator-float-score`)
 
 ### Added
 - `eval/general_eval.py`: `output_type="float"` on `EvalPerspective` for 0.0–1.0 LLM scoring
@@ -438,7 +438,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `cli/eval_search.py`: modularized LLM fallback into `_llm_fallback()` helper
 - `eval/general_eval.py`: better error messages — raw LLM output included in RuntimeError
 
-## 2026-04-04 Unreleased (`0302-agentbench-integration`)
+## 2026-04-04 0.4.0 (`0302-agentbench-integration`)
 
 ### Added
 - `demos/lits_benchmark/kgqa_tools.py`: `KGState`, 7 BaseTool wrappers, `create_kg_tools()` factory
@@ -460,7 +460,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Fixed
 - `structures/tool_use.py`: `from_dict` now respects saved `answer` field over re-extracted value from `assistant_message`
 
-## 2026-03-31 Unreleased (`0302-agentbench-integration`, `x-0331-minor-transition-pre-step-hook`)
+## 2026-03-31 0.4.0 (`0302-agentbench-integration`, `x-0331-minor-transition-pre-step-hook`)
 
 ### Added
 - `demos/lits_benchmark/kgqa.py`: `@register_dataset("kgqa")` loader for AgentBench KG (150 GrailQA examples)
@@ -471,7 +471,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `tools/base.py`: `BaseTool.pre_step(state)` optional hook called before each tool execution
 - `components/transition/tool_use.py`: `pre_step` wiring — calls `tool.pre_step(state)` on all tools before `execute_tool_action()`
 
-## 2026-03-29 Unreleased (`0312-major-context-augmentation`)
+## 2026-03-29 0.4.0 (`0312-major-context-augmentation`)
 
 ### Added
 - `agents/tree/base.py`: `early_stop_reward` field on `BaseSearchConfig`
@@ -481,7 +481,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `cli/eval_search.py`: checkpoint/terminal_node files now sorted numerically (was lexicographic, causing `10.json` before `2.json`)
 - `cli/eval_search.py`: `[X]` in eval log now shows dataset query index (was sequential enumerate index)
 
-## 2026-03-28 Unreleased (`0328-minor-react-dbbench`)
+## 2026-03-28 0.4.0 (`0328-minor-react-dbbench`)
 
 ### Added
 - `cli/chain.py`: tool-use support via `ReActChat` (auto-detected by `has_resource()`)
@@ -494,7 +494,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `components/transition/tool_use.py`: no-action/no-answer steps appended to wrong state object (old vs copy)
 - `cli/eval_search.py`: tool-use evaluation now passes `dataset_kwargs` to `load_dataset()`
 
-## 2026-03-28 Unreleased (`0312-major-context-augmentation`, Task 5/8)
+## 2026-03-28 0.4.0 (`0312-major-context-augmentation`, Task 5/8)
 
 ### Added
 - `lm/base.py`: `InferenceLogger.get_last_record()`, `cached` field on `update_usage()`
@@ -510,7 +510,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Changed
 - `cli/eval_search.py`: evaluation priority now includes LLM judge for tool-use verbose answers
 
-## 2026-03-27 Unreleased (`0327-minor-semantic-diversity`)
+## 2026-03-27 0.4.0 (`0327-minor-semantic-diversity`)
 
 ### Added
 - `eval/llm_call_logger.py`: `cluster_by_embedding()` — embedding-based candidate grouping with union-find
@@ -524,7 +524,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `eval/llm_call_logger.py`: `correct_actions: Dict` → `is_correct: Callable[[str], bool]`
 - `cli/search.py`: updated crosswords caller to use `make_crosswords_correctness_checker()`
 
-## 2026-03-26 Unreleased (`0312-major-context-augmentation`, Task 5/8)
+## 2026-03-26 0.4.0 (`0312-major-context-augmentation`, Task 5/8)
 
 ### Fixed
 - `eval/results.py`: circular import `eval→agents→components→eval` — lazy import `SearchNode` via `_get_search_node_class()` + `from __future__ import annotations`
@@ -563,7 +563,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `cli/search.py`: removed dead `memory_manager` param from `run_tree_search()` (only `augmentors` passed now)
 - `search_base.py`: removed `memory_manager` param from `BaseTreeSearch.__init__`
 
-## 2026-03-22 - 2026-03-25 Unreleased (`0312-major-context-augmentation`, Task 5)
+## 2026-03-22 - 2026-03-25 0.4.0 (`0312-major-context-augmentation`, Task 5)
 
 ### Fixed
 - `augmentor_setup.py`: `on_step_complete`/`on_trajectory_complete` call `aug.analyze()` instead of `aug.evaluate()` — fixes `FactMemoryAugmentor` crash (`_analyze()` not implemented)
@@ -586,7 +586,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Fixed
 - `test_fact_memory_mcts.py`: `MemoryUnit` attribute errors (`trajectory_key` → `origin_path`, `content` → `text`)
 
-## 2026-03-21 Unreleased (`0312-major-context-augmentation`, Task 5)
+## 2026-03-21 0.4.0 (`0312-major-context-augmentation`, Task 5)
 
 ### Added
 - `lits/agents/tree/augmentor_setup.py`: `setup_augmentors()` callback wiring for tree search
@@ -600,14 +600,14 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `memory_context` param from `_expand()`, `_sample_actions_with_existing()`, `Policy.get_actions()`
 - `_current_memory_context` / `_format_memory_context()` from `Policy`
 
-## 2026-03-21 Unreleased (`0312-major-context-augmentation`, inference-logging)
+## 2026-03-21 0.4.0 (`0312-major-context-augmentation`, inference-logging)
 
 ### Changed
 - `setup_inference_logging()` in `lits/lm/loader.py`: positional model params → `*models` varargs with `LanguageModel` type check
 - `lits/cli/search.py`: memory_llm (via `backend._llm`) included in `setup_inference_logging` call
 - `lits/cli/chain.py`: migrated `setup_inference_logging` call to keyword-only style
 
-## 2026-03-21 Unreleased (`x-0316-0321-major-local-memory-backend`)
+## 2026-03-21 0.4.0 (`x-0316-0321-major-local-memory-backend`)
 
 ### Added
 - `--memory-arg` CLI flag in `lits/cli/args.py` with `parse_memory_args()` parser
@@ -623,7 +623,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Deprecated
 - `ExperimentConfig.memory_config` field (use `memory_args` instead)
 
-## 2026-03-20 Unreleased (`x-0316-0320-minor-embedding-subpackage`)
+## 2026-03-20 0.4.0 (`x-0316-0320-minor-embedding-subpackage`)
 
 ### Added
 - `lits/embedding/` subpackage: `BaseEmbedder` ABC, `SentenceTransformerEmbedder`, `BedrockEmbedder`, `get_embedder()` factory
@@ -634,7 +634,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
 - `PDFClient` uses `get_embedder()` instead of direct `SentenceTransformer`
 
-## 2026-03-16 Unreleased (`x-0316-0321-major-local-memory-backend`)
+## 2026-03-16 0.4.0 (`x-0316-0321-major-local-memory-backend`)
 
 ### Added
 - `LocalMemoryBackend` in `lits/memory/backends.py` — in-memory backend with LLM fact extraction and embedding-based semantic dedup
@@ -662,7 +662,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Removed
 - `LiTSMemoryConfig.metadata_for()` and `_metadata_defaults` (`lits/memory/config.py`)
 
-## 2026-03-16 Unreleased (`0312-major-context-augmentation`)
+## 2026-03-16 0.4.0 (`0312-major-context-augmentation`)
 
 ### Added
 - `TrajectoryState.__init__(steps=None, **kwargs)` supporting list-based construction (`lits/structures/base.py`)
@@ -681,7 +681,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `test_sql_validator.py`: `traj_state=step` → `traj_state=[step]` in sections 3, 4, 7
 - `test_state_serialization.py`: fixed `serialized` dict iteration bugs
 
-## 2026-03-15 Unreleased (`0312-major-context-augmentation`)
+## 2026-03-15 0.4.0 (`0312-major-context-augmentation`)
 
 ### Added
 - `ContextAugmentor` ABC and `ContextUnit` dataclass in `lits/components/context_augmentor/__init__.py`
@@ -716,7 +716,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - `lits/components/verbal_evaluator/` subpackage (no backward-compat shim)
 - `VerbalEvaluator` class (`verbal_evaluator/base.py`)
 
-## 2026-03-13 Unreleased (`x-0313-major-backprop-modes`)
+## 2026-03-13 0.4.0 (`x-0313-major-backprop-modes`)
 
 ### Added
 - `_back_propagate_decay()` in `lits/agents/tree/mcts.py`
@@ -733,7 +733,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Renamed `set_default_calc_q` → `set_default_q_func` in `MCTSNode`
 - `_back_propagate` terminal mode: append raw terminal reward instead of running average
 
-## 2026-03-12 Unreleased (`0304-major-lats-reward-refactor`)
+## 2026-03-12 0.4.0 (`0304-major-lats-reward-refactor`)
 
 ### Added
 - `transition_before_evaluate` flag in `MCTSConfig` (`lits/agents/tree/mcts.py`)
@@ -748,7 +748,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Updated `docs/components/reward/TOOL_USE_PRM.md`
 - Updated `docs/LITS_DESIGN.md` Section 3.1 task type comparison
 
-## 2026-03-10 Unreleased (`x-0310-minor-register-evaluator`)
+## 2026-03-10 0.4.0 (`x-0310-minor-register-evaluator`)
 
 ### Added
 - `register_evaluator` / `get_evaluator` / `has_evaluator` in `BenchmarkRegistry` (`lits/benchmarks/registry.py`)
@@ -758,12 +758,12 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Changed
 - `lits-eval` accuracy loop uses registered evaluator when available (`lits/cli/eval_search.py`)
 
-## 2026-03-09 Unreleased
+## 2026-03-09 0.4.0
 
 ### Changed
 - Registry-based search config creation; moved MCTS defaults into `MCTSConfig` (`x-minor-register-search-decorator`)
 
-## 2026-03-01 Unreleased
+## 2026-03-01 0.4.0
 ### Added
 - Save layer-wise checkpoint in bfs
 - Added docs/TRAJ_CHECKPOINT.md
