@@ -8,6 +8,15 @@ class BaseTool(ABC):
     description: str
     args_schema: Type[BaseModel]
 
+    # Whether a string return value from this tool should be scanned for
+    # backend-down markers (see ``execute_tool_action`` string-return path).
+    # True for tools whose backend is a network service that may stringify a
+    # connection error instead of raising (SQL, SPARQL). False for tools whose
+    # string output is arbitrary task content — e.g. a shell tool, where command
+    # output legitimately contains words like "connect"/"error"/"404" that would
+    # otherwise trip the circuit breaker as a false positive.
+    classify_string_result_as_server_down: bool = True
+
     def __init__(self, client: Any):
         # 如果子类同时继承了 BaseModel 会报错()，所以使用 object.__setattr__ 避免 Pydantic 拦截，
         object.__setattr__(self, "client", client)

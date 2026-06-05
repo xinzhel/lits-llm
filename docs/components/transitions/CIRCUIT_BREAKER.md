@@ -85,6 +85,38 @@ body identifies an application/query-compilation failure, the right response is
 to hand the error back to the agent so it can try a different query — not to
 trip the breaker and burn the whole run.
 
+## Gotcha 4: A Shell Tool's Output Is Not a Backend-Health Signal
+
+The string-return path (`_classify_result_as_server_down`) scans a tool's
+returned string for network markers + connection vocabulary. This is correct
+for network-backed tools that *stringify* a connection error instead of raising
+(some SQL/SPARQL wrappers). It is **wrong** for a tool whose string output is
+arbitrary task content — most notably the Terminal-Bench `shell` tool.
+
+**Symptom (first observed 2026-06-04):** A Terminal-Bench agent ran
+`wget http://www.povray.org/.../povray-2.2.tar.gz`; the external site returned
+HTTP 404. The command output contained both `Connecting ... connected` and
+`ERROR 404: Not Found`. The classifier matched `"connect"` (operational
+substring) + `"error"` (error vocabulary) and raised `ToolServerDownError`,
+tripping the breaker — even though the Docker backend was perfectly healthy and
+the 404 was normal task content (the agent was probing URLs).
+
+**Fix:** `BaseTool` gained a class attribute
+`classify_string_result_as_server_down` (default `True`, preserving behavior for
+SQL/SPARQL tools). `ShellTool` sets it to `False`, so `execute_tool_action`
+skips the string-return classification for shell output. A genuinely dead
+container still surfaces as a raised exception from `exec_sync()`, which is
+classified normally. Regression tests:
+`unit_test/components/transition/test_tool_server_down_classify.py` cases
+m (shell opt-out respected) and n (identical output without opt-out still trips,
+proving the flag is the deciding factor).
+
+**Takeaway:** The string-return heuristic is a last-resort safety net for tools
+that hide network errors in their return value. Tools whose output is
+free-form task content (shells, code interpreters, anything that runs
+user/agent commands) must opt out — their output will contain connection/error
+words as a matter of course.
+
 ## Gotcha 2: Backend Tunnels Can Drop Silently
 
 When the tool backend lives behind an SSH tunnel or any other long-lived

@@ -329,8 +329,16 @@ def execute_tool_action(action_data: str, tools: list):
         return f"{PREFIX_FOR_ERROR_OBSERVATION}'{tool_name}': {e}"
 
     # String-return path: some tool wrappers stringify network exceptions
-    # instead of raising. Treat matching results as server-down too.
-    if isinstance(result, str) and _classify_result_as_server_down(result):
+    # instead of raising. Treat matching results as server-down too — but only
+    # for tools that opt in (network-backed tools). Tools whose string output is
+    # arbitrary task content (e.g. the shell tool) set
+    # ``classify_string_result_as_server_down = False`` to avoid false positives
+    # when command output happens to contain words like "connect"/"error".
+    if (
+        isinstance(result, str)
+        and getattr(tool, "classify_string_result_as_server_down", True)
+        and _classify_result_as_server_down(result)
+    ):
         logger.info(
             f"Classified tool '{tool_name}' as server-down: "
             f"kind=string-marker matched_in_result_preview={result[:120]!r}"

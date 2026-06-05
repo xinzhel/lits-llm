@@ -11,10 +11,16 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Added
 - `lits-resume-clean` CLI (`lits/cli/resume_clean.py`) — automates resume.md Procedure 3+4 for interrupted `lits-search` runs: detects incomplete examples (via checkpoints AND inferencelogger records, so early crashes with no checkpoint are caught), archives their checkpoints, and filter-splits stale records out of inferencelogger/llm_calls/execution logs. Regression test in `unit_test/cli/test_resume_clean.py`
+- `BaseTool.classify_string_result_as_server_down` class attribute (default `True`) — lets tools opt out of string-return server-down classification
+- Regression tests `case_m_shell_output_with_connect_error_opts_out`, `case_n_same_output_without_optout_is_server_down` (`unit_test/components/transition/test_tool_server_down_classify.py`)
+- `docs/components/transitions/CIRCUIT_BREAKER.md` Gotcha 4 — shell-tool output is not a backend-health signal
 
 ### Changed
 - Renamed `docs/cli/resume_qa.md` → `docs/cli/resume.md` and restructured it to lead with the `lits-resume-clean` CLI
 - README: listed `lits-resume-clean` under CLI Commands; removed the outdated demo-video section (command arguments have since changed)
+
+### Fixed
+- Circuit breaker false-positive on shell-tool output — `execute_tool_action` string-return classification now respects the per-tool `classify_string_result_as_server_down` flag; `ShellTool` (Terminal-Bench) opts out so command output containing "connect"/"error"/"404" (e.g. wget hitting a 404) no longer trips the breaker (`lits/tools/base.py`, `lits/tools/utils.py`, `demos/lits_benchmark/terminal_bench_tools.py`)
 
 ## 2026-06-04 0.4.0
 

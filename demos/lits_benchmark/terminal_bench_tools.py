@@ -50,6 +50,14 @@ class ShellTool(BaseTool):
     )
     args_schema = ShellInput
 
+    # The shell tool's output is arbitrary command stdout/stderr — it routinely
+    # contains words like "connect", "error", or "404" (e.g. from wget/curl/ping)
+    # that are normal task content, not signals that the Docker backend is down.
+    # Opt out of string-return server-down classification to avoid false-positive
+    # circuit-breaker trips. A genuinely dead container surfaces as a raised
+    # exception from exec_sync(), which is still classified normally.
+    classify_string_result_as_server_down: bool = False
+
     def __init__(self, env: TerminalBenchEnv):
         # Skip BaseTool.__init__ which expects a client arg;
         # same pattern as KG tools (kgqa_tools.py::_KGToolBase)

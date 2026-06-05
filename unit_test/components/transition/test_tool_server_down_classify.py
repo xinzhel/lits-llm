@@ -79,6 +79,22 @@ class _FakeReturningTool:
         return self._return_value
 
 
+class _FakeShellTool:
+    """Tool stand-in that returns a string AND opts out of string-return
+    server-down classification (like the Terminal-Bench ShellTool). Command
+    output is arbitrary task content, not a backend-health signal.
+    """
+
+    classify_string_result_as_server_down = False
+
+    def __init__(self, name: str, return_value: str):
+        self.name = name
+        self._return_value = return_value
+
+    def _run(self, **kwargs):
+        return self._return_value
+
+
 def _action(tool_name: str) -> str:
     return json.dumps({"action": tool_name, "action_input": {}})
 
@@ -309,6 +325,47 @@ def case_l_http_500_no_application_marker_is_server_down():
     raise SystemExit(1)
 
 
+def case_m_shell_output_with_connect_error_opts_out():
+    """A shell tool that returns command output containing both 'connect' and
+    'error' (e.g. wget hitting a 404) must NOT trip the circuit breaker, because
+    ShellTool opts out of string-return server-down classification. This is the
+    Terminal-Bench false-positive: agent ran wget, got HTTP 404, output is task
+    content not a backend-down signal.
+    """
+    wget_output = (
+        "Connecting to www.povray.org|203.29.75.48|:80... connected.\n"
+        "HTTP request sent, awaiting response... 404 Not Found\n"
+        "ERROR 404: Not Found."
+    )
+    tool = _FakeShellTool("shell", wget_output)
+    out = execute_tool_action(_action("shell"), [tool])
+    if out == wget_output:
+        print("[case m] OK — shell output returned unchanged (opt-out respected)")
+        return
+    print("[case m] FAIL — expected shell output returned unchanged, got:", repr(out)[:120])
+    raise SystemExit(1)
+
+
+def case_n_same_output_without_optout_is_server_down():
+    """Control for case m: the IDENTICAL output through a tool that does NOT opt
+    out IS classified as server-down — proving the opt-out flag is the deciding
+    factor, not a change to the classifier heuristic itself.
+    """
+    wget_output = (
+        "Connecting to www.povray.org|203.29.75.48|:80... connected.\n"
+        "HTTP request sent, awaiting response... 404 Not Found\n"
+        "ERROR 404: Not Found."
+    )
+    tool = _FakeReturningTool("sql_query", wget_output)
+    try:
+        execute_tool_action(_action("sql_query"), [tool])
+    except ToolServerDownError:
+        print("[case n] OK — same output without opt-out still classified server-down")
+        return
+    print("[case n] FAIL — expected ToolServerDownError without opt-out")
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
     case_a_urllib_url_error_is_server_down()
     case_b_value_error_is_legacy_string()
@@ -322,4 +379,6 @@ if __name__ == "__main__":
     case_j_http_5xx_is_server_down()
     case_k_http_500_application_query_error_is_not_server_down()
     case_l_http_500_no_application_marker_is_server_down()
+    case_m_shell_output_with_connect_error_opts_out()
+    case_n_same_output_without_optout_is_server_down()
     print("\nALL CASES PASSED")
