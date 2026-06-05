@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-06-05 Unreleased
+
+### Added
+- `lits-resume-clean` CLI (`lits/cli/resume_clean.py`) — automates resume.md Procedure 3+4 for interrupted `lits-search` runs: detects incomplete examples (via checkpoints AND inferencelogger records, so early crashes with no checkpoint are caught), archives their checkpoints, and filter-splits stale records out of inferencelogger/llm_calls/execution logs. Regression test in `unit_test/cli/test_resume_clean.py`
+
+### Changed
+- Renamed `docs/cli/resume_qa.md` → `docs/cli/resume.md` and restructured it to lead with the `lits-resume-clean` CLI
+- README: listed `lits-resume-clean` under CLI Commands; removed the outdated demo-video section (command arguments have since changed)
+
 ## 2026-06-04 0.4.0
 
 ### Milestone

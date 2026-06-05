@@ -8,7 +8,6 @@ A modular Python framework for LLM reasoning and planning with tree search (e.g.
 - [Installation](#installation)
 - [Quick Start — 5-Minute Demo](#quick-start--5-minute-demo)
 - [CLI Commands](#cli-commands)
-- [🎬 2.5-Minute Demo Video](#-25-minute-demo-video)
 - [More CLI Examples](#more-cli-examples)
 - [Quick Start — Python API](#quick-start--python-api)
   - [Logging](#logging)
@@ -149,19 +148,12 @@ This prints the resolved components, dataset info, and first example — useful 
 ## CLI Commands
 
 ```bash
-lits-search       # Run tree search (MCTS, BFS)
-lits-eval         # Evaluate tree search results
-lits-chain        # Run chain agents (ReAct, EnvChain)
-lits-eval-chain   # Evaluate chain results
+lits-search        # Run tree search (MCTS, BFS)
+lits-eval          # Evaluate tree search results
+lits-chain         # Run chain agents (ReAct, EnvChain)
+lits-eval-chain    # Evaluate chain results
+lits-resume-clean  # Prepare an interrupted lits-search run for in-place resume
 ```
-
-## 🎬 2.5-Minute Demo Video
-
-See the full walkthrough — MCTS on math, Crosswords (environment-grounded), and evaluation:
-
-👉 https://youtu.be/nRGX43YrR3I
-
-The commands demonstrated in the video are listed below for direct copy-paste.
 
 ## More CLI Examples
 

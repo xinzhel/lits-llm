@@ -1,27 +1,72 @@
 ---
-name: lits-resume-qa
+name: lits-resume
 description: |
   Resume an interrupted `lits-chain` or `lits-search` run after Ctrl-C, OOM,
-  network failure, or any other premature termination. Detects incomplete
-  checkpoints, isolates them under `_stale` filenames, trims duplicate records
-  from `inferencelogger.log`, then re-runs the original command. Use when a
-  user reports a crashed/killed run, a hung session, or asks to "resume",
-  "continue", or "rerun" a tree-search or pass@N experiment without losing
-  prior completed examples. Covers four flavours: `lits-chain` with verifier
-  (Terminal-Bench, BlocksWorld), `lits-chain` without verifier (DBBench, KGQA,
-  GSM8K, MATH), `lits-search` MCTS/BFS, and the universal inference-log
-  hygiene step.
+  network failure, or any other premature termination. For `lits-search` runs,
+  the `lits-resume-clean` CLI automates the whole cleanup; for `lits-chain` runs
+  and for understanding the underlying mechanics, follow the manual procedures.
+  Detects incomplete checkpoints, isolates them under `_stale` filenames, trims
+  duplicate records from `inferencelogger.log`/`llm_calls.jsonl`/`execution.log`,
+  then re-runs the original command. Use when a user reports a crashed/killed
+  run, a hung session, or asks to "resume", "continue", or "rerun" a tree-search
+  or pass@N experiment without losing prior completed examples.
 inclusion: manual
 ---
 
-# Resume Skill: Recover an Interrupted `lits-chain` or `lits-search` Run
+# Resume an Interrupted `lits-chain` or `lits-search` Run
 
-When a `lits-chain` or `lits-search` run is interrupted (Ctrl-C, OOM,
-network drop, machine sleep, etc.), partial files are left in the result
-directory. Resuming correctly requires routing through the right case
-based on three properties of the run.
+When a run is interrupted (Ctrl-C, OOM, network drop, machine sleep, a Bedrock
+`ReadTimeoutError`, etc.), partial files are left in the result directory.
+Resuming correctly means: keep all completed examples, and remove the
+half-written state of the interrupted example(s) so they re-run cleanly and
+their stale records don't pollute downstream cost/diversity analysis.
 
-## Decision Tree
+## Quickest path: `lits-resume-clean` (for `lits-search` runs)
+
+For any `lits-search` (MCTS/BFS) run, a single command does the entire cleanup
+(Procedures 3 + 4 below):
+
+```bash
+lits-resume-clean --result-dir <run_dir>
+```
+
+What it does:
+- **Detects** incomplete examples by unioning two signals, so it catches both
+  the normal case and early crashes:
+  - examples with `checkpoints/{idx}_*.json` but no
+    `terminal_nodes/terminal_nodes_{idx}.json`, AND
+  - examples with records in `inferencelogger.log` but no terminal_nodes (an
+    example killed *before* its first iteration checkpoint was written — e.g. a
+    timeout during the first expand/simulate leaves log records but no
+    checkpoint).
+- **Archives** each incomplete example's per-iteration checkpoints to
+  `checkpoints_stale/` (with `_v2`/`_v3` suffixes on repeat cleanups).
+- **Filter-splits** the example's records out of `inferencelogger.log`,
+  `llm_calls.jsonl`, and `execution.log` into `*_stale_ex{idx}.*` siblings.
+  Filtering is record-by-record (not a single boundary cut), so interleaved
+  records from multiple incomplete examples are each removed correctly.
+- **Verifies** that no main log still references the cleaned examples.
+
+It is **non-destructive** (everything is moved to a `_stale` file, never
+deleted) and **idempotent** (re-running finds nothing left to clean). After it
+finishes, re-launch the original `lits-search` command with the **same**
+`--output-dir` to resume — completed examples are skipped, the cleaned ones
+restart from iteration 0.
+
+```bash
+# Typical flow
+lits-resume-clean --result-dir paper/.../some_run/run_v0.3.2
+# then re-run the original command (same --output-dir):
+lits-search ... --output-dir paper/.../some_run/run_v0.3.2
+```
+
+`lits-chain` runs are **not** handled by the CLI (their completion semantics
+differ — see Procedure 2); use the manual procedure for those.
+
+The manual procedures below remain the reference for `lits-chain` runs and
+document exactly what the CLI does for `lits-search`.
+
+## Decision Tree (manual procedures)
 
 Answer these three questions in order:
 
@@ -38,7 +83,7 @@ Then jump to the matching procedure:
 |-----------------------------------|--------------|----------------------------------------|
 | `lits-chain`                      | Yes          | **Procedure 1 (chain w/ verifier)**    |
 | `lits-chain`                      | No           | **Procedure 2 (chain w/o verifier)**   |
-| `lits-search`                     | N/A          | **Procedure 3 (tree search)**          |
+| `lits-search`                     | N/A          | **Procedure 3 (tree search)** — or just run `lits-resume-clean` |
 | Q3 = Yes (any CLI)                | —            | **Procedure 4 (log hygiene)** after the run-resume procedure |
 
 The `_stale` rename convention used throughout (filename suffix `_v2`,
