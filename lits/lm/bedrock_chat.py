@@ -96,6 +96,9 @@ class BedrockChatModel(LanguageModel):
             "bedrock-runtime",
             region_name=region,
             config=BotoConfig(
+                connect_timeout=10,  # fail fast on a stalled TCP/TLS connect (e.g. SYN_SENT
+                                     # after a network blip) so adaptive retries re-sign with a
+                                     # fresh SigV4 timestamp instead of sending an expired one
                 read_timeout=300,  # 5 min — long code generation can exceed 60s default
                 # Adaptive retries absorb transient Bedrock failures (ReadTimeoutError,
                 # throttling, 5xx) with exponential backoff instead of crashing the run.

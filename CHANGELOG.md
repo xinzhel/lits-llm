@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-06-06 Unreleased
+
+### Fixed
+- `bedrock_chat.py`: added `connect_timeout=10` to the Bedrock client config. A stalled TCP connect (`SYN_SENT` after a network blip) previously held an already-signed SigV4 request with no timeout, causing either a multi-minute hang or an `InvalidSignatureException: Signature expired` crash when the request finally arrived >5 min after signing. The connect timeout caps the stall so adaptive retries re-sign with a fresh timestamp.
+
+### Added
+- `docs/cli/debug_guide/bedrock_connectivity.md` — catalogs the five observed Bedrock/transient-failure signatures (ReadTimeout, InternalServerException, tool URLError, SYN_SENT hang, Signature expired), a triage decision tree, verification commands, and operational mitigations (`caffeinate`, autossh keepalive)
+
 ## 2026-06-05 Unreleased
 
 ### Added
