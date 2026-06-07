@@ -251,11 +251,13 @@ class CountInput(BaseModel):
 class _KGToolBase(BaseTool):
     """Base for all KG tools — shares KGState and implements pre_step."""
 
-    # SPARQL endpoint is reached over an SSH tunnel that autossh may briefly
-    # drop and reconnect. Ride out a reconnect (~up to 30s) by re-attempting the
-    # same query before surfacing a server-down error to the circuit breaker.
+    # SPARQL endpoint is reached over an SSH tunnel that may drop and reconnect.
+    # Ride out a reconnect by re-attempting the same query before surfacing a
+    # server-down error to the circuit breaker. The schedule sums to ~120s per
+    # call so it can absorb slow reconnects (e.g. switching between wifi and a
+    # cellular hotspot while roaming), not just short blips.
     # See ``lits/tools/utils.py::execute_tool_action`` for the retry mechanics.
-    server_down_retry_delays: tuple[int, ...] = (2, 8, 20)
+    server_down_retry_delays: tuple[int, ...] = (5, 15, 40, 60)
 
     def __init__(self, kg_state: KGState):
         # Skip BaseTool.__init__ which expects a client arg

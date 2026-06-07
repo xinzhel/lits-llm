@@ -17,7 +17,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ### Changed
 - `execute_tool_action` retries server-down failures per `server_down_retry_delays` before raising `ToolServerDownError`
-- `_KGToolBase` opts into retry-with-backoff `(2, 8, 20)` for SPARQL-over-tunnel reconnects
+- `_KGToolBase` opts into retry-with-backoff `(5, 15, 40, 60)` for SPARQL-over-tunnel reconnects (sized for slow cellular roaming)
 - `bedrock_connectivity.md` scoped to Bedrock LLM-call failures; moved to `docs/lm/`; tool-backend content removed
 - `README.md` Documentation list — added Tool Backend Failure Handling
 

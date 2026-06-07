@@ -189,16 +189,17 @@ transient *in code*.
 
 When a single tool call is classified as server-down, instead of raising
 immediately, `execute_tool_action` re-attempts the *same* call on a backoff
-schedule before surfacing the error. The schedule below, `(2, 8, 20)`, is the
-value **KGQA's KG tools** choose (see "Opt-in" below); the core framework
+schedule before surfacing the error. The schedule below, `(5, 15, 40, 60)`, is
+the value **KGQA's KG tools** choose (see "Opt-in" below); the core framework
 defaults to no retry. Using KGQA's schedule as the example:
 
 ```
-ONE tool call (KGQA's _KGToolBase sets server_down_retry_delays = (2, 8, 20)):
-  attempt 1 → URLError → sleep 2s
-  attempt 2 → URLError → sleep 8s
-  attempt 3 → URLError → sleep 20s
-  attempt 4 → URLError → give up → raise ToolServerDownError (breaker += 1)
+ONE tool call (KGQA's _KGToolBase sets server_down_retry_delays = (5, 15, 40, 60)):
+  attempt 1 → URLError → sleep 5s
+  attempt 2 → URLError → sleep 15s
+  attempt 3 → URLError → sleep 40s
+  attempt 4 → URLError → sleep 60s
+  attempt 5 → URLError → give up → raise ToolServerDownError (breaker += 1)
 ```
 
 A successful re-attempt returns one clean observation; the transient never
@@ -220,15 +221,15 @@ class BaseTool(ABC):
   shell/SQL/web/PDF tools unless they opt in. The core framework ships no
   concrete schedule.
 - **Opt in — per benchmark/tool:** a tool whose backend may briefly drop and
-  recover overrides the attribute. The concrete `(2, 8, 20)` schedule is **not**
-  a core value; it lives in the KGQA benchmark
+  recover overrides the attribute. The concrete `(5, 15, 40, 60)` schedule is
+  **not** a core value; it lives in the KGQA benchmark
   (`demos/lits_benchmark/kgqa_tools.py::_KGToolBase`), chosen because that
   endpoint is a Freebase SPARQL server behind an SSH tunnel:
 
   ```python
   # demos/lits_benchmark/kgqa_tools.py — benchmark layer, not core
   class _KGToolBase(BaseTool):
-      server_down_retry_delays = (2, 8, 20)   # ride out autossh reconnect (~30s)
+      server_down_retry_delays = (5, 15, 40, 60)   # ride out a slow reconnect (~120s)
   ```
 
 This mirrors the `classify_string_result_as_server_down` opt-out (Gotcha 4): a
@@ -241,14 +242,15 @@ core default — a blocking wait on a Docker hiccup is undesirable there.
   is no blocking wait at all — a server-down failure raises instantly, exactly
   as before. The caveats below apply *only* to tools that opt in.
 - For an opt-in tool, the retry uses a **blocking** `time.sleep`, so the calling
-  MCTS branch stalls for that tool's configured schedule (KGQA's `(2, 8, 20)`
-  sums to ~30s of sleep worst-case, plus per-attempt failure latency). Acceptable
+  MCTS branch stalls for that tool's configured schedule (KGQA's `(5, 15, 40, 60)`
+  sums to ~120s of sleep worst-case, plus per-attempt failure latency). Acceptable
   for a rare event; it is synchronous. Tune the schedule per tool if a shorter
   stall is wanted.
 - Retry trades time-to-abort for resilience: against a *genuinely* dead server,
   an opt-in tool now sleeps its full schedule before each failure escalates, so
   the breaker takes `tool_failure_threshold × schedule` to trip instead of
-  failing instantly. KGQA went from a ~9s abort to ~90s+ (3 × ~30s). This is the
+  failing instantly. KGQA's `(5, 15, 40, 60)` means ~120s per call × 3 ≈ ~6 min
+  before a real outage aborts the run (vs ~9s with no retry). This is the
   intended cost — we wait longer to be *sure* the server is dead before aborting
   — but it means a real outage burns more wall-clock before the run stops.
 
@@ -333,15 +335,17 @@ that deadline and what it requires of whatever recovery tooling you run.
 Two windows have to line up:
 
 - **Per-call ride-out window** = the opt-in tool's retry budget. For KGQA's
-  `(2, 8, 20)` that is ~30s of sleep before a single call gives up.
+  `(5, 15, 40, 60)` that is ~120s of sleep before a single call gives up.
 - **Run-level abort window** = `tool_failure_threshold × ride-out`. For KGQA,
-  3 × ~30s ≈ ~90s before the breaker trips and the run aborts.
+  3 × ~120s ≈ ~6 min before the breaker trips and the run aborts.
 
 So the rule of thumb: **your backend must come back within one ride-out window
-(~30s for KGQA) for a transient blip to be fully absorbed with zero failed
-calls.** If it comes back within the run-level window (~90s) the run survives but
-logs some failed attempts. Longer than that and the run aborts — that is by
-design (a multi-minute outage is a real outage, resume later).
+(~120s for KGQA) for a transient blip to be fully absorbed with zero failed
+calls.** If it comes back within the run-level window (~6 min) the run survives
+but logs some failed attempts. Longer than that and the run aborts — that is by
+design (a multi-minute outage is a real outage, resume later). KGQA's schedule is
+sized to ride out a slow reconnect such as switching between wifi and a cellular
+hotspot while roaming.
 
 Tune the trade-off by editing the tool's `server_down_retry_delays` (longer =
 more tolerant, but a real outage burns more wall-clock before aborting).
@@ -349,7 +353,7 @@ more tolerant, but a real outage burns more wall-clock before aborting).
 ### Meeting the constraint (KGQA SSH-tunnel example)
 
 For KGQA the backend is a Freebase SPARQL server behind an SSH tunnel; autossh
-keepalive is how you keep the reconnect inside the ~30s window:
+keepalive is how you keep the reconnect window short:
 
 ```bash
 autossh -M 0 -fN \
@@ -362,10 +366,11 @@ autossh -M 0 -fN \
 ```
 
 `ServerAliveInterval × ServerAliveCountMax = 15 × 2 ≈ 30s` is the worst-case
-*detection* window before autossh restarts the tunnel. Add a few seconds for
-re-establishment. That total needs to fit inside the run-level abort window
-(~90s) for the run to survive a drop — and ideally inside one ride-out window
-(~30s) for the blip to be invisible. The defaults above are chosen to do that;
+*detection* window before autossh restarts the tunnel. Add the time to
+re-establish (longer over a cellular hotspot than wifi). That total needs to fit
+inside the run-level abort window (~6 min) for the run to survive a drop — and
+ideally inside one ride-out window (~120s) for the blip to be invisible. The
+~120s retry budget is sized so even a slow cellular reconnect lands inside it;
 if you widen the keepalive, widen the retry schedule to match.
 
 Verify the tunnel and server before (re)starting a run:
@@ -395,7 +400,7 @@ re-launch the original command. See `docs/cli/resume.md`.
 - `lits/tools/utils.py::_attempt_tool_call` — single-attempt execute + classify.
 - `lits/tools/utils.py::_classify_as_server_down` — the classifier.
 - `lits/components/transition/tool_use.py::ToolUseTransition.step` — the breaker.
-- `demos/lits_benchmark/kgqa_tools.py::_KGToolBase` — opts in with `(2, 8, 20)`.
+- `demos/lits_benchmark/kgqa_tools.py::_KGToolBase` — opts in with `(5, 15, 40, 60)`.
 - `unit_test/tools/test_server_down_retry.py` — retry behavior (3 cases).
 - `unit_test/components/transition/test_tool_server_down_classify.py` — classification (cases a–n).
 - `unit_test/components/transition/test_tool_use_circuit_breaker.py` — breaker (counter, trip, reset).
