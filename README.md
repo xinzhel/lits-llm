@@ -464,6 +464,7 @@ docs/                    # Documentation
   - [Fact Memory](docs/components/context_augmentor/FACT_MEMORY.md) · [Reflection](docs/components/context_augmentor/REFLECTION.md)
 - [Learning Loop](docs/components/context_augmentor/LEARNING_LOOP.md)
 - [Custom Evaluators](docs/eval/CUSTOM_EVALUATORS.md)
+- [Tool Backend Failure Handling](docs/components/transitions/TOOL_FAILURE_HANDLING.md) — classification, retry-with-backoff, circuit breaker
 - [Tree Visualization](docs/TREE_VISUALIZATION.md)
 
 ## Citation

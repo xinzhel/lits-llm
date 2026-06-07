@@ -17,6 +17,24 @@ class BaseTool(ABC):
     # otherwise trip the circuit breaker as a false positive.
     classify_string_result_as_server_down: bool = True
 
+    # Retry-with-backoff schedule (in seconds) applied by ``execute_tool_action``
+    # when a single tool call is classified as server-down. Each entry is the
+    # sleep before the next re-attempt of the *same* call, so e.g. ``(2, 8, 20)``
+    # gives up to 3 re-attempts spanning ~30s before the failure is finally
+    # raised as ``ToolServerDownError`` (which is what increments the circuit
+    # breaker). The default ``()`` means no retry — the call fails instantly,
+    # exactly as before. Opt in only for network-backed tools whose backend may
+    # briefly disappear and recover (e.g. SPARQL/SQL over an SSH tunnel that
+    # autossh reconnects). Leave it off for tools where a 30s blocking wait is
+    # undesirable (e.g. a shell tool) or where failures are not transient.
+    #
+    # Distinction from the circuit breaker: this retries *within one call* to
+    # ride out a transient blip so it never becomes a tree node and never counts
+    # toward the breaker. The breaker (``tool_failure_threshold`` in
+    # ``ToolUseTransition``) counts *across calls* and aborts the run only once
+    # the backend is confirmed dead (all retries exhausted).
+    server_down_retry_delays: tuple[int, ...] = ()
+
     def __init__(self, client: Any):
         # 如果子类同时继承了 BaseModel 会报错()，所以使用 object.__setattr__ 避免 Pydantic 拦截，
         object.__setattr__(self, "client", client)

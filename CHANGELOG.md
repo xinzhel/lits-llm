@@ -7,6 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-06-07 Unreleased (`docs/components/transitions/TOOL_FAILURE_HANDLING.md`)
+
+### Added
+- `BaseTool.server_down_retry_delays` — opt-in retry-with-backoff for transient tool-backend failures (default off)
+- `lits/tools/utils.py::_attempt_tool_call` — single-attempt execute + server-down classification
+- `docs/components/transitions/TOOL_FAILURE_HANDLING.md` — canonical tool-backend failure doc (classification + retry + breaker + operational recovery; merges former `CIRCUIT_BREAKER.md`)
+- `unit_test/tools/test_server_down_retry.py`
+
+### Changed
+- `execute_tool_action` retries server-down failures per `server_down_retry_delays` before raising `ToolServerDownError`
+- `_KGToolBase` opts into retry-with-backoff `(2, 8, 20)` for SPARQL-over-tunnel reconnects
+- `bedrock_connectivity.md` scoped to Bedrock LLM-call failures; moved to `docs/lm/`; tool-backend content removed
+- `README.md` Documentation list — added Tool Backend Failure Handling
+
+### Removed
+- `docs/components/transitions/CIRCUIT_BREAKER.md` (merged into `TOOL_FAILURE_HANDLING.md`)
+
 ## 2026-06-06 Unreleased
 
 ### Fixed

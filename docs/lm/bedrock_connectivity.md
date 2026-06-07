@@ -7,9 +7,14 @@ the failure modes we have actually hit, how to tell them apart, and how the
 client is hardened against them.
 
 It exists because during one KGQA MCTS run (Qwen3-Coder-Next policy, ~69
-examples × ~5 MCTS iters × multi-step rollouts) we hit **five distinct error
-signatures over two days**, and it was easy to confuse them. Each section
+examples × ~5 MCTS iters × multi-step rollouts) we hit several distinct error
+signatures over two days, and it was easy to confuse them. Each section
 records the exact error string, the verified mechanism, and the fix.
+
+> **Scope:** this guide covers **Bedrock LLM-call** failures (#1, #2, #4, #5).
+> Tool-backend failures (`ToolServerDownError` / `URLError` from a tool) are a
+> different layer; they live in
+> `../components/transitions/TOOL_FAILURE_HANDLING.md`.
 
 > **Golden rule when triaging:** read the actual logs and process state before
 > theorizing. During the original incident, two "obvious" explanations (laptop
@@ -86,32 +91,6 @@ just burn wall-clock against a down endpoint.
 
 ---
 
-### #3 — `ToolServerDownError: ... URLError` (KGQA / SPARQL)
-
-```
-lits.tools.utils.ToolServerDownError: Tool 'get_relations' backend appears down:
-RuntimeError: SPARQL query failed (URLError). Query: PREFIX rdf: ...
-```
-
-**Mechanism:** This is a **tool backend** failure, NOT a Bedrock failure. For
-KGQA the SPARQL tool talks to a Freebase Virtuoso server over an SSH tunnel
-(`localhost:3001`). `URLError` = transport-layer failure: the connection itself
-could not be made, i.e. **the tunnel dropped.** The circuit breaker correctly
-classifies this as server-down and aborts after 3 consecutive failures.
-
-**Layer:** tool backend (SPARQL over SSH tunnel).
-
-**Handled?** Working as designed — a real `URLError` *should* trip the breaker.
-The fix is operational, not code: keep the tunnel alive (autossh with
-keepalive) and check it before resuming. See "Verification commands".
-
-**Distinguish from false positives:** A *reachable* SPARQL server returning a
-query error (HTTP 500 with `S0022 Error SQ200`, or HTTP 400 malformed) is NOT
-server-down — those are handled in `CIRCUIT_BREAKER.md` Gotchas 1/3. `URLError`
-with no HTTP code = genuinely unreachable = correctly trips.
-
----
-
 ### #4 — Process hangs (no error, no progress) — stalled `SYN_SENT`
 
 **Symptom:** The run appears frozen. No new log lines, no crash. CPU ~0%.
@@ -183,10 +162,9 @@ the run silently overnight.
 Run stopped / misbehaving
 ├─ No error, no new log lines, CPU ~0%        → #4 SYN_SENT hang
 │    └─ lsof shows SYN_SENT? confirm. ESTABLISHED? it's just slow, wait.
-├─ Error mentions a TOOL ('get_relations', 'shell', 'sql_query')
-│    ├─ URLError / connection refused          → #3 tunnel/backend down (REAL)
-│    ├─ HTTP 500 with S0022/Virtuoso/SPARQL    → query error, see CIRCUIT_BREAKER.md Gotcha 3
-│    └─ HTTP 404/wget/curl output in 'shell'   → false positive, see CIRCUIT_BREAKER.md Gotcha 4
+├─ Error mentions a TOOL ('get_relations', 'shell', 'sql_query') or lits.tools.*
+│    └─ NOT a Bedrock failure → see ../components/transitions/TOOL_FAILURE_HANDLING.md
+│       (URLError = backend/tunnel down; HTTP 5xx/4xx = classification gotchas)
 └─ Error mentions Bedrock Converse
      ├─ ReadTimeoutError                        → #1 (retried; resume if it aborted)
      ├─ InternalServerException (max retries)   → #2 AWS incident (wait, resume)
@@ -220,16 +198,14 @@ curl -4 -s -o /dev/null -w "v4 connect=%{time_connect}s code=%{http_code}\n" --m
 curl -6 -s -o /dev/null -w "v6 connect=%{time_connect}s code=%{http_code}\n" --max-time 10 https://bedrock-runtime.us-east-1.amazonaws.com
 # (HTTP 404 is fine here — it means TCP+TLS succeeded, which is all we're testing.)
 
-# 7. (KGQA only) Is the SPARQL tunnel up and the server answering?
-lsof -nP -iTCP:3001 -sTCP:LISTEN
-curl -s --max-time 8 "http://localhost:3001/sparql?query=SELECT+%3Fs+WHERE+%7B+%3Fs+%3Fp+%3Fo+%7D+LIMIT+1" | head -3
+# 7. (KGQA, tool backend) SPARQL tunnel checks: see ../components/transitions/TOOL_FAILURE_HANDLING.md.
 ```
 
 ---
 
 ## Operational mitigations for long runs
 
-Beyond the client config, two operational practices prevent most of the above:
+Beyond the client config:
 
 1. **Prevent laptop sleep.** Wrap the run in `caffeinate -i` so idle sleep can't
    freeze the process mid-flight:
@@ -239,15 +215,8 @@ Beyond the client config, two operational practices prevent most of the above:
    (Sleep was ruled out for the original incident, but it remains a real risk
    for unattended overnight runs.)
 
-2. **Keep the SPARQL tunnel resilient** (KGQA). Use autossh with keepalive so a
-   dropped tunnel auto-reconnects:
-   ```bash
-   autossh -M 0 -fN -o "ServerAliveInterval=30" -o "ServerAliveCountMax=3" \
-     -o "ExitOnForwardFailure=yes" -L 3001:localhost:3001 \
-     -i ~/.ssh/<key>.pem ubuntu@<freebase-host>
-   ```
-   There is still a ~90s window between drop and reconnect where calls fail; on
-   a ~20h run these drops are likely, so expect occasional #3 aborts and resume.
+For tool-backend resilience (SPARQL/SQL tunnel keepalive, retry-with-backoff,
+circuit breaker), see `../components/transitions/TOOL_FAILURE_HANDLING.md`.
 
 ---
 

@@ -1,6 +1,7 @@
 import requests
 import logging
 import socket
+import time
 import urllib.error
 from typing import Optional
 from ..utils import parse_json_string, PREFIX_FOR_ERROR_OBSERVATION
@@ -298,12 +299,47 @@ def execute_tool_action(action_data: str, tools: list):
     if tool is None:
         raise ValueError(f"No tool found with name '{tool_name}'")
 
-    # --- 4. Execute tool ---
+    # --- 4. Execute tool, with optional retry-with-backoff on server-down ---
+    # A single tool call may transiently fail (e.g. an SSH tunnel reconnecting).
+    # When the tool opts in via ``server_down_retry_delays``, ride out the blip
+    # by re-attempting the *same* call before surfacing ``ToolServerDownError``.
+    # Each successful retry returns a clean observation, so the transient never
+    # becomes a tree node and never increments the circuit breaker. Only when
+    # all retries are exhausted (backend confirmed down) does the error
+    # propagate to ``ToolUseTransition`` and count toward the breaker.
+    retry_delays = getattr(tool, "server_down_retry_delays", ()) or ()
+    attempt = 0
+    while True:
+        try:
+            return _attempt_tool_call(tool, tool_name, action_input)
+        except ToolServerDownError as e:
+            if attempt < len(retry_delays):
+                delay = retry_delays[attempt]
+                attempt += 1
+                logger.warning(
+                    f"Tool '{tool_name}' server-down; retrying in {delay}s "
+                    f"(attempt {attempt}/{len(retry_delays)}). Reason: "
+                    f"{e.original_exc or e}"
+                )
+                time.sleep(delay)
+                continue
+            # No retries configured, or all retries exhausted → real failure.
+            raise
+
+
+def _attempt_tool_call(tool, tool_name: str, action_input):
+    """Execute a single tool call and classify the outcome.
+
+    Returns the observation on success or non-network failure; raises
+    ``ToolServerDownError`` when the backend appears unreachable. Factored out
+    of ``execute_tool_action`` so the retry loop can re-attempt one call without
+    re-parsing the action or re-resolving the tool.
+    """
     try:
         # Handle empty string or non-dict action_input
         if isinstance(action_input, str) and action_input.strip() == "":
             action_input = {}
-            
+
         if hasattr(tool, "_run"):
             result = tool._run(**action_input)
         elif hasattr(tool, "__call__"):
