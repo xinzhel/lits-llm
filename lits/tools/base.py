@@ -8,6 +8,13 @@ class BaseTool(ABC):
     description: str
     args_schema: Type[BaseModel]
 
+    # Marks this tool as a ReAct loop terminator. When True, the agent does not
+    # execute the tool: instead, the model's validated tool-call args become the
+    # final structured answer (``json.dumps(action_input)``) and the loop ends.
+    # The tool's ``args_schema`` therefore defines the answer contract, and
+    # ``_run`` is never invoked. Default False preserves normal (executed) tools.
+    is_terminal: bool = False
+
     # Whether a string return value from this tool should be scanned for
     # backend-down markers (see ``execute_tool_action`` string-return path).
     # True for tools whose backend is a network service that may stringify a

@@ -134,6 +134,45 @@ After _response_to_steps splits:
 
 **`_build_messages` reconstruction**: Since each step has exactly one `toolUse` block, `_build_messages` simply emits one assistant message + one user message (with one `toolResult`) per step. No grouping logic needed.
 
+### Loop termination
+
+`_BaseNativeReAct._process_steps` ends the ReAct loop in one of three ways:
+
+| Branch | Condition | Result |
+|--------|-----------|--------|
+| (1) Text answer | LLM returns plain text (no tool call) | Step appended; loop breaks on next iteration check |
+| (2) Tool call(s) | LLM calls one or more tools | (2a) terminal tool → stop with structured answer; (2b) normal tool → execute via transition, continue |
+| (3) Malformed | Neither answer nor action | Error step appended, loop stops |
+
+**Terminal tools** (`BaseTool.is_terminal = True`) let a tool *end* the loop, with its validated args becoming the final structured answer — no execution, no free-text JSON parsing. This solves the common problem where an app needs a structured final answer (e.g. a JSON recommendation) but the model prepends prose ("Let me compile my findings.\n\n{...}"), breaking `json.loads`.
+
+How it works:
+- A tool subclass sets `is_terminal = True`. Its `args_schema` defines the answer contract; its `_run` is never invoked.
+- When a step names a terminal tool, `_process_steps` sets `step.answer = json.dumps(action_input)` (the validated tool args) and stops — it does not call `transition.step`.
+- `ToolUseState.get_final_answer()` returns that JSON verbatim, so it is directly `json.loads`-able.
+- The native tool-use API guarantees the args conform to `args_schema`, so no validation or prose-stripping is needed.
+
+Parallel-call edge case: if one assistant message contains several `toolUse` blocks and any is terminal, the loop terminates on the first terminal call and skips executing the rest of the batch.
+
+```python
+from pydantic import BaseModel, Field
+from lits.tools.base import BaseTool
+
+class RecommendationInput(BaseModel):
+    site_id: str = Field(..., description="Recommended site")
+    rationale: str = Field(..., description="One-sentence justification")
+
+class SubmitRecommendation(BaseTool):
+    name = "submit_recommendation"
+    description = "Submit the final recommendation. Its arguments are the answer."
+    args_schema = RecommendationInput
+    is_terminal = True            # ← ends the loop; _run never called
+    def __init__(self): super().__init__(client=None)
+    def _run(self, **kwargs): raise AssertionError("terminal tool is never executed")
+
+# agent.run(...) → state.get_final_answer() == '{"site_id": "...", "rationale": "..."}'
+```
+
 ## Usage
 
 ### Via `create_tool_use_agent()` factory (recommended for `lits-chain`)

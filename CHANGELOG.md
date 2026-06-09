@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-06-09 Unreleased (`0609-minor-react-terminal-tool`)
+
+### Added
+- `BaseTool.is_terminal` — mark a tool as a ReAct loop terminator; its validated args become the final structured answer [T1.1]
+- `unit_test/agents/test_native_react_terminal_tool.py` [T3]
+
+### Changed
+- `_BaseNativeReAct._process_steps` — terminal tool calls end the loop with `json.dumps(action_input)` as the answer, without execution [T2]
+- `docs/agents/NativeReAct.md` — document loop termination and terminal tools
+
+
 ## 2026-06-07 Unreleased (`docs/components/transitions/TOOL_FAILURE_HANDLING.md`)
 
 ### Added

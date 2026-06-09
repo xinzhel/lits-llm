@@ -85,19 +85,55 @@ class _BaseNativeReAct(ChainAgent[ToolUseState]):
             (updated_state, should_break): updated state and whether to stop the loop.
         """
         if steps[0].answer:
+            # (1) Text answer: the model returned a free-text final answer.
             state.append(steps[0])
             return state, False  # answer appended, loop will check and break
         elif steps[0].action:
+            # (2) Tool call(s): execute each non-terminal tool; a terminal tool
+            # ends the loop with its validated args as the final answer.
+            # Terminal tools are NOT executed. Derive terminal names once from
+            # the transition's tool set.
+            terminal_tool_names = {
+                t.name for t in self.transition.tools
+                if getattr(t, "is_terminal", False)
+            }
             for step in steps:
-                if step.action:
-                    new_state, _ = self.transition.step(
-                        state=state, step_or_action=step, query_or_goals=query,
-                    )
-                    state = new_state
+                if not step.action:
+                    continue
+                # (2a) Terminal call: a single assistant message may carry
+                # several toolUse blocks. If any names a terminal tool, capture
+                # its validated args as the final answer and stop, skipping the
+                # rest of the batch (terminal tools are never executed).
+                terminal_answer = self._terminal_answer(step, terminal_tool_names)
+                if terminal_answer is not None:
+                    step.answer = terminal_answer
+                    state.append(step)
+                    return state, True
+                # (2b) Normal execution: run the tool via the transition.
+                new_state, _ = self.transition.step(
+                    state=state, step_or_action=step, query_or_goals=query,
+                )
+                state = new_state
             return state, False
         else:
+            # (3) Neither answer nor action: malformed LLM output — stop the loop.
             state.append(NativeToolUseStep(error="No action or answer from LLM"))
             return state, True
+
+    @staticmethod
+    def _terminal_answer(step, terminal_tool_names: set[str]) -> Optional[str]:
+        """Return the final answer JSON if ``step`` calls a terminal tool, else None.
+
+        A terminal tool is never executed; its validated tool-call args ARE the
+        structured answer. We return ``json.dumps(action_input)`` so callers can
+        assign it to ``step.answer`` (which ``get_final_answer()`` returns verbatim).
+        """
+        if not terminal_tool_names:
+            return None
+        action_dict = json.loads(str(step.action))
+        if action_dict.get("action") not in terminal_tool_names:
+            return None
+        return json.dumps(action_dict.get("action_input", {}))
 
 
 class NativeReAct(_BaseNativeReAct):
