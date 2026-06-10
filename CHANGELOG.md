@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-06-10 Unreleased (`docs/lm/bedrock_connectivity.md`)
+
+### Fixed
+- `Policy.get_actions` transient-error retry now also catches Bedrock `ReadTimeoutError` (waits and retries instead of crashing the run)
+
 ## 2026-06-09 Unreleased (`0609-minor-react-terminal-tool`)
 
 ### Added

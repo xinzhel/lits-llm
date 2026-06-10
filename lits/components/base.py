@@ -893,6 +893,13 @@ class Policy(ABC, Generic[StateT, StepT]):
                     or "serviceunavailableexception" in err_msg
                     or "throttlingexception" in err_msg
                     or "too many requests" in err_msg
+                    # Bedrock endpoint accepted the request but did not respond
+                    # within read_timeout (e.g. a slow qwen3-coder-next generation,
+                    # or the endpoint being briefly slow). botocore's adaptive
+                    # retries already re-issue these; if they are still exhausted
+                    # the ReadTimeoutError surfaces here, so treat it as transient
+                    # and wait it out rather than crashing the run.
+                    or "read timeout" in err_msg
                     # Transient network failures (e.g. wifi drop → DNS resolution failure).
                     # boto3 raises EndpointConnectionError wrapping urllib3
                     # NameResolutionError wrapping socket.gaierror. See
