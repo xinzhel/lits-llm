@@ -891,6 +891,11 @@ class Policy(ABC, Generic[StateT, StepT]):
                     "run aws sso login" in err_msg
                     or ("expired" in err_msg and "sso" in err_msg)
                     or "serviceunavailableexception" in err_msg
+                    # AWS-side incident: Bedrock returned HTTP 500 on every
+                    # adaptive retry (message: "Try your request again"). Like
+                    # ServiceUnavailableException, this is a transient server
+                    # fault, so wait it out instead of crashing the run.
+                    or "internalserverexception" in err_msg
                     or "throttlingexception" in err_msg
                     or "too many requests" in err_msg
                     # Bedrock endpoint accepted the request but did not respond

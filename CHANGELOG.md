@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-06-11 Unreleased (`docs/lm/bedrock_connectivity.md`)
+
+### Fixed
+- `Policy.get_actions` transient-error retry now also catches Bedrock `InternalServerException` (HTTP 500 server-side incident; waits and retries instead of crashing)
+
 ## 2026-06-10 Unreleased (`docs/lm/bedrock_connectivity.md`)
 
 ### Fixed
