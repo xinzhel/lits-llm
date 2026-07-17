@@ -139,6 +139,7 @@ def create_augmentors(
     memory_kwargs: Dict = None,
     base_model=None,
     run_logger=None,
+    task_type: str | None = None,
 ) -> list:
     """Assemble a list of ContextAugmentors from CLI kwargs.
 
@@ -159,6 +160,8 @@ def create_augmentors(
         memory_kwargs: Dict from ``parse_memory_args()``.  Reads ``augmentors`` key.
         base_model: LLM instance for augmentors that need it (e.g., ReflectionAugmentor).
         run_logger: Logger instance.
+        task_type: Effective task type for augmentors with task-specific formatting.
+            ``memory_kwargs["task_type"]`` takes precedence when provided.
 
     Returns:
         List of ContextAugmentor instances.
@@ -196,6 +199,8 @@ def create_augmentors(
                 refl_kwargs["reward_threshold"] = float(memory_kwargs["reward_threshold"])
             if memory_kwargs and "task_type" in memory_kwargs:
                 refl_kwargs["task_type"] = memory_kwargs["task_type"]
+            elif task_type:
+                refl_kwargs["task_type"] = task_type
             augmentors.append(ReflectionAugmentor(base_model=base_model, **refl_kwargs))
         else:
             raise ValueError(
@@ -601,6 +606,7 @@ def main() -> int:
         memory_manager, memory_kwargs,
         base_model=augmentor_base_model,
         run_logger=run_logger,
+        task_type=task_type,
     ) if memory_kwargs else []
     # Include both memory_llm (fact backend) AND augmentor_base_model (reflection)
     # so all augmentor-side LLM calls are tracked. setup_inference_logging

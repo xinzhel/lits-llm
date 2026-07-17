@@ -342,6 +342,7 @@ def _run_tool_use(config, benchmark_name, full_dataset, dataset_kwargs,
             memory_kwargs=memory_kwargs,
             base_model=augmentor_base_model,
             run_logger=run_logger,
+            task_type="tool_use",
         )
         wire_retrieval_to_policy(agent.policy, augmentors, query_context)
 

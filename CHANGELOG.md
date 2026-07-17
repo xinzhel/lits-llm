@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
 
+## 2026-07-17 Unreleased (`0620-chore-memory-plumbing-audit/tasks`)
+
+### Fixed
+- `NativeToolUseStep.verb_step` — include observations in native textual serialization [T1.1]
+- `NativeToolUsePolicy` — deliver sibling context to native sync/async policy calls [T1.2-T1.5]
+- `create_augmentors` — propagate effective tool-use task type to Reflection augmentor [T1.6]
+
 ## 2026-06-12 Unreleased (`docs/lm/bedrock_connectivity.md`)
 
 ### Fixed

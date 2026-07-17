@@ -273,13 +273,18 @@ class NativeToolUseStep(BaseToolUseStep):
         return messages
 
     def verb_step(self) -> str:
-        """Verbalize for logging."""
+        """Verbalize the native step, including completed tool observations."""
         if self.user_message:
             return f"[USER] {self.user_message}"
         if self.action:
-            return f"[TOOL_CALL] {self.action}"
+            text = f"[TOOL_CALL] {self.action}"
+            if self.observation is not None:
+                text += f"\n[OBSERVATION] {self.observation}"
+            return text
         if self.answer:
             return f"[ANSWER] {self.answer[:100]}..."
+        if self.observation is not None:
+            return f"[OBSERVATION] {self.observation}"
         return "[EMPTY STEP]"
 
     def to_dict(self) -> dict:

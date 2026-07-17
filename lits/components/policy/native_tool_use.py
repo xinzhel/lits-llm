@@ -247,7 +247,20 @@ class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
         combined = (base_prompt + dynamic_notes).strip()
         self.base_model.sys_prompt = combined if combined else None
 
-    def _build_messages(self, query: str, state: ToolUseState) -> list[dict]:
+    def _build_sibling_context_text(self, existing_siblings: list) -> str:
+        """Build text describing already chosen siblings."""
+        siblings_str = "\n".join(f"- {s.verb_step()}" for s in existing_siblings)
+        return (
+            "The following actions have already been chosen by other candidates. "
+            "Choose a DIFFERENT action:\n" + siblings_str
+        )
+
+    def _build_messages(
+        self,
+        query: str,
+        state: ToolUseState,
+        existing_siblings: list | None = None,
+    ) -> list[dict]:
         """Build Converse API message list from state.
 
         The user query is seeded as the first user message when state doesn't
@@ -306,6 +319,17 @@ class _BaseNativeToolUsePolicy(Policy[ToolUseState, BaseToolUseStep]):
             elif step.answer:
                 messages.append({"role": "assistant", "content": [{"text": step.answer}]})
 
+        if existing_siblings:
+            diversity_note = self._build_sibling_context_text(existing_siblings)
+            if messages and messages[-1].get("role") == "user":
+                messages[-1]["content"].append({"text": "\n\n" + diversity_note})
+            else:
+                logger.debug(
+                    "NativeToolUsePolicy: sibling context appended as a new user turn; last_role=%s",
+                    messages[-1].get("role") if messages else None,
+                )
+                messages.append({"role": "user", "content": [{"text": diversity_note}]})
+
         return messages
 
     def _create_error_steps(self, n_actions: int, error_msg: str) -> list[NativeToolUseStep]:
@@ -341,7 +365,7 @@ class NativeToolUsePolicy(_BaseNativeToolUsePolicy):
             response (parallel tool use), ``_response_to_steps`` yields >1
             steps. We still only need ``n_actions`` total, so we truncate.
         """
-        messages = self._build_messages(query, state)
+        messages = self._build_messages(query, state, existing_siblings=existing_siblings)
         logger.debug("NativeToolUsePolicy messages: %d messages", len(messages))
         steps: list[NativeToolUseStep] = []
         for _ in range(n_actions):
@@ -372,7 +396,8 @@ class AsyncNativeToolUsePolicy(_BaseNativeToolUsePolicy):
             ``text_delta``, ``tool_use``, ``stop``.
         """
         self.set_system_prompt()
-        messages = self._build_messages(query, state)
+        existing_siblings = kwargs.pop("existing_siblings", None)
+        messages = self._build_messages(query, state, existing_siblings=existing_siblings)
         async for event in self.base_model.astream(messages, tools=self.tool_schemas, **kwargs):
             yield event
 
@@ -398,7 +423,7 @@ class AsyncNativeToolUsePolicy(_BaseNativeToolUsePolicy):
             response (parallel tool use), ``_response_to_steps`` yields >1
             steps. We still only need ``n_actions`` total, so we truncate.
         """
-        messages = self._build_messages(query, state)
+        messages = self._build_messages(query, state, existing_siblings=existing_siblings)
         logger.debug("NativeToolUsePolicy messages: %d messages", len(messages))
         tasks = [
             self._call_model(messages, temperature=temperature, tools=self.tool_schemas)
