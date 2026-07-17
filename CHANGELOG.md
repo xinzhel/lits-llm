@@ -13,6 +13,7 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 - Native memory-plumbing local verification checks [T2.1-T2.4]
 
 ### Fixed
+- `pyproject.toml` — restore package version metadata to 0.4.0
 - `NativeToolUseStep.verb_step` — include observations in native textual serialization [T1.1]
 - `NativeToolUsePolicy` — deliver sibling context to native sync/async policy calls [T1.2-T1.5]
 - `create_augmentors` — propagate effective tool-use task type to Reflection augmentor [T1.6]
