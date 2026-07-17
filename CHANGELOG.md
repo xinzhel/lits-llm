@@ -9,6 +9,9 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 
 ## 2026-07-17 Unreleased (`0620-chore-memory-plumbing-audit/tasks`)
 
+### Added
+- Native memory-plumbing local verification checks [T2.1-T2.4]
+
 ### Fixed
 - `NativeToolUseStep.verb_step` — include observations in native textual serialization [T1.1]
 - `NativeToolUsePolicy` — deliver sibling context to native sync/async policy calls [T1.2-T1.5]
