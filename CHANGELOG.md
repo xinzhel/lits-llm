@@ -11,6 +11,9 @@ Starting from v0.2.11, version numbers in this changelog are kept in sync with `
 ### Added
 - Private llama.cpp server setup over Tailscale
 
+### Fixed
+- Export `get_lm` lazily from the root `lits` package for the documented local-server client snippet
+
 ## 2026-08-26 Unreleased (`0820-major-selection-interface/tasks`)
 
 ### Added

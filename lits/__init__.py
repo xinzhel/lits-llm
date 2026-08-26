@@ -6,6 +6,7 @@ complex reasoning, planning, and tool-use tasks.
 Core exports:
     - ExperimentConfig: Configuration for tree search experiments
       (lazy import — requires torch, only loaded when accessed)
+    - get_lm: Language model factory
 """
 
 
@@ -15,7 +16,10 @@ def __getattr__(name: str):
     if name == "ExperimentConfig":
         from lits.config import ExperimentConfig
         return ExperimentConfig
+    if name == "get_lm":
+        from lits.lm import get_lm
+        return get_lm
     raise AttributeError(f"module 'lits' has no attribute {name!r}")
 
 
-__all__ = ["ExperimentConfig"]
+__all__ = ["ExperimentConfig", "get_lm"]
