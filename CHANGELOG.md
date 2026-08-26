@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 Starting from v0.2.11, version numbers in this changelog are kept in sync with `pyproject.toml`.
 
+## 2026-08-26 Unreleased (`0820-major-selection-interface/tasks`)
+
+### Added
+- `BFSSearch._do_select_beam` and `MCTSSearch._do_select_path` selection hooks [T2]
+- Default selection-hook regression checks [T2]
+
+### Fixed
+- `MemoryManager.list_inherited_units` docstring escape warning
+
 
 ## 2026-07-17 Unreleased (`0620-chore-memory-plumbing-audit/tasks`)
 

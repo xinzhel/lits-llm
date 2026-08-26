@@ -176,6 +176,9 @@ class BFSSearch(BaseTreeSearch):
     Default delegates to module-level ``_expand_with_existing()``.
     ``_continuation`` receives ``self._do_expand`` as ``expand_func``.
 
+    Override ``_do_select_beam(...)`` to customize beam selection.
+    The default preserves descending ``fast_reward`` pruning.
+
     See ``docs/agents/tree/mcts/MCTS_SEARCH_LOOP.md`` for the extension
     pattern (same approach as MCTS).
     """
@@ -188,6 +191,31 @@ class BFSSearch(BaseTreeSearch):
         Default delegates to the module-level ``_expand_with_existing()``.
         """
         _expand_with_existing(query_or_goals, query_idx, node, policy, n_actions, **kwargs)
+
+    def _do_select_beam(self, query, query_idx, depth, frontier):
+        """Return the nodes retained at the current depth.
+
+        The default computes missing fast rewards, sorts candidates by
+        descending reward, and retains at most ``config.beam_size`` nodes.
+        Subclasses may override this method to implement another selector.
+        """
+        if len(frontier) <= self.config.beam_size:
+            return frontier
+
+        for node in frontier:
+            if node.fast_reward == -1 or node.fast_reward is None:
+                logger.debug(f"Fast reward not computed for node {node.action} for sort")
+                fast_reward, _ = self.reward_model.fast_reward(
+                    node.parent.state,
+                    node.action,
+                    query,
+                    query_idx,
+                    from_phase="sort",
+                )
+                node.fast_reward = fast_reward
+
+        frontier.sort(key=lambda n: n.fast_reward, reverse=True)
+        return frontier[: self.config.beam_size]
 
     def search(self, query, query_idx) -> BFSResult:
         """Run BFS iterations.  ``self.root`` is ready."""
@@ -230,16 +258,7 @@ class BFSSearch(BaseTreeSearch):
                 break
 
             # Beam pruning on current layer
-            if len(frontier) > config.beam_size:
-                for node in frontier:
-                    if node.fast_reward == -1 or node.fast_reward is None:
-                        logger.debug(f"Fast reward not computed for node {node.action} for sort")
-                        fast_reward, _ = self.reward_model.fast_reward(
-                            node.parent.state, node.action, query, query_idx, from_phase="sort"
-                        )
-                        node.fast_reward = fast_reward
-                frontier.sort(key=lambda n: n.fast_reward, reverse=True)
-                frontier = frontier[: config.beam_size]
+            frontier = self._do_select_beam(query, query_idx, depth, frontier)
 
             # 2) Loop each node in the frontier at this depth (Begin)
             for node in frontier:

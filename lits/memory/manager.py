@@ -192,7 +192,7 @@ class LiTSMemoryManager:
     # Retrieval helpers
     # -------------------------------------------------------------------------
     def list_inherited_units(self, trajectory: TrajectoryKey) -> List[MemoryUnit]:
-        """
+        r"""
         Return the inherited memory set \(\mathsf{Mem}(t)\) for trajectory \(t\).
 
         In the LiTS-Mem paper, \(\mathsf{Mem}(t)\) is the set of memory units whose

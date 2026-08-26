@@ -646,13 +646,11 @@ class MCTSSearch(BaseTreeSearch):
     method.  Subclasses can override these to customize behavior without
     modifying the core search loop:
 
+    - ``_do_select_path(...)``   → default calls module-level ``_select()``
     - ``_do_expand(...)``        → default calls module-level ``_expand()``
     - ``_do_simulate(...)``      → default calls module-level ``_simulate()``
     - ``_do_backpropagate(...)`` → default calls ``_back_propagate()`` or
       ``_back_propagate_decay()`` based on config
-
-    ``_select`` is not wrapped because selection strategy is controlled
-    by config (``w_exp``, ``cross_rollout_q_func``).
 
     ``_continuation`` receives ``self._do_expand`` as ``expand_func``,
     so overriding ``_do_expand`` automatically applies to continuation.
@@ -681,6 +679,21 @@ class MCTSSearch(BaseTreeSearch):
     # ------------------------------------------------------------------
     # Overridable phase dispatchers
     # ------------------------------------------------------------------
+
+    def _do_select_path(self, query, query_idx, iteration):
+        """Select one root-to-endpoint path for the current iteration.
+
+        The default delegates to module-level ``_select()`` with the
+        existing UCT configuration. Subclasses may override this method to
+        change path selection without modifying the MCTS loop.
+        """
+        config = self.config
+        return _select(
+            config.w_exp,
+            self.root,
+            config.max_steps,
+            config.force_terminating_on_depth_limit,
+        )
 
     def _do_expand(self, query_or_goals, query_idx, node, policy, n_actions, **kwargs):
         """Expand phase — override in subclasses for custom expansion.
@@ -767,7 +780,7 @@ class MCTSSearch(BaseTreeSearch):
                     if augmentor_query_context is not None:
                         augmentor_query_context["trajectory_key"] = traj_key_str
             
-            path = _select(config.w_exp, self.root, config.max_steps, config.force_terminating_on_depth_limit)
+            path = self._do_select_path(query, query_idx, idx_iter)
             
             # Update trajectory_key after select
             update_traj_key(path[-1])
