@@ -134,3 +134,160 @@ version, context length, exact server command, localhost and LiTS checks, infere
 MagicDNS URL, working remote curl request, Tailscale path, prompt-processing speed, generation
 speed, limitations, and any LiTS fix commit that client machines must pull.
 ```
+
+## Remote Client Examples
+
+The verified tailnet-only endpoint is:
+
+```text
+https://xinzhes-macbook-pro-2.tailde6fe4.ts.net
+```
+
+The client Mac must be connected to the same Tailscale tailnet. The server Mac must keep
+`llama-server` and Tailscale running. Tailscale Serve proxies HTTPS to
+`http://127.0.0.1:8080`; Tailscale Funnel is not required and must remain disabled.
+
+### Check the served model
+
+```bash
+curl -sS \
+  https://xinzhes-macbook-pro-2.tailde6fe4.ts.net/v1/models
+```
+
+### Send a normal chat request
+
+```bash
+curl -sS \
+  https://xinzhes-macbook-pro-2.tailde6fe4.ts.net/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  --data-binary '{
+    "model": "local-instruct",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a helpful assistant."
+      },
+      {
+        "role": "user",
+        "content": "Write a short Python function that performs binary search."
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 512,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  }'
+```
+
+### Require a schema-constrained JSON response
+
+Use a JSON Schema when a field must contain one of a fixed set of values. A plain
+`response_format: {"type": "json_object"}` guarantees valid JSON but does not constrain the
+value itself.
+
+```bash
+curl -sS \
+  https://xinzhes-macbook-pro-2.tailde6fe4.ts.net/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  --data-binary '{
+    "model": "local-instruct",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Return only valid JSON matching the supplied schema."
+      },
+      {
+        "role": "user",
+        "content": "Select exactly one ID from node-a and node-b."
+      }
+    ],
+    "temperature": 0,
+    "seed": 42,
+    "max_tokens": 64,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "node_selection",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "selected_id": {
+              "type": "string",
+              "enum": ["node-a", "node-b"]
+            }
+          },
+          "required": ["selected_id"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  }'
+```
+
+Verified response:
+
+```json
+{
+  "selected_id": "node-a"
+}
+```
+
+### Call the remote model through LiTS
+
+Run this from an editable or installed `lits-llm` environment on another tailnet Mac:
+
+```python
+import json
+
+from lits import get_lm
+from lits.lm import setup_inference_logging
+
+model = get_lm(
+    "openai/local-instruct",
+    base_url=(
+        "https://xinzhes-macbook-pro-2."
+        "tailde6fe4.ts.net/v1"
+    ),
+    api_key="no-key",
+)
+
+setup_inference_logging(
+    model,
+    root_dir="/tmp/lits-remote-model-check",
+)
+
+output = model(
+    [
+        {
+            "role": "system",
+            "content": (
+                "Return only valid JSON. The selected_id must be "
+                "exactly node-a or node-b."
+            ),
+        },
+        {
+            "role": "user",
+            "content": "Select one ID from node-a and node-b.",
+        },
+    ],
+    role="evaluator_selector",
+    temperature=1e-6,
+    max_new_tokens=64,
+    enable_thinking=False,
+)
+
+result = json.loads(output.text)
+
+if result.get("selected_id") not in {"node-a", "node-b"}:
+    raise ValueError(f"Unexpected model output: {result}")
+
+print(result)
+```
+
+The root-level `from lits import get_lm` import requires LiTS commit `bb375cc` or later. On an
+older client installation, use `from lits.lm import get_lm` until LiTS has been updated.
