@@ -143,6 +143,20 @@ The verified tailnet-only endpoint is:
 https://xinzhes-macbook-pro-2.tailde6fe4.ts.net
 ```
 
+The current deployment uses `ggml-org/Qwen3.8-27B-GGUF` with the
+`Qwen3.8-27B-Q4_K_M.gguf` quantization. It is served with a 32K context window while keeping
+the stable `local-instruct` alias used by LiTS clients:
+
+```bash
+/opt/homebrew/bin/llama-server \
+  -m /Users/xinzheli/models/llama.cpp/Qwen3.8-27B-Q4_K_M.gguf \
+  --alias local-instruct \
+  --host 127.0.0.1 \
+  --port 8080 \
+  --ctx-size 32768 \
+  --jinja
+```
+
 The client Mac must be connected to the same Tailscale tailnet. The server Mac must keep
 `llama-server` and Tailscale running. Tailscale Serve proxies HTTPS to
 `http://127.0.0.1:8080`; Tailscale Funnel is not required and must remain disabled.
