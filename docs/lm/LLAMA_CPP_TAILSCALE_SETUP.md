@@ -143,19 +143,54 @@ The verified tailnet-only endpoint is:
 https://xinzhes-macbook-pro-2.tailde6fe4.ts.net
 ```
 
-The current deployment uses `ggml-org/Qwen3.8-27B-GGUF` with the
-`Qwen3.8-27B-Q4_K_M.gguf` quantization. It is served with a 32K context window while keeping
-the stable `local-instruct` alias used by LiTS clients:
+The current deployment uses the original `Qwen/Qwen3-8B` model from the official
+`Qwen/Qwen3-8B-GGUF` repository. The official repository does not publish BF16/F16 GGUF, so
+the highest-precision published artifact, `Qwen3-8B-Q8_0.gguf`, is used. Q8_0 has a small
+quality tradeoff relative to BF16 while leaving substantially more unified-memory headroom
+for the KV cache than a local BF16 conversion.
+
+The server provides one 65,536-token slot. Qwen3-8B is native at 32,768 tokens and supports
+YaRN extension to 131,072; a factor of 2 is used here to cover the input, an 8,192-token
+reasoning prefix, approximately 32,768 output tokens, and template overhead. The backend
+remains bound to localhost and keeps the stable `local-instruct` alias used by LiTS clients:
 
 ```bash
-/opt/homebrew/bin/llama-server \
-  -m /Users/xinzheli/models/llama.cpp/Qwen3.8-27B-Q4_K_M.gguf \
+launchctl submit \
+  -l com.xinzheli.llama-server \
+  -o /tmp/llama-server-qwen3-8b.log \
+  -e /tmp/llama-server-qwen3-8b.err \
+  -- /opt/homebrew/bin/llama-server \
+  -m /Users/xinzheli/models/llama.cpp/Qwen3-8B-Q8_0.gguf \
   --alias local-instruct \
   --host 127.0.0.1 \
   --port 8080 \
-  --ctx-size 32768 \
+  --ctx-size 65536 \
+  --parallel 1 \
+  --flash-attn on \
+  --cache-type-k f16 \
+  --cache-type-v f16 \
+  --override-kv qwen3.context_length=int:65536 \
+  --rope-scaling yarn \
+  --rope-scale 2 \
+  --yarn-orig-ctx 32768 \
+  --no-context-shift \
   --jinja
 ```
+
+The active job is a submitted per-user launchd job rather than an installed persistent plist,
+so submit it again after a reboot or login if necessary.
+
+Model provenance:
+
+- GGUF repository revision: `7c41481f57cb95916b40956ab2f0b139b296d974`
+- Source URL: `https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/7c41481f57cb95916b40956ab2f0b139b296d974/Qwen3-8B-Q8_0.gguf`
+- SHA-256: `408b955510e196121c1c375201744783b5c9a43c7956d73fc78df54c66e883d6`
+- File size: `8,709,518,112` bytes; quantization: `Q8_0`
+- Tokenizer: Qwen2 tokenizer family, 151,936 tokens; BOS `<|endoftext|>`, EOS `<|im_end|>`
+- The embedded Qwen3 Jinja template is the official GGUF's Minja-compatible equivalent of
+  the release-era `Qwen/Qwen3-8B` template. Use
+  `chat_template_kwargs: {"enable_thinking": false}` for non-thinking chat and `true` (or
+  `/think`) for thinking-enabled chat.
 
 The client Mac must be connected to the same Tailscale tailnet. The server Mac must keep
 `llama-server` and Tailscale running. Tailscale Serve proxies HTTPS to
